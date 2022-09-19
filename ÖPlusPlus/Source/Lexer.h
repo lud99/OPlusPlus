@@ -1,0 +1,177 @@
+#pragma once
+
+#include <string>
+#include <vector>
+
+struct Token
+{
+	enum Types {
+		Empty,
+		IntType,
+		IntLiteral,
+		FloatType,
+		FloatLiteral,
+		DoubleType,
+		DoubleLiteral,
+		StringType,
+		StringLiteral,
+		CharType,
+		CharLiteral,
+
+		Variable,
+
+		Semicolon,
+
+		Add,
+		Subtract,
+		Multiply,
+		Divide,
+		PlusEquals,
+		MinusEquals,
+
+		SetEquals,
+		CompareEquals,
+		NotEquals,
+		LessThan,
+		GreaterThan,
+		LessThanEqual,
+		GreaterThanEqual,
+
+		PostIncrement,
+		PreIncrement,
+		PostDecrement,
+		PreDecrement,
+
+		//Null = 0,
+		//Variable,
+		//CharType,
+		//ArrayType,
+		//FunctionType,
+		//ObjectType,
+		//NullType,
+		//Boolean,
+		//SetEquals,
+		//Colon,
+
+		//CompareEquals,
+		//NotEquals,
+		//LessThan,
+		//GreaterThan,
+		//LessThanEqual,
+		//GreaterThanEqual,
+		//And,
+		//Or,
+		//Not,
+		//LeftShift,
+		//RightShift,
+		//Xor,
+		//Comma,
+
+		LeftParentheses,
+		RightParentheses,
+		LeftCurlyBracket,
+		RightCurlyBracket,
+		LeftSquareBracket,
+		RightSquareBracket,
+
+		//LineEnd,
+
+		//IntType,
+		//IntLiteral,
+		//FloatType,
+		//FloatLiteral,
+		//DoubleType,
+		//DoubleLiteral,
+		//StringType,
+		//StringLiteral,
+		//CharType,
+		//CharLiteral,
+
+		//FunctionCall,
+		//Return,
+		//Add,
+		//Subtract,
+		//Multiply,
+		//Divide,
+		//PlusEquals,
+		//MinusEquals,
+		//PostIncrement,
+		//PreIncrement,
+		//PostDecrement,
+		//PreDecrement,
+		//LeftCurlyBracket,
+		//RightCurlyBracket,
+		//LeftSquareBracket,
+		//RightSquareBracket,
+		//If,
+		//Else,
+		//While,
+		//For,
+		//Break,
+		//Continue
+	};
+
+	Token() {};
+	Token(Types type, std::string value = "", int depth = -1) : m_Type(type), m_Value(value), m_Depth(depth) {};
+
+	std::string ToString();
+
+	inline bool IsVariableType()
+	{
+		return m_Type == Token::IntType || m_Type == Token::StringType || m_Type == Token::DoubleType;
+	}
+
+	/*inline bool IsMathOperator()
+	{
+		return Type == Token::Add || Type == Token::Subtract || Type == Token::Multiply || Type == Token::Divide;
+	}
+
+	
+	inline bool IsStatementKeyword()
+	{
+		return Type == Token::If || Type == Token::While || Type == Token::For;
+	}
+
+	inline bool IsComparisonOperator()
+	{
+		return Type == Token::CompareEquals || Type == Token::NotEquals || Type == Token::LessThan || Type == Token::GreaterThan
+			|| Type == Token::LessThanEqual || Type == Token::GreaterThanEqual;
+	}*/
+
+	Types m_Type = Types::Empty;
+	std::string m_Value;
+
+	int m_Depth = -1;
+};
+
+class Lexer
+{
+public:
+	std::string CreateTokens(const std::string& source);
+
+	char ConsumeNext();
+	char Next();
+	bool IsNext();
+	char Previous();
+	char Current();
+	int CharactersLeft();
+	int Skip();
+
+	int TotalDepth();
+
+	Token AddToken(Token token);
+
+	std::string MakeError(const std::string& message);
+
+public:
+	std::vector<Token> m_Tokens;
+
+	int m_Position = 0;
+	int m_CurrentLine = 0;
+
+	std::vector<std::string> m_Lines;
+	std::string m_Source = "";
+
+	int m_ParenthesisParsingDepth = 0;
+	int m_ScopeParsingDepth = 0;
+};
