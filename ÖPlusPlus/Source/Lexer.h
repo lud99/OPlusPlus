@@ -45,7 +45,6 @@ struct Token
 		LeftShift,
 		RightShift,
 		Xor,
-		UpArrow,
 		Modulus,
 
 		PostIncrement,
@@ -67,7 +66,8 @@ struct Token
 		While,
 		For,
 		Break,
-		Continue
+		Continue,
+		Return,
 	};
 
 	Token() {};
@@ -88,10 +88,10 @@ struct Token
 		return m_Type == Token::Add || m_Type == Token::Subtract || m_Type == Token::Multiply || m_Type == Token::Divide;
 	}
 
-	/*inline bool IsStatementKeyword()
+	inline bool IsStatementKeyword()
 	{
 		return m_Type == Token::If || m_Type == Token::While || m_Type == Token::For;
-	}*/
+	}
 
 	inline bool IsComparisonOperator()
 	{

@@ -457,6 +457,40 @@ std::vector<std::vector<Token>> MakeScopeIntoLines(std::vector<Token> tokens, in
 	return lines;
 }
 
+bool Parser::IsValidStatement(Tokens tokens)
+{
+	if (!tokens[0].IsStatementKeyword()) return false;
+
+	if (!ElementExists(tokens, 1) || tokens[1].m_Type != Token::LeftParentheses)
+		return MakeError("Expected a left parentheses after " + tokens[0].ToString() + " statement");
+
+	// Collect the statement tokens
+	int endParanthesisPosition = FindMatchingEndBracket(tokens, tokens[1]);
+	if (endParanthesisPosition == -1)
+		return MakeError("Found no closing parenthesis for " + tokens[0].ToString() + " statement");
+	std::vector<Token> argContent = SliceVector(tokens, 2, endParanthesisPosition);
+
+	if (argContent.empty())
+		return MakeError("Expected an expression inside the " + tokens[0].ToString() + " statement");
+
+	if (argContent.front().m_Type == Token::Comma)
+		return MakeError("Expected something before the first comma in the " + tokens[0].ToString() + " statement");
+	if (argContent.back().m_Type == Token::Comma)
+		return MakeError("Expected something after the last comma in the " + tokens[0].ToString() + " statement");
+
+	std::vector<Tokens> argumentsForStatement = DepthSplit(argContent, Token::Comma, tokens[1].m_Depth);
+
+	if (argumentsForStatement.empty())
+		return MakeError("No arguments for " + tokens[0].ToString() + " statement");
+
+	int leftCurlyBracket = endParanthesisPosition + 1;
+
+	if (!ElementExists(tokens, leftCurlyBracket))
+		return MakeError("Expected a scope after the " + tokens[0].ToString() + " statement");
+
+	return true;
+}
+
 // {type} {variable} = {expression} 
 // {variable} = {expression} 
 bool Parser::IsValidAssignmentExpression(Tokens tokens, int equalsSignPosition)
@@ -682,7 +716,12 @@ void Parser::CreateAST(std::vector<Token>& tokens, ASTNode* node, ASTNode* paren
 	// Check for else
 	//
 
-	// if statements
+	if (!ParseStatement(tokens, node))
+	{
+		if (HasError())
+			return;
+	}
+	else return;
 
 	if (!ParseAssignment(tokens, node))
 	{
@@ -774,6 +813,71 @@ void Parser::CreateAST(std::vector<Token>& tokens, ASTNode* node, ASTNode* paren
 	}
 
 	return;
+}
+
+
+bool Parser::ParseStatement(Tokens& tokens, ASTNode* node)
+{
+	if (!tokens[0].IsStatementKeyword()) return false;
+
+	if (!IsValidStatement(tokens)) return false;
+
+	// Collect the statement tokens
+	int endParanthesisPosition = FindMatchingEndBracket(tokens, tokens[1]);
+	std::vector<Token> argContent = SliceVector(tokens, 2, endParanthesisPosition);
+
+	std::vector<Tokens> argumentsForStatement = DepthSplit(argContent, Token::Comma, tokens[1].m_Depth);
+
+	if (tokens[0].m_Type == Token::If)
+		node->type = ASTTypes::IfStatement;
+	else if (tokens[0].m_Type == Token::While)
+		node->type = ASTTypes::WhileStatement;
+	else if (tokens[0].m_Type == Token::For)
+		node->type = ASTTypes::ForStatement;
+
+	for (int i = 0; i < argumentsForStatement.size(); i++)
+	{
+		ReduceDepthOfTokens(argumentsForStatement[i]);
+	}
+
+	// Specifics for a 'for' statement
+	if (node->type == ASTTypes::ForStatement)
+	{
+		if (argumentsForStatement.size() != 3)
+			return MakeError("Expected 3 parts inside the for statement");
+
+		// 1. Initialization, run once
+		ASTNode* n1 = new ASTNode();
+		CreateAST(argumentsForStatement[0], n1, node);
+		node->arguments.push_back(n1);
+
+		// 2. Condition
+		ASTNode* n2 = new ASTNode();
+		CreateAST(argumentsForStatement[1], n2, node);
+		node->arguments.push_back(n2);
+
+		// 3. Increment, run at end
+		ASTNode* n3 = new ASTNode();
+		CreateAST(argumentsForStatement[2], n3, node);
+		node->arguments.push_back(n3);
+
+		if (HasError()) return false;
+	}
+	else
+	{
+		node->left = new ASTNode();
+		CreateAST(argumentsForStatement[0], node->left, node);
+	}
+
+	int leftCurlyBracket = endParanthesisPosition + 1;
+	int rightCurlyBracket = FindMatchingEndBracket(tokens, tokens[endParanthesisPosition + 1]);
+
+	node->right = new ASTNode;
+	std::vector<Token> scope = SliceVector(tokens, leftCurlyBracket, rightCurlyBracket + 1);
+	CreateAST(scope, node->right, node);
+	if (HasError()) return false;
+
+	return true;
 }
 
 bool Parser::ParseAssignment(Tokens& tokens, ASTNode* node)

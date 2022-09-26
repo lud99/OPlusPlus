@@ -45,7 +45,6 @@ std::string Token::ToString()
 		"LeftShift",
 		"RightShift",
 		"Xor",
-		"UpArrow",
 		"Modulus",
 
 		"PostIncrement",
@@ -67,7 +66,8 @@ std::string Token::ToString()
 		"While",
 		"For",
 		"Break",
-		"Continue"
+		"Continue",
+		"Return",
 	};
 
 	return names[(int)m_Type];
@@ -296,17 +296,42 @@ Token ResolveTokenKeyword(Token tok)
 	else if (token.m_Value == "char")
 		token.m_Type = Token::CharType;
 
+	else if (token.m_Value == "return")
+		token.m_Type = Token::Return;
+	else if (token.m_Value == "if")
+		token.m_Type = Token::If;
+	else if (token.m_Value == "else")
+		token.m_Type = Token::Else;
+	else if (token.m_Value == "while")
+		token.m_Type = Token::While;
+	else if (token.m_Value == "for")
+		token.m_Type = Token::For;
+	else if (token.m_Value == "continue")
+		token.m_Type = Token::Continue;
+	else if (token.m_Value == "break")
+		token.m_Type = Token::Break;
+	else if (token.m_Value == "and")
+		token.m_Type = Token::And;
+	else if (token.m_Value == "or")
+		token.m_Type = Token::Or;
+	else if (token.m_Value == "not")
+		token.m_Type = Token::Not;
+	else if (token.m_Value == "xor")
+		token.m_Type = Token::Xor;
+	else if (token.m_Value == "mod")
+		token.m_Type = Token::Modulus;
+
 	// Convert boolean tokens 'true' and 'false' to numbers
-	/*if (token.Type == Token::Boolean)
+	if (token.m_Type == Token::Variable && (token.m_Value == "true" || token.m_Value == "false"))
 	{
 		if (token.m_Value == "true")
 			token.m_Value = "1";
 		else
 			token.m_Value = "0";
 
-		token.Type = Token::Number;
+		token.m_Type = Token::IntLiteral;
 	}
-	*/
+	
 	return token;
 }
 
@@ -390,16 +415,15 @@ std::string Lexer::CreateTokens(const std::string& source)
 	bool isMultilineComment = false;
 	bool isInString = false;
 
-	bool isParsingFunction = false;
-
 	int functionParsingDepth = 0;
 	int parenthesisParsingDepth = 0;
 	int statementParsingDepth = 0;
 	int scopeParsingDepth = 0;
 
-	auto totalBracketDepth = [&] {
-		return parenthesisParsingDepth;
+	auto shouldAddSemicolon = [&] {
+		return !m_Tokens.empty() && m_Tokens.back().m_Type != Token::Semicolon && m_Tokens.back().m_Type != Token::LeftCurlyBracket;
 	};
+
 	auto isInComment = [&] {
 		return isInSingleLineComment || isMultilineComment;
 	};
@@ -411,7 +435,7 @@ std::string Lexer::CreateTokens(const std::string& source)
 		{
 			m_CurrentLine++;
 
-			if (!m_Tokens.empty() && m_Tokens.back().m_Type != Token::Semicolon)
+			if (shouldAddSemicolon())
 				AddToken(Token(Token::Semicolon, ";"));
 		}
 			
@@ -499,18 +523,15 @@ std::string Lexer::CreateTokens(const std::string& source)
 				token = AddToken(ResolveTokenKeyword(token));
 			}
 
-			//else if (!tokens.empty() && tokens.back().IsStatementKeyword())
-			//{
-			//	// Cant have if statements inside other statements. TODO enable, has a lot of false positives
-			//	//if (isParsingStatement)
-			//		//return "Cannot have " + tokens.back().ToString() + " statement inside another statement";
-			//	
-			//	if (string[i] == '(')
-			//	{
-			//		isParsingStatement = true;
-			//		statementParsingDepth++;
-			//	}
-			//}
+			else if (!m_Tokens.empty() && m_Tokens.back().IsStatementKeyword())
+			{
+				// Cant have if statements inside other statements. TODO enable, has a lot of false positives
+				//if (isParsingStatement)
+					//return "Cannot have " + tokens.back().ToString() + " statement inside another statement";
+				
+				if (Current() == '(')
+					statementParsingDepth++;
+			}
 
 			// Number
 			else if (IsValidNumberPart(source, m_Position, error))
@@ -670,9 +691,9 @@ std::string Lexer::CreateTokens(const std::string& source)
 			// Not
 			if (Current() == '!')
 				token = AddToken(Token(Token::Not, "!"));
-			// Power
+			// Xor
 			if (Current() == '^')
-				token = AddToken(Token(Token::UpArrow, "^"));
+				token = AddToken(Token(Token::Xor, "^"));
 			// Modulus
 			if (Current() == '%')
 				token = AddToken(Token(Token::Modulus, "%"));
@@ -694,15 +715,6 @@ std::string Lexer::CreateTokens(const std::string& source)
 			else if (Current() == '=')// && (tokens.back().Type != Token::PlusEquals || tokens.back().Type != Token::MinusEquals))
 				AddToken(Token(Token::SetEquals, "="));
 
-			//if (string[i] == ',')
-			//{
-			//	// Add the token with whatever content
-			//	if (token.Type != Token::Null)
-			//		AddToken(tokens, token);
-
-			//	AddToken(tokens, Token::Comma, ",", totalBracketDepth());
-			//}
-
 			//if (string[i] == ':')
 			//{
 			//	// Add the token with whatever content
@@ -723,7 +735,7 @@ std::string Lexer::CreateTokens(const std::string& source)
 			{
 				m_CurrentLine++;
 
-				if (!m_Tokens.empty() && m_Tokens.back().m_Type != Token::Semicolon)
+				if (shouldAddSemicolon())
 					AddToken(Token(Token::Semicolon, ";"));
 			}
 
@@ -768,10 +780,6 @@ std::string Lexer::CreateTokens(const std::string& source)
 	// Check for unclosed strings
 	if (isInString)
 		return "Expected the string to end";
-
-	// Check for unclosed function calls
-	if (isParsingFunction)
-		return "Expected closing bracket";
 
 	// Check for unclosed scopes
 	if (scopeParsingDepth != 0)
