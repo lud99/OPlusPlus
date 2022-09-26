@@ -105,16 +105,24 @@ public:
 
 	void PrintASTTree(ASTNode* node, int depth);
 
-	/*bool IsValidAssignmentExpression(std::vector<Token> tokens, int equalsSignPosition);
-	bool IsValidPropertyAssignmentExpression(std::vector<Token> tokens);
-	bool IsValidDeclarationExpression(std::vector<Token> tokens);
+	bool IsValidAssignmentExpression(std::vector<Token> tokens, int equalsSignPosition);
+	//bool IsValidPropertyAssignmentExpression(std::vector<Token> tokens);
+	bool IsValidVariableDeclarationExpression(std::vector<Token> tokens);
 	bool IsValidCompoundAssignment(std::vector<Token> tokens, int operatorPosition);
 	bool IsValidPostIncDecExpression(std::vector<Token> tokens);
 	bool IsValidPreIncDecExpression(std::vector<Token> tokens);
-	bool IsValidModifier(std::vector<Token> tokens);*/
+	//bool IsValidModifier(std::vector<Token> tokens);
+
+	
 
 	void CreateAST(std::vector<Token>& tokens, ASTNode* node, ASTNode* parent = nullptr);
 
+	bool ParseAssignment(Tokens& tokens, ASTNode* node);
+	bool ParseVariableDeclaration(Tokens& tokens, ASTNode* node);
+	bool ParseParentheses(Tokens& tokens, ASTNode* node);
+
 public:
 	std::string m_Error = "";
+
+	ASTNode root;
 };

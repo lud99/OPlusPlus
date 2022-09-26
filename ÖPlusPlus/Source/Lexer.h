@@ -116,10 +116,15 @@ struct Token
 
 	std::string ToString();
 
+	/* 
+	string, int, double and also user-defined structs. Eg: Not an integer literal, but the explicit type
+	*/
 	inline bool IsVariableType()
 	{
 		return m_Type == Token::IntType || m_Type == Token::StringType || m_Type == Token::DoubleType;
 	}
+
+
 
 	/*inline bool IsMathOperator()
 	{
@@ -143,6 +148,8 @@ struct Token
 
 	int m_Depth = -1;
 };
+
+typedef std::vector<Token> Tokens;
 
 class Lexer
 {
