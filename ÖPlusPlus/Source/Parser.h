@@ -118,6 +118,9 @@ public:
 	void CreateAST(std::vector<Token>& tokens, ASTNode* node, ASTNode* parent = nullptr);
 
 	bool ParseAssignment(Tokens& tokens, ASTNode* node);
+	// and
+	bool ParseComparisonOperators(Tokens& tokens, ASTNode* node);
+	// +=
 	bool ParseMathExpression(Tokens& tokens, ASTNode* node);
 	bool ParseVariableDeclaration(Tokens& tokens, ASTNode* node);
 	bool ParseParentheses(Tokens& tokens, ASTNode* node);

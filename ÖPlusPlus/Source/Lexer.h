@@ -124,24 +124,21 @@ struct Token
 		return m_Type == Token::IntType || m_Type == Token::StringType || m_Type == Token::DoubleType;
 	}
 
-
-
-	/*inline bool IsMathOperator()
+	inline bool IsMathOperator()
 	{
-		return Type == Token::Add || Type == Token::Subtract || Type == Token::Multiply || Type == Token::Divide;
+		return m_Type == Token::Add || m_Type == Token::Subtract || m_Type == Token::Multiply || m_Type == Token::Divide;
 	}
 
-	
-	inline bool IsStatementKeyword()
+	/*inline bool IsStatementKeyword()
 	{
-		return Type == Token::If || Type == Token::While || Type == Token::For;
-	}
+		return m_Type == Token::If || m_Type == Token::While || m_Type == Token::For;
+	}*/
 
 	inline bool IsComparisonOperator()
 	{
-		return Type == Token::CompareEquals || Type == Token::NotEquals || Type == Token::LessThan || Type == Token::GreaterThan
-			|| Type == Token::LessThanEqual || Type == Token::GreaterThanEqual;
-	}*/
+		return m_Type == Token::CompareEquals || m_Type == Token::NotEquals || m_Type == Token::LessThan || m_Type == Token::GreaterThan
+			|| m_Type == Token::LessThanEqual || m_Type == Token::GreaterThanEqual;
+	}
 
 	Types m_Type = Types::Empty;
 	std::string m_Value;

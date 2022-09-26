@@ -356,55 +356,23 @@ bool Parser::ParseMathExpression(Tokens& tokens, ASTNode* node)
 		return true;
 	};
 
-	//Add
 	for (int i = 0; i < tokens.size(); i++)
 	{
-		if (tokens[i].m_Type == Token::Add)
+		if (tokens[i].IsMathOperator())
 		{
 			// Check if these tokens are inside a function argument
 			if (IsInsideBrackets(tokens, i))
 				continue;
 
-			node->type = ASTTypes::Add;
-			return ParseMath(i);
-		}
-	}
-	// Subtract
-	for (int i = 0; i < tokens.size(); i++)
-	{
-		if (tokens[i].m_Type == Token::Subtract)
-		{
-			// Check if these tokens are inside a function argument
-			if (IsInsideBrackets(tokens, i))
-				continue;
+			if (tokens[i].m_Type == Token::Add)
+				node->type = ASTTypes::Add;
+			if (tokens[i].m_Type == Token::Subtract)
+				node->type = ASTTypes::Subtract;
+			if (tokens[i].m_Type == Token::Divide)
+				node->type = ASTTypes::Divide;
+			if (tokens[i].m_Type == Token::Multiply)
+				node->type = ASTTypes::Multiply;
 
-			node->type = ASTTypes::Subtract;
-			return ParseMath(i);
-		}
-	}
-	// Divide
-	for (int i = 0; i < tokens.size(); i++)
-	{
-		if (tokens[i].m_Type == Token::Divide)
-		{
-			// Check if these tokens are inside a function argument
-			if (IsInsideBrackets(tokens, i))
-				continue;
-
-			node->type = ASTTypes::Divide;
-			return ParseMath(i);
-		}
-	}
-	// Multiply
-	for (int i = 0; i < tokens.size(); i++)
-	{
-		if (tokens[i].m_Type == Token::Multiply)
-		{
-			// Check if these tokens are inside a function argument
-			if (IsInsideBrackets(tokens, i))
-				continue;
-
-			node->type = ASTTypes::Multiply;
 			return ParseMath(i);
 		}
 	}
@@ -429,8 +397,8 @@ std::vector<std::vector<Token>> MakeScopeIntoLines(std::vector<Token> tokens, in
 	int scopeDepth = 0;// tokens[start].m_Depth;
 	bool isInsideParentheses = false;
 	bool isInsideDeeperScope = false;
-	int lowestScopeDepth = -1;
 
+	int currentCurlyBracketDepth = 0;
 	int curlyBracketDepth = 0;
 
 	std::vector<Token> og = tokens;
@@ -442,7 +410,6 @@ std::vector<std::vector<Token>> MakeScopeIntoLines(std::vector<Token> tokens, in
 		Token token = tokens[i];
 
 		isInsideDeeperScope = token.m_Depth > scopeDepth;
-		if (lowestScopeDepth < token.m_Depth) lowestScopeDepth = token.m_Depth;
 
 		if (token.m_Type == Token::LeftCurlyBracket)
 		{
@@ -452,6 +419,7 @@ std::vector<std::vector<Token>> MakeScopeIntoLines(std::vector<Token> tokens, in
 		else if (token.m_Type == Token::RightCurlyBracket)
 		{
 			currentLine.emplace_back(Token::RightCurlyBracket, "", token.m_Depth - 1);
+			curlyBracketDepth--;
 
 			// If the curly bracket belongs to this scope
 			if (token.m_Depth == 1)
@@ -734,45 +702,12 @@ void Parser::CreateAST(std::vector<Token>& tokens, ASTNode* node, ASTNode* paren
 	}
 	else return;
 
-	//// Comparison. left == right
-	//for (int i = 0; i < tokens.size(); i++)
-	//{
-	//	if (tokens[i].IsComparisonOperator())
-	//	{
-	//		if (IsInsideBrackets(tokens, i))
-	//			continue;
-
-	//		// Ensure lhs and rhs exists
-	//		if (!ElementExists(tokens, i - 1))
-	//			return CreateErrorVoid("Expected comething to the left of compare operator");
-	//		if (!ElementExists(tokens, i + 1))
-	//			return CreateErrorVoid("Expected comething to the right of compare operator");
-
-	//		if (tokens[i].m_Type == Token::CompareEquals)
-	//			node->type = ASTTypes::CompareEquals;
-	//		else if (tokens[i].m_Type == Token::NotEquals)
-	//			node->type = ASTTypes::CompareNotEquals;
-	//		else if (tokens[i].m_Type == Token::LessThan)
-	//			node->type = ASTTypes::CompareLessThan;
-	//		else if (tokens[i].m_Type == Token::GreaterThan)
-	//			node->type = ASTTypes::CompareGreaterThan;
-	//		else if (tokens[i].m_Type == Token::LessThanEqual)
-	//			node->type = ASTTypes::CompareLessThanEqual;
-	//		else if (tokens[i].m_Type == Token::GreaterThanEqual)
-	//			node->type = ASTTypes::CompareGreaterThanEqual;
-
-	//		node->left = new ASTNode;
-	//		node->right = new ASTNode;
-
-	//		std::vector<Token> lhs = SliceVector(tokens, 0, i);
-	//		std::vector<Token> rhs = SliceVector(tokens, i + 1);
-
-	//		CreateAST(lhs, node->left, node);
-	//		CreateAST(rhs, node->right, node);
-
-	//		return;
-	//	}
-	//}
+	// Comparison operators
+	if (!ParseComparisonOperators(tokens, node))
+	{
+		if (m_Error != "")
+			return;
+	} else return;
 
 	// Variable declaration
 	if (!ParseVariableDeclaration(tokens, node))
@@ -840,6 +775,50 @@ bool Parser::ParseAssignment(Tokens& tokens, ASTNode* node)
 
 			node->left = new ASTNode;
 			node->right = new ASTNode;
+
+			CreateAST(lhs, node->left, node);
+			CreateAST(rhs, node->right, node);
+
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool Parser::ParseComparisonOperators(Tokens& tokens, ASTNode* node)
+{
+	for (int i = 0; i < tokens.size(); i++)
+	{
+		if (tokens[i].IsComparisonOperator())
+		{
+			if (IsInsideBrackets(tokens, i))
+				continue;
+
+			// Ensure lhs and rhs exists
+			if (!ElementExists(tokens, i - 1))
+				return MakeError("Expected comething to the left of compare operator");
+			if (!ElementExists(tokens, i + 1))
+				return MakeError("Expected comething to the right of compare operator");
+
+			if (tokens[i].m_Type == Token::CompareEquals)
+				node->type = ASTTypes::CompareEquals;
+			else if (tokens[i].m_Type == Token::NotEquals)
+				node->type = ASTTypes::CompareNotEquals;
+			else if (tokens[i].m_Type == Token::LessThan)
+				node->type = ASTTypes::CompareLessThan;
+			else if (tokens[i].m_Type == Token::GreaterThan)
+				node->type = ASTTypes::CompareGreaterThan;
+			else if (tokens[i].m_Type == Token::LessThanEqual)
+				node->type = ASTTypes::CompareLessThanEqual;
+			else if (tokens[i].m_Type == Token::GreaterThanEqual)
+				node->type = ASTTypes::CompareGreaterThanEqual;
+
+			node->left = new ASTNode;
+			node->right = new ASTNode;
+
+			std::vector<Token> lhs = SliceVector(tokens, 0, i);
+			std::vector<Token> rhs = SliceVector(tokens, i + 1);
 
 			CreateAST(lhs, node->left, node);
 			CreateAST(rhs, node->right, node);
