@@ -139,6 +139,25 @@ bool IsInsideBrackets(std::vector<Token> tokens, int start)
 	return false;
 }
 
+bool IsInsideScope(std::vector<Token> tokens, int start)
+{
+	for (int i = start; i >= 0; i--) // Walk from here backwards
+	{
+		if (ElementExists(tokens, i - 1))
+		{
+			if (tokens[i].m_Type == Token::LeftCurlyBracket)
+				return true;
+		}
+		if (tokens[i].m_Type == Token::RightCurlyBracket)
+		{
+			//assert(tokens[i].Depth >= 1);
+			return tokens[i].m_Depth > 1;
+		}
+	}
+
+	return false;
+}
+
 // Find the matching bracket (, {, [ with the same depth
 int FindMatchingEndBracket(std::vector<Token>& tokens, Token& startToken)
 {
@@ -352,17 +371,21 @@ void ReduceDepth(std::vector<Token>& tokens, Token::Types toFind)
 	}
 }
 
-std::vector<std::vector<Token>> MakeScopeIntoLines(std::vector<Token> tokens, int start, int end)
+std::vector<Tokens> MakeScopeIntoLines(std::vector<Token> tokens, int start, int end)
 {
-	std::vector<std::vector<Token>> lines;
+	std::vector<Tokens> lines;
 	std::vector<Token> currentLine;
 
 	int scopeDepth = 0;
 	bool isInsideParentheses = false;
 	bool isInsideDeeperScope = false;
 
+	bool isInsideStatement = false;
+
 	int currentCurlyBracketDepth = 0;
 	int curlyBracketDepth = 0;
+	int statementDepth = 0;
+	bool insideStatementArgs = false;
 
 	tokens = SliceVector(tokens, start, end);
 
@@ -371,19 +394,34 @@ std::vector<std::vector<Token>> MakeScopeIntoLines(std::vector<Token> tokens, in
 		Token token = tokens[i];
 
 		isInsideDeeperScope = token.m_Depth > scopeDepth;
+		bool isInsideStatement = statementDepth > 0;
 
-		if (token.m_Type == Token::LeftCurlyBracket)
+		if (token.IsStatementKeyword()) 
 		{
-			currentLine.emplace_back(Token::LeftCurlyBracket, "", token.m_Depth - 1);
+			statementDepth++;
+			insideStatementArgs = true;
+			token.m_Depth--;
+			currentLine.push_back(token);
+		}
+		else if (token.m_Type == Token::LeftCurlyBracket)
+		{
+			token.m_Depth--;
+
+			currentLine.push_back(token);
+
 			curlyBracketDepth++;
 		}
 		else if (token.m_Type == Token::RightCurlyBracket)
 		{
-			currentLine.emplace_back(Token::RightCurlyBracket, "", token.m_Depth - 1);
+			token.m_Depth--;
+
+			currentLine.push_back(token);
+
 			curlyBracketDepth--;
+			isInsideDeeperScope = token.m_Depth > scopeDepth;
 
 			// If the curly bracket belongs to this scope
-			if (token.m_Depth == 1)
+			if (!isInsideDeeperScope)
 			{
 				// Then search for elses that are right after the scope, for example an if statement
 				/*if (i < tokens.size() - 1)
@@ -395,18 +433,33 @@ std::vector<std::vector<Token>> MakeScopeIntoLines(std::vector<Token> tokens, in
 					}
 				}*/
 
-				lines.push_back(currentLine);
-				currentLine.clear();
+				if (i < tokens.size() - 1)
+				{
+					if (tokens[i + 1].m_Type == Token::Else)
+					{
+						
+					}
+					else {
+						lines.push_back(currentLine);
+						currentLine.clear();
+					}
+				}
 
 				// Reduce the scope depth
 				/*scopeDepth--;
-				isInsideDeeperScope = false;*/
+				isInsideDeeperScope = false;
+				curlyBracketDepth--;*/
 			}
+		}
+		else if (token.m_Type == Token::Else)
+		{
+			currentLine.emplace_back(Token::Else, "", token.m_Depth - 1);
 		}
 		else if (token.m_Type == Token::LeftParentheses)
 		{
 			isInsideParentheses = true;
-			if (curlyBracketDepth > 0)
+
+			if (curlyBracketDepth > 0 || insideStatementArgs)
 				token.m_Depth--;
 
 			currentLine.push_back(token);
@@ -414,8 +467,11 @@ std::vector<std::vector<Token>> MakeScopeIntoLines(std::vector<Token> tokens, in
 		else if (token.m_Type == Token::RightParentheses)
 		{
 			isInsideParentheses = true;
-			if (curlyBracketDepth > 0)
+
+			if (curlyBracketDepth > 0 || insideStatementArgs)
 				token.m_Depth--;
+
+			if (statementDepth == token.m_Depth) insideStatementArgs = false;
 
 			currentLine.push_back(token);
 		}
@@ -428,7 +484,7 @@ std::vector<std::vector<Token>> MakeScopeIntoLines(std::vector<Token> tokens, in
 			if (token.m_Type != Token::Semicolon)
 			{
 				if (isInsideDeeperScope) {
-					if (curlyBracketDepth > 0)
+					if (curlyBracketDepth > 0 || insideStatementArgs)
 						token.m_Depth--;
 				}
 					
@@ -455,6 +511,19 @@ std::vector<std::vector<Token>> MakeScopeIntoLines(std::vector<Token> tokens, in
 	if (!currentLine.empty()) lines.push_back(currentLine);
 
 	return lines;
+}
+
+bool Parser::IsValidElseStatement(Tokens tokens, int position)
+{
+	Tokens ifScope = SliceVector(tokens, 0, position);
+	Tokens elseScope = SliceVector(tokens, position + 1);
+
+	if (ifScope.empty())
+		return MakeError("Expected if statement before else");
+	if (ifScope[0].m_Type != Token::If)
+		return MakeError("Expected if statement before else, not " + ifScope[0].ToString());
+
+	return true;
 }
 
 bool Parser::IsValidStatement(Tokens tokens)
@@ -669,36 +738,6 @@ void Parser::CreateAST(std::vector<Token>& tokens, ASTNode* node, ASTNode* paren
 		// Evaluate each of the lines, and make the result a child of a line node
 		ASTNode* lineNode = new ASTNode;    
 
-		// Try to merge lines that end with 'else'
-		std::vector<std::vector<Token>> mergedLines;
-		std::vector<Token> concatResult;
-
-		//bool foundElse = false;
-		//for (int i = 0; i < lines.size(); i++)
-		//{
-		//	if (!lines[i].empty() && lines[i].back().m_Type == Token::Else)
-		//	{
-		//		// Merge the two lines
-		//		if (concatResult.empty())
-		//			concatResult = lines[i];
-
-		//		concatResult = ConcatVectors(concatResult, lines[i + 1]);
-		//		foundElse = true;
-		//	}
-		//	else
-		//	{
-		//		if (!concatResult.empty())
-		//			mergedLines.push_back(concatResult);
-
-		//		if (!foundElse) 
-		//			mergedLines.push_back(lines[i]);
-
-		//		concatResult.clear();
-		//		foundElse = false;
-		//	}			
-		//}
-		//lines = mergedLines;
-
 		// Finally, evaluate all lines
 		for (int i = 0; i < lines.size(); i++)
 		{
@@ -713,8 +752,12 @@ void Parser::CreateAST(std::vector<Token>& tokens, ASTNode* node, ASTNode* paren
 		return;
 	}
 
-	// Check for else
-	//
+	if (!ParseElseStatement(tokens, node))
+	{
+		if (HasError())
+			return;
+	}
+	else return;
 
 	if (!ParseStatement(tokens, node))
 	{
@@ -754,6 +797,17 @@ void Parser::CreateAST(std::vector<Token>& tokens, ASTNode* node, ASTNode* paren
 			return;
 	}
 	else return;
+
+	if (tokens[0].m_Type == Token::Else)
+	{
+		node->left = new ASTNode;
+		node->type = ASTTypes::Else;
+
+		std::vector<Token> scope = SliceVector(tokens, 1);
+		CreateAST(scope, node->left, node);
+
+		return;
+	}
 
 	if (!ParseMathExpression(tokens, node))
 	{
@@ -816,6 +870,35 @@ void Parser::CreateAST(std::vector<Token>& tokens, ASTNode* node, ASTNode* paren
 }
 
 
+bool Parser::ParseElseStatement(Tokens& tokens, ASTNode* node)
+{
+	// Check for else
+	for (int i = 0; i < tokens.size(); i++)
+	{
+		if (tokens[i].m_Type == Token::Else)
+		{
+			if (tokens[i].m_Depth != 0)//if (IsInsideScope(tokens, i))
+				continue;
+			if (!IsValidElseStatement(tokens, i))
+				return false;
+
+			Tokens ifScope = SliceVector(tokens, 0, i);
+			Tokens elseScope = SliceVector(tokens, i + 1);
+
+			node->type = ASTTypes::Else;
+			node->left = new ASTNode;
+			node->right = new ASTNode;
+
+			CreateAST(ifScope, node->left, node);
+			CreateAST(elseScope, node->right, node);
+			
+			return true;
+		}
+	}
+
+	return false;
+}
+
 bool Parser::ParseStatement(Tokens& tokens, ASTNode* node)
 {
 	if (!tokens[0].IsStatementKeyword()) return false;
@@ -835,10 +918,10 @@ bool Parser::ParseStatement(Tokens& tokens, ASTNode* node)
 	else if (tokens[0].m_Type == Token::For)
 		node->type = ASTTypes::ForStatement;
 
-	for (int i = 0; i < argumentsForStatement.size(); i++)
+	/*for (int i = 0; i < argumentsForStatement.size(); i++)
 	{
 		ReduceDepthOfTokens(argumentsForStatement[i]);
-	}
+	}*/
 
 	// Specifics for a 'for' statement
 	if (node->type == ASTTypes::ForStatement)

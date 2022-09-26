@@ -122,7 +122,7 @@ public:
 
 	int TotalDepth();
 
-	Token AddToken(Token token);
+	Token AddToken(Token token, int customDepth = -1);
 
 	std::string MakeError(const std::string& message);
 

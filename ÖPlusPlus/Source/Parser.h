@@ -107,6 +107,7 @@ public:
 
 	void PrintASTTree(ASTNode* node, int depth);
 
+	bool IsValidElseStatement(Tokens tokens, int position);
 	bool IsValidStatement(Tokens tokens);
 	bool IsValidAssignmentExpression(Tokens tokens, int equalsSignPosition);
 	bool IsValidCompoundAssignmentExpression(Tokens tokens, int position);
@@ -120,6 +121,7 @@ public:
 
 	void CreateAST(std::vector<Token>& tokens, ASTNode* node, ASTNode* parent = nullptr);
 
+	bool ParseElseStatement(Tokens& tokens, ASTNode* node);
 	bool ParseStatement(Tokens& tokens, ASTNode* node);
 	bool ParseAssignment(Tokens& tokens, ASTNode* node);
 	bool ParseLogicalAndOr(Tokens& tokens, ASTNode* node);

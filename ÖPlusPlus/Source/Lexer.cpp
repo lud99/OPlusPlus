@@ -376,12 +376,12 @@ int Lexer::TotalDepth()
 	return m_ParenthesisParsingDepth + m_ScopeParsingDepth;
 }
 
-Token Lexer::AddToken(Token token)
+Token Lexer::AddToken(Token token, int customDepth)
 {
 	if (token.m_Type == Token::Empty)
 		return token;
 
-	token.m_Depth = TotalDepth();
+	token.m_Depth = customDepth == -1 ? TotalDepth() : customDepth;
 
 	m_Tokens.push_back(token);
 	return Token();
@@ -418,10 +418,12 @@ std::string Lexer::CreateTokens(const std::string& source)
 	int functionParsingDepth = 0;
 	int parenthesisParsingDepth = 0;
 	int statementParsingDepth = 0;
-	int scopeParsingDepth = 0;
 
 	auto shouldAddSemicolon = [&] {
-		return !m_Tokens.empty() && m_Tokens.back().m_Type != Token::Semicolon && m_Tokens.back().m_Type != Token::LeftCurlyBracket;
+		return !m_Tokens.empty() && 
+			m_Tokens.back().m_Type != Token::Semicolon && 
+			m_Tokens.back().m_Type != Token::LeftCurlyBracket && 
+			m_Tokens.back().m_Type != Token::RightCurlyBracket;
 	};
 
 	auto isInComment = [&] {
@@ -520,15 +522,18 @@ std::string Lexer::CreateTokens(const std::string& source)
 
 				if (error != "") return MakeError(error);
 
-				token = AddToken(ResolveTokenKeyword(token));
+				int depth = TotalDepth();
+				if (token.m_Value == "else")
+					depth++;
+
+				token = AddToken(ResolveTokenKeyword(token), depth);
 			}
 
 			else if (!m_Tokens.empty() && m_Tokens.back().IsStatementKeyword())
 			{
-				// Cant have if statements inside other statements. TODO enable, has a lot of false positives
-				//if (isParsingStatement)
-					//return "Cannot have " + tokens.back().ToString() + " statement inside another statement";
-				
+				//scopeParsingDepth++;
+				m_Tokens.back().m_Depth++;
+
 				if (Current() == '(')
 					statementParsingDepth++;
 			}
@@ -782,7 +787,7 @@ std::string Lexer::CreateTokens(const std::string& source)
 		return "Expected the string to end";
 
 	// Check for unclosed scopes
-	if (scopeParsingDepth != 0)
+	if (m_ScopeParsingDepth != 0)
 		return "Expected closing curly bracket";
 
 	if (parenthesisParsingDepth != 0)
