@@ -60,6 +60,8 @@ std::string Token::ToString()
 		"LeftSquareBracket",
 		"RightSquareBracket",
 
+		"FunctionName",
+
 		"If",
 		"Else",
 		"While",
@@ -388,6 +390,8 @@ std::string Lexer::CreateTokens(const std::string& source)
 	bool isMultilineComment = false;
 	bool isInString = false;
 
+	bool isParsingFunction = false;
+
 	int functionParsingDepth = 0;
 	int parenthesisParsingDepth = 0;
 	int statementParsingDepth = 0;
@@ -540,12 +544,9 @@ std::string Lexer::CreateTokens(const std::string& source)
 			// Check for parathesis
 			if (Current() == '(')
 			{
-				// The variable is actually a function call
-				/*if (!tokens.empty() && tokens.back().Type == Token::Variable)
-				{
-					tokens.back().Type = Token::FunctionCall;
-					isParsingFunction = true;
-				}*/
+				// The variable in the previous token is actually a function call
+				if (!m_Tokens.empty() && m_Tokens.back().m_Type == Token::Variable)
+					m_Tokens.back().m_Type = Token::FunctionName;
 
 				m_ParenthesisParsingDepth++;
 				AddToken(Token(Token::LeftParentheses, "("));
@@ -554,6 +555,7 @@ std::string Lexer::CreateTokens(const std::string& source)
 				AddToken(Token(Token::RightParentheses, ")"));
 				m_ParenthesisParsingDepth--;
 			}
+
 			//// Check for square brackets
 			//if (string[i] == '[')
 			//{
@@ -710,36 +712,8 @@ std::string Lexer::CreateTokens(const std::string& source)
 			//	AddToken(tokens, Token::Colon, ":", totalBracketDepth());
 			//}
 
-			//// Parsing a functions arguments or a if, while or for statement conditions
-			//if (isParsingFunction || isParsingStatement)
-			//{
-			//	// Add the current token if it's a new argument, or the end of the function
-			//	if (string[i] == ',')
-			//	{
-			//		// Add the token with whatever content
-			//		//if (token.Type != Token::Null)
-			//		//	AddToken(tokens, token);
-
-			//		//// Check if there actually is a next argument TODO
-
-			//		//AddToken(tokens, Token::Comma, std::to_string(parenthesisParsingDepth));
-			//	}
-			//	if (string[i] == ')')
-			//	{
-			//		if (isParsingFunction)
-			//		{
-			//			if (parenthesisParsingDepth == 0)
-			//				isParsingFunction = false;
-			//			functionParsingDepth--;
-			//		}
-			//		else if (isParsingStatement)
-			//		{
-			//			statementParsingDepth--;
-			//			if (statementParsingDepth == 0)
-			//				isParsingStatement = false;
-			//		}
-			//	}
-			//}
+			if (Current() == ',')
+				AddToken(Token(Token::Comma, ","));
 
 			// Check for line ends
 			if (Current() == ';')
@@ -796,12 +770,15 @@ std::string Lexer::CreateTokens(const std::string& source)
 		return "Expected the string to end";
 
 	// Check for unclosed function calls
-	//if (isParsingFunction)
-		//return "Expected closing bracket";
+	if (isParsingFunction)
+		return "Expected closing bracket";
 
 	// Check for unclosed scopes
 	if (scopeParsingDepth != 0)
 		return "Expected closing curly bracket";
+
+	if (parenthesisParsingDepth != 0)
+		return "Expected closing parenthesis";
 
 	// Check if current token is a variable, because it might be 'null', 'string' or 'number' but be considered a variable still
 	/*if (token.Type == Token::Variable)

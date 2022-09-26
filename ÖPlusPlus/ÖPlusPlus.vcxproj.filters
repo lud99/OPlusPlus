@@ -38,5 +38,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Programs\test.ö" />
+    <None Include="Programs\function.ö" />
   </ItemGroup>
 </Project>

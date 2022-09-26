@@ -93,6 +93,11 @@ void Parser::MakeErrorVoid(const std::string& message)
 	m_Error = message;
 }
 
+bool Parser::HasError()
+{
+	return m_Error != "";
+}
+
 void Parser::PrintASTTree(ASTNode* node, int depth)
 {
 	if (node != nullptr)
@@ -134,26 +139,6 @@ bool IsInsideBrackets(std::vector<Token> tokens, int start)
 	return false;
 }
 
-//bool IsInsideScope(std::vector<Token> tokens, int start)
-//{
-//	bool isInsideParenthesis = false;
-//	for (int i = start; i >= 0; i--) // Walk from here backwards
-//	{
-//		if (ElementExists(tokens, i - 1))
-//		{
-//			if (tokens[i].m_Type == Token::LeftCurlyBracket)
-//				return true;
-//		}
-//		if (tokens[i].m_Type == Token::RightCurlyBracket)
-//		{
-//			//assert(tokens[i].m_Depth >= 1);
-//			return tokens[i].m_Depth > 1;
-//		}
-//	}
-//
-//	return false;
-//}
-
 // Find the matching bracket (, {, [ with the same depth
 int FindMatchingEndBracket(std::vector<Token>& tokens, Token& startToken)
 {
@@ -174,77 +159,6 @@ int FindMatchingEndBracket(std::vector<Token>& tokens, Token& startToken)
 	return -1;
 }
 
-//int FindToken(std::vector<Token>& tokens, Token::Types type)
-//{
-//	for (int i = 0; i < tokens.size(); i++)
-//	{
-//		if (tokens[i].m_Type == type)
-//			return i;
-//	}
-//
-//	return -1;
-//}
-//
-//std::vector<std::vector<Token>> DepthSplit(std::vector<Token> tokens, Token::Types delimiter, int depth)
-//{
-//	std::vector<std::vector<Token>> splitted;
-//	std::vector<Token> currentEntry;
-//
-//	for (int i = 0; i < tokens.size(); i++)
-//	{
-//		if (tokens[i].m_Type == delimiter && tokens[i].m_Depth == depth)
-//		{
-//			splitted.push_back(currentEntry);
-//			currentEntry.clear();
-//		}
-//		else
-//		{
-//			currentEntry.push_back(tokens[i]);
-//		}
-//	}
-//
-//	if (!currentEntry.empty()) splitted.push_back(currentEntry);
-//
-//	return splitted;
-//}
-//
-//std::vector<std::vector<Token>> SplitNotInsideBrackets(std::vector<Token> tokens, Token::Types delimiter, int depth)
-//{
-//	std::vector<std::vector<Token>> splitted;
-//	std::vector<Token> currentEntry;
-//
-// 	for (int i = 0; i < tokens.size(); i++)
-//	{
-//		if (tokens[i].m_Type == delimiter && !IsInsideBrackets(tokens, i))
-//		{
-//			splitted.push_back(currentEntry);
-//			currentEntry.clear();
-//		}
-//		else
-//		{
-//			currentEntry.push_back(tokens[i]);
-//		}
-//	}
-//
-//	return splitted;
-//}
-//
-//std::vector<Token> GetTokensBetweenBrackets(std::vector<Token>& tokens, Token& startToken)
-//{
-//	std::vector<Token> tokensInBracket;
-//
-//	int end = FindMatchingEndBracket(tokens, startToken);
-//	if (end == -1)
-//		return tokensInBracket;
-//
-//	for (int i = 1; i < end; i++)
-//	{
-//		tokensInBracket.push_back(tokens[i]);
-//	}
-//
-//	return tokensInBracket;
-//}
-
 void ReduceDepthOfBrackets(std::vector<Token>& tokens, Token::Types type)
 {
 	Token::Types typeOfEnd = Token::Empty;
@@ -263,6 +177,31 @@ void ReduceDepthOfBrackets(std::vector<Token>& tokens, Token::Types type)
 			tokens[i].m_Depth--;
 	}
 }
+
+
+std::vector<std::vector<Token>> DepthSplit(std::vector<Token> tokens, Token::Types delimiter, int depth)
+{
+	std::vector<std::vector<Token>> splitted;
+	std::vector<Token> currentEntry;
+
+	for (int i = 0; i < tokens.size(); i++)
+	{
+		if (tokens[i].m_Type == delimiter && tokens[i].m_Depth == depth)
+		{
+			splitted.push_back(currentEntry);
+			currentEntry.clear();
+		}
+		else
+		{
+			currentEntry.push_back(tokens[i]);
+		}
+	}
+
+	if (!currentEntry.empty()) splitted.push_back(currentEntry);
+
+	return splitted;
+}
+
 
 void ReduceDepthOfTokens(std::vector<Token>& tokens, int delta = -1)
 {
@@ -327,22 +266,22 @@ bool Parser::ParseMathExpression(Tokens& tokens, ASTNode* node)
 
 		if (leftSide.size() == 0)
 		{
-			return MakeError("Nothing to the left of math operator");
-			// Assume 
-			/*if (node->type == ASTTypes::Subtract)
+			// Assume that a '-' without a left means a multiplication by -1 
+			// TODO: Might not always work because of order of operations
+			if (node->type == ASTTypes::Subtract)
 			{
-				node->left->type = ASTTypes::Number;
-				node->left->numberValue = 0.0f;
+				node->type = ASTTypes::Multiply;
+				node->left->type = ASTTypes::IntLiteral;
+				node->left->numberValue = -1.0f;
 			}
 			else
 			{
-				Parser::CreateError("Expected something to the left of math operator");
-				return;
-			}*/
+				return MakeError("Expected something to the left of math operator");
+			}
 		}
 
 		CreateAST(leftSide, node->left, node);
-		if (m_Error != "") return false;
+		if (HasError()) return false;
 
 		node->right = new ASTNode;
 		std::vector<Token> rightSide = SliceVector(tokens, positionOfMathOperator + 1);
@@ -351,28 +290,52 @@ bool Parser::ParseMathExpression(Tokens& tokens, ASTNode* node)
 			return MakeError("Expected something to the right of math operator");
 
 		CreateAST(rightSide, node->right, node);
-		if (m_Error != "") return false;
+		if (HasError()) return false;
 
 		return true;
 	};
 
+	// Add
 	for (int i = 0; i < tokens.size(); i++)
 	{
-		if (tokens[i].IsMathOperator())
+		if (tokens[i].m_Type == Token::Add)
 		{
-			// Check if these tokens are inside a function argument
 			if (IsInsideBrackets(tokens, i))
 				continue;
-
-			if (tokens[i].m_Type == Token::Add)
-				node->type = ASTTypes::Add;
-			if (tokens[i].m_Type == Token::Subtract)
-				node->type = ASTTypes::Subtract;
-			if (tokens[i].m_Type == Token::Divide)
-				node->type = ASTTypes::Divide;
-			if (tokens[i].m_Type == Token::Multiply)
-				node->type = ASTTypes::Multiply;
-
+			node->type = ASTTypes::Add;
+			return ParseMath(i);
+		}
+	}
+	// Subtract
+	for (int i = 0; i < tokens.size(); i++)
+	{
+		if (tokens[i].m_Type == Token::Subtract)
+		{
+			if (IsInsideBrackets(tokens, i))
+				continue;
+			node->type = ASTTypes::Subtract;
+			return ParseMath(i);
+		}
+	}
+	// Multiply
+	for (int i = 0; i < tokens.size(); i++)
+	{
+		if (tokens[i].m_Type == Token::Multiply)
+		{
+			if (IsInsideBrackets(tokens, i))
+				continue;
+			node->type = ASTTypes::Multiply;
+			return ParseMath(i);
+		}
+	}
+	// Divide
+	for (int i = 0; i < tokens.size(); i++)
+	{
+		if (tokens[i].m_Type == Token::Divide)
+		{
+			if (IsInsideBrackets(tokens, i))
+				continue;
+			node->type = ASTTypes::Divide;
 			return ParseMath(i);
 		}
 	}
@@ -394,14 +357,12 @@ std::vector<std::vector<Token>> MakeScopeIntoLines(std::vector<Token> tokens, in
 	std::vector<std::vector<Token>> lines;
 	std::vector<Token> currentLine;
 
-	int scopeDepth = 0;// tokens[start].m_Depth;
+	int scopeDepth = 0;
 	bool isInsideParentheses = false;
 	bool isInsideDeeperScope = false;
 
 	int currentCurlyBracketDepth = 0;
 	int curlyBracketDepth = 0;
-
-	std::vector<Token> og = tokens;
 
 	tokens = SliceVector(tokens, start, end);
 
@@ -445,7 +406,7 @@ std::vector<std::vector<Token>> MakeScopeIntoLines(std::vector<Token> tokens, in
 		else if (token.m_Type == Token::LeftParentheses)
 		{
 			isInsideParentheses = true;
-			if (curlyBracketDepth > 0)// || (tokens[0].m_Type == Token::LeftParentheses && tokens.back().m_Type == Token::RightParentheses))
+			if (curlyBracketDepth > 0)
 				token.m_Depth--;
 
 			currentLine.push_back(token);
@@ -498,7 +459,7 @@ std::vector<std::vector<Token>> MakeScopeIntoLines(std::vector<Token> tokens, in
 
 // {type} {variable} = {expression} 
 // {variable} = {expression} 
-bool Parser::IsValidAssignmentExpression(std::vector<Token> tokens, int equalsSignPosition)
+bool Parser::IsValidAssignmentExpression(Tokens tokens, int equalsSignPosition)
 {
 	if (!ElementExists(tokens, equalsSignPosition - 1) || tokens[equalsSignPosition - 1].m_Type != Token::Variable)
 		return MakeError("Expected a variable on the left side of the equals sign, not a " + tokens[equalsSignPosition - 1].ToString());
@@ -522,7 +483,6 @@ bool Parser::IsValidAssignmentExpression(std::vector<Token> tokens, int equalsSi
 	return true;
 }
 
-
 //// {variable}: {expression} 
 //bool Parser::IsValidPropertyAssignmentExpression(std::vector<Token> tokens)
 //{
@@ -539,111 +499,123 @@ bool Parser::IsValidAssignmentExpression(std::vector<Token> tokens, int equalsSi
 //	return true;
 //}
 //
-// {type} {variable}
-bool Parser::IsValidVariableDeclarationExpression(std::vector<Token> tokens)
+
+// {variable} += {expression}
+bool Parser::IsValidCompoundAssignmentExpression(Tokens tokens, int operatorPosition)
 {
+	Token opToken = tokens[operatorPosition];
+
+	if (!ElementExists(tokens, operatorPosition - 1))
+		return MakeError("Expected something before " + opToken.ToString());
+
+	Token varToken = tokens[operatorPosition - 1];
+
+	if (varToken.m_Type != Token::Variable)
+		return MakeError("Expected a variable before " + opToken.ToString() + " but got a " + tokens[operatorPosition - 1].ToString());
+
+	// If more things before variable
+	if (ElementExists(tokens, operatorPosition - 2))
+		return MakeError("Expected only a variable on the left side of " + opToken.ToString() + " but got" + tokens[operatorPosition - 2].ToString());
+
+	if (!ElementExists(tokens, operatorPosition + 1))
+		return MakeError("Expected an expression after " + opToken.ToString());
+
+	return true;
+}
+
+// {something} && {something}
+bool Parser::IsValidLogicalAndOrExpression(Tokens tokens, int position)
+{
+	if (!ElementExists(tokens, position - 1))
+		return MakeError("Expected something to the left of " + tokens[position].ToString() + " operator");
+	if (!ElementExists(tokens, position + 1))
+		return MakeError("Expected something to the right of " + tokens[position].ToString() + " operator");
+
+	return true;
+}
+
+bool Parser::IsValidComparisonExpression(Tokens tokens, int position)
+{
+	if (!ElementExists(tokens, position - 1))
+		return MakeError("Expected comething to the left of " + tokens[position].ToString() + " operator");
+	if (!ElementExists(tokens, position + 1))
+		return MakeError("Expected comething to the right of " + tokens[position].ToString() + " operator");
+
+	return true;
+}
+
+// {variable}++
+bool Parser::IsValidPostIncDecExpression(Tokens tokens, int position)
+{
+	if (tokens[position].m_Type != Token::Variable)
+		return MakeError("Expected variable to the left of Increment or decrement");
+
+	if (!ElementExists(tokens, position + 1))
+		return MakeError("Expected ++ or -- to the right of variable");
+
+	if (tokens[position + 1].m_Type != Token::PostIncrement && tokens[position + 1].m_Type != Token::PostDecrement)
+		return MakeError("Expected ++ or -- to the right of variable, not " + tokens[position + 1].ToString());
+
+	if (tokens.size() > 2)
+		return MakeError("Too many things in increment or decrement expression");
+
+	return true;
+}
+
+// ++{variable}
+bool Parser::IsValidPreIncDecExpression(Tokens tokens, int position)
+{
+	if (tokens[position].m_Type != Token::PreIncrement && tokens[position].m_Type != Token::PreDecrement)
+		return MakeError("Expected ++ or -- to the left of variable, not " + tokens[position].ToString());
+
+	if (!ElementExists(tokens, position + 1))
+		return MakeError("Expected variable to the right of " + tokens[position].ToString());
+
+	if (tokens[position + 1].m_Type != Token::Variable)
+		return MakeError("Expected variable to the right of " + tokens[position].ToString());
+
+	if (tokens.size() > 2)
+		return MakeError("Too many things in increment or decrement expression");
+
+	return true;
+}
+
+bool Parser::IsValidFunctionCallExpression(Tokens tokens)
+{
+	if (tokens[0].m_Type != Token::FunctionName)
+		return MakeError("Not a function call");
+	if (!ElementExists(tokens, 1) || tokens[1].m_Type != Token::LeftParentheses)
+		return MakeError("Expected a left parentheses after function call, but got " + tokens[1].ToString());
+
+	int endParanthesisPosition = FindMatchingEndBracket(tokens, tokens[1]);
+	if (endParanthesisPosition == -1)
+		return MakeError("Found no closing parenthesis for function call");
+
+	std::vector<Token> argContent = SliceVector(tokens, 2, endParanthesisPosition);
+	if (argContent.front().m_Type == Token::Comma)
+		return MakeError("Expected an argument before the first comma in the function call");
+	if (argContent.back().m_Type == Token::Comma)
+		return MakeError("Expected an argument after the last comma in the function call");
+
+	return true;
+}
+
+// {type} {variable}
+bool Parser::IsValidVariableDeclarationExpression(Tokens tokens)
+{
+	if (!tokens[0].IsVariableType())
+		return false;
+
 	if (!ElementExists(tokens, 1) || tokens[1].m_Type != Token::Variable)
 		return MakeError("Expected a variable after variable type");
 	return true;
 }
 
-bool Parser::IsValidCompoundAssignment(std::vector<Token> tokens, int operatorPosition)
-{
-	return false;
-}
-
-bool Parser::IsValidPostIncDecExpression(std::vector<Token> tokens)
-{
-	return false;
-}
-
-bool Parser::IsValidPreIncDecExpression(std::vector<Token> tokens)
-{
-	return false;
-}
-
-//// {variable} += {expression}
-//bool Parser::IsValidCompoundAssignment(std::vector<Token> tokens, int operatorPosition)
-//{
-//	Token opToken = tokens[operatorPosition];
-//
-//	if (!ElementExists(tokens, operatorPosition - 1))
-//		return CreateError("Expected something before " + opToken.ToString());
-//
-//	Token varToken = tokens[operatorPosition - 1];
-//
-//	if (varToken.m_Type != Token::Variable)
-//		return CreateError("Expected a variable before " + opToken.ToString() + " but got a " + tokens[operatorPosition - 1].ToString());
-//
-//	// If more things before variable
-//	if (ElementExists(tokens, operatorPosition - 2))
-//		return CreateError("Expected only a variable on the left side of " + opToken.ToString() + " but got" + tokens[operatorPosition - 2].ToString());
-//
-//	if (!ElementExists(tokens, operatorPosition + 1))
-//		return CreateError("Expected an expression after " + opToken.ToString());
-//
-//	return true;
-//}
-//
-//// {variable}++
-//bool Parser::IsValidPostIncDecExpression(std::vector<Token> tokens)
-//{
-//	if (tokens[0].m_Type != Token::Variable)
-//		return CreateError("Expected variable to the left of Increment or decrement");
-//
-//	if (!ElementExists(tokens, 1))
-//		return CreateError("Expected ++ or -- to the right of variable");
-//
-//	if (tokens[1].m_Type != Token::PostIncrement && tokens[1].m_Type != Token::PostDecrement)
-//		return CreateError("Expected ++ or -- to the right of variable, not " + tokens[1].ToString());
-//
-//	if (tokens.size() > 2)
-//		return CreateError("Too many things in increment or decrement expression");
-//
-//	return true;
-//}
-//
-//// ++{variable}
-//bool Parser::IsValidPreIncDecExpression(std::vector<Token> tokens)
-//{
-//	if (tokens[0].m_Type != Token::PreIncrement && tokens[0].m_Type != Token::PreDecrement)
-//		return CreateError("Expected ++ or -- to the left of variable, not " + tokens[0].ToString());
-//
-//	if (!ElementExists(tokens, 1))
-//		return CreateError("Expected variable to the right of " + tokens[0].ToString());
-//
-//	if (tokens[1].m_Type != Token::Variable)
-//		return CreateError("Expected variable to the right of " + tokens[0].ToString());
-//
-//	if (tokens.size() > 2)
-//		return CreateError("Too many things in increment or decrement expression");
-//
-//	return true;
-//}
-//
-//// @thread function bla() {}
-//bool Parser::IsValidModifier(std::vector<Token> tokens)
-//{
-//	if (tokens[0].Value == "@thread")
-//	{
-//		// Functions has to be to the right
-//		std::vector<Token> newTokens = SliceVector(tokens, 1);
-//		if (!IsValidFunctionDeclaration(newTokens))
-//			return CreateError("Expected function declaration after @thread modifier");
-//	}
-//	else
-//	{
-//		return CreateError("Unknown override, " + tokens[0].Value);
-//	}
-//
-//	return true;
-//}
-
 void Parser::CreateAST(std::vector<Token>& tokens, ASTNode* node, ASTNode* parent)
 {
 	node->parent = parent;
 
-	if (m_Error != "") return;
+	if (HasError()) return;
 
 	if (tokens.empty()) return;
 
@@ -699,7 +671,7 @@ void Parser::CreateAST(std::vector<Token>& tokens, ASTNode* node, ASTNode* paren
 			ASTNode* line = new ASTNode;
 
 			CreateAST(lines[i], line, node);
-			if (m_Error != "") return;
+			if (HasError()) return;
 		
 			node->arguments.push_back(line);
 		}
@@ -714,14 +686,14 @@ void Parser::CreateAST(std::vector<Token>& tokens, ASTNode* node, ASTNode* paren
 
 	if (!ParseAssignment(tokens, node))
 	{
-		if (m_Error != "")
+		if (HasError())
 			return;
 	}
 	else return;
 
-	if (!ParsePlusMinusEquals(tokens, node))
+	if (!ParseCompoundAssignment(tokens, node))
 	{
-		if (m_Error != "")
+		if (HasError())
 			return;
 	}
 	else return;
@@ -732,41 +704,48 @@ void Parser::CreateAST(std::vector<Token>& tokens, ASTNode* node, ASTNode* paren
 
 	if (!ParseLogicalAndOr(tokens, node))
 	{
-		if (m_Error != "")
+		if (HasError())
 			return;
 	}
 	else return;
 
 	if (!ParseComparisonOperators(tokens, node))
 	{
-		if (m_Error != "")
+		if (HasError())
 			return;
 	}
 	else return;
 
 	if (!ParseMathExpression(tokens, node))
 	{
-		if (m_Error != "")
+		if (HasError())
 			return;
 	}
 	else return;
 
 	if (!ParseParentheses(tokens, node))
 	{
-		if (m_Error != "")
+		if (HasError())
 			return;
 	}
 
 	if (!ParseIncrementDecrement(tokens, node))
 	{
-		if (m_Error != "")
+		if (HasError())
+			return;
+	}
+	else return;
+
+	if (!ParseFunctionCall(tokens, node))
+	{
+		if (HasError())
 			return;
 	}
 	else return;
 
 	if (!ParseVariableDeclaration(tokens, node))
 	{
-		if (m_Error != "")
+		if (HasError())
 			return;
 	}
 	else return;
@@ -836,6 +815,9 @@ bool Parser::ParseLogicalAndOr(Tokens& tokens, ASTNode* node)
 			if (IsInsideBrackets(tokens, i))
 				continue;
 
+			if (!IsValidLogicalAndOrExpression(tokens, i))
+				return false;
+
 			if (tokens[i].m_Type == Token::And)
 				node->type = ASTTypes::And;
 			if (tokens[i].m_Type == Token::Or)
@@ -844,12 +826,12 @@ bool Parser::ParseLogicalAndOr(Tokens& tokens, ASTNode* node)
 			node->left = new ASTNode;
 			Tokens leftTokens = SliceVector(tokens, 0, i);
 			CreateAST(leftTokens, node->left, node);
-			if (m_Error != "") return false;
+			if (HasError()) return false;
 
 			node->right = new ASTNode;
 			Tokens rightTokens = SliceVector(tokens, i + 1);
 			CreateAST(rightTokens, node->right, node);
-			if (m_Error != "") return false;
+			if (HasError()) return false;
 
 			return true;
 		}
@@ -867,11 +849,8 @@ bool Parser::ParseComparisonOperators(Tokens& tokens, ASTNode* node)
 			if (IsInsideBrackets(tokens, i))
 				continue;
 
-			// Ensure lhs and rhs exists
-			if (!ElementExists(tokens, i - 1))
-				return MakeError("Expected comething to the left of compare operator");
-			if (!ElementExists(tokens, i + 1))
-				return MakeError("Expected comething to the right of compare operator");
+			if (!IsValidComparisonExpression(tokens, i))
+				return false;
 
 			if (tokens[i].m_Type == Token::CompareEquals)
 				node->type = ASTTypes::CompareEquals;
@@ -902,7 +881,7 @@ bool Parser::ParseComparisonOperators(Tokens& tokens, ASTNode* node)
 	return false;
 }
 
-bool Parser::ParsePlusMinusEquals(Tokens& tokens, ASTNode* node)
+bool Parser::ParseCompoundAssignment(Tokens& tokens, ASTNode* node)
 {
 	// Plus/Minus Equals. left += right
 	for (int i = 0; i < tokens.size(); i++)
@@ -912,19 +891,15 @@ bool Parser::ParsePlusMinusEquals(Tokens& tokens, ASTNode* node)
 			if (IsInsideBrackets(tokens, i))
 				continue;
 
-			// To the left should be a variable or type + variable and nothing else
-			if (!ElementExists(tokens, i - 1))
-				return MakeError("Expected variable to the left of += operator");
-
-			if (tokens[i - 1].m_Type != Token::Variable)
-				return MakeError("Expected variable to the left of += operator");
+			if (!IsValidCompoundAssignmentExpression(tokens, i))
+				return false;
 
 			node->type = ASTTypes::Assign;
 
 			node->left = new ASTNode;
 			Tokens newTokens = SliceVector(tokens, 0, i);
 			CreateAST(newTokens, node->left, node);
-			if (m_Error != "") return false;
+			if (HasError()) return false;
 
 			node->right = new ASTNode;
 			node->right->left = new ASTNode;
@@ -941,10 +916,10 @@ bool Parser::ParsePlusMinusEquals(Tokens& tokens, ASTNode* node)
 			newTokens = SliceVector(tokens, i + 1);
 
 			if (newTokens.size() == 0)
-				return MakeError("Expected something after += sign");
+				return MakeError("Expected something after " + tokens[i].ToString() + "sign");
 
 			CreateAST(newTokens, node->right->right, node->right);
-			if (m_Error != "") return false;
+			if (HasError()) return false;
 
 			return true;
 		}
@@ -955,9 +930,6 @@ bool Parser::ParsePlusMinusEquals(Tokens& tokens, ASTNode* node)
 
 bool Parser::ParseVariableDeclaration(Tokens& tokens, ASTNode* node)
 {
-	if (!tokens[0].IsVariableType())
-		return false;
-
 	if (!IsValidVariableDeclarationExpression(tokens))
 		return false;
 
@@ -976,46 +948,88 @@ bool Parser::ParseVariableDeclaration(Tokens& tokens, ASTNode* node)
 bool Parser::ParseParentheses(Tokens& tokens, ASTNode* node)
 {
 	// Paranthesis
-	if (tokens[0].m_Type == Token::LeftParentheses)
+	if (tokens[0].m_Type != Token::LeftParentheses)
+		return false;
+	
+	// Slice until next parenthesis
+	int end = FindMatchingEndBracket(tokens, tokens[0]);
+	if (end == -1)
 	{
-		// Slice until next parenthesis
-		int end = FindMatchingEndBracket(tokens, tokens[0]);
-		if (end == -1)
+		MakeError("Found no matching right parenthesis");
+		return false;
+	}
+
+	if (end == 2) // Theres only on item in the brackets
+	{
+		std::vector<Token> newTokens = tokens;
+
+		// Remove the brackets and act as normal
+		newTokens.erase(newTokens.begin() + end);
+		newTokens.erase(newTokens.begin() + 0);
+
+		CreateAST(newTokens, node, node->parent);
+		if (HasError()) return false;
+	}
+	else
+	{
+		/*if (end + 1 < tokens.size())
 		{
-			MakeError("Found no matching right parenthesis");
-			return false;
+			std::vector<Token> newTokens = SliceVector(tokens, end + 1);
+			node->left = new ASTNode;
+			error = CreateAST(newTokens, node->left, node);
+			if (error != "") return error;
 		}
-
-		if (end == 2) // Theres only on item in the brackets
+		else*/
 		{
-			std::vector<Token> newTokens = tokens;
-
-			// Remove the brackets and act as normal
-			newTokens.erase(newTokens.begin() + end);
-			newTokens.erase(newTokens.begin() + 0);
+			std::vector<Token> newTokens = SliceVector(tokens, 1, end);
+			ReduceDepthOfTokens(newTokens);
 
 			CreateAST(newTokens, node, node->parent);
-			if (m_Error != "") return false;
 		}
-		else
-		{
-			/*if (end + 1 < tokens.size())
-			{
-				std::vector<Token> newTokens = SliceVector(tokens, end + 1);
-				node->left = new ASTNode;
-				error = CreateAST(newTokens, node->left, node);
-				if (error != "") return error;
-			}
-			else*/
-			{
-				std::vector<Token> newTokens = SliceVector(tokens, 1, end);
-				ReduceDepthOfTokens(newTokens);
 
-				CreateAST(newTokens, node, node->parent);
-			}
+		if (HasError()) return false;
+	}
 
-			if (m_Error != "") return false;
-		}
+	return true;
+}
+
+bool Parser::ParseFunctionCall(Tokens& tokens, ASTNode* node)
+{
+	if (tokens[0].m_Type != Token::FunctionName)
+		return false;
+
+	if (IsInsideBrackets(tokens, 0))
+		return false;
+
+	if (!IsValidFunctionCallExpression(tokens))
+		return false;
+
+	node->type = ASTTypes::FunctionCall;
+	node->stringValue = tokens[0].m_Value; // Function Name
+
+	int endParanthesisPosition = FindMatchingEndBracket(tokens, tokens[1]);
+	std::vector<Token> argContent = SliceVector(tokens, 2, endParanthesisPosition);
+
+	// No arguments (print());
+	if (argContent.empty())
+		return true;
+
+	std::vector<Tokens> arguments = DepthSplit(argContent, Token::Comma, tokens[1].m_Depth);
+
+	// Resolve the arguments
+	for (int i = 0; i < arguments.size(); i++)
+	{
+		// If an argument has no tokens, then there was nothing after the comma
+		if (arguments[i].empty())
+			return MakeError("Expected an argument after the comma in the function call");
+
+		ReduceDepthOfBrackets(arguments[i], Token::LeftParentheses);
+		ReduceDepth(arguments[i], Token::Comma);
+
+		ASTNode* argNode = new ASTNode;
+		CreateAST(arguments[i], argNode, node);
+
+		node->arguments.push_back(argNode);
 	}
 
 	return true;
@@ -1031,9 +1045,8 @@ bool Parser::ParseIncrementDecrement(Tokens& tokens, ASTNode* node)
 			if (IsInsideBrackets(tokens, i))
 				continue;
 
-			// Must have variable++, otherwise invalid syntax
-			if (!ElementExists(tokens, i - 1) || tokens[i - 1].m_Type != Token::Variable)
-				return MakeError("Expected a variable before increment or decrement operation");
+			if (!IsValidPostIncDecExpression(tokens, i))
+				return false;
 
 			if (tokens[i].m_Type == Token::PostIncrement)
 				node->type = ASTTypes::PostIncrement;
@@ -1045,14 +1058,14 @@ bool Parser::ParseIncrementDecrement(Tokens& tokens, ASTNode* node)
 			std::vector<Token> newTokens = SliceVector(tokens, 0, i);
 
 			CreateAST(newTokens, node->left, node);
-			if (m_Error != "") return false;
+			if (HasError()) return false;
 
 			// Parse the right side
 			node->right = new ASTNode;
 			newTokens = SliceVector(tokens, i + 1);
 
 			CreateAST(newTokens, node->right, node);
-			if (m_Error != "") return false;
+			if (HasError()) return false;
 
 			return true;
 		}

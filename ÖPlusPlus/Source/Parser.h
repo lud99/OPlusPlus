@@ -103,26 +103,30 @@ public:
 	bool MakeError(const std::string& message);
 	void MakeErrorVoid(const std::string& message);
 
+	bool HasError();
+
 	void PrintASTTree(ASTNode* node, int depth);
 
-	bool IsValidAssignmentExpression(std::vector<Token> tokens, int equalsSignPosition);
-	//bool IsValidPropertyAssignmentExpression(std::vector<Token> tokens);
-	bool IsValidVariableDeclarationExpression(std::vector<Token> tokens);
-	bool IsValidCompoundAssignment(std::vector<Token> tokens, int operatorPosition);
-	bool IsValidPostIncDecExpression(std::vector<Token> tokens);
-	bool IsValidPreIncDecExpression(std::vector<Token> tokens);
-	//bool IsValidModifier(std::vector<Token> tokens);
-
+	bool IsValidAssignmentExpression(Tokens tokens, int equalsSignPosition);
+	bool IsValidCompoundAssignmentExpression(Tokens tokens, int position);
+	bool IsValidComparisonExpression(Tokens tokens, int position);
+	bool IsValidLogicalAndOrExpression(Tokens tokens, int position);
+	//bool IsValidPropertyAssignmentExpression(Tokens tokens);
+	bool IsValidPostIncDecExpression(Tokens tokens, int position);
+	bool IsValidPreIncDecExpression(Tokens tokens, int position);
+	bool IsValidFunctionCallExpression(Tokens tokens);
+	bool IsValidVariableDeclarationExpression(Tokens tokens);
 
 	void CreateAST(std::vector<Token>& tokens, ASTNode* node, ASTNode* parent = nullptr);
 
 	bool ParseAssignment(Tokens& tokens, ASTNode* node);
 	bool ParseLogicalAndOr(Tokens& tokens, ASTNode* node);
 	bool ParseComparisonOperators(Tokens& tokens, ASTNode* node);
-	bool ParsePlusMinusEquals(Tokens& tokens, ASTNode* node);
+	bool ParseCompoundAssignment(Tokens& tokens, ASTNode* node);
 	bool ParseMathExpression(Tokens& tokens, ASTNode* node);
 	bool ParseVariableDeclaration(Tokens& tokens, ASTNode* node);
 	bool ParseParentheses(Tokens& tokens, ASTNode* node);
+	bool ParseFunctionCall(Tokens& tokens, ASTNode* node);
 	bool ParseIncrementDecrement(Tokens& tokens, ASTNode* node);
 
 public:

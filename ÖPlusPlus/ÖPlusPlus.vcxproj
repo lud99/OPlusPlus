@@ -149,6 +149,7 @@
     <ClInclude Include="Source\Utils.hpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="Programs\function.ö" />
     <None Include="Programs\test.ö" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

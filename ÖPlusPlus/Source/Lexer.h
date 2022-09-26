@@ -60,6 +60,8 @@ struct Token
 		LeftSquareBracket,
 		RightSquareBracket,
 
+		FunctionName,
+
 		If,
 		Else,
 		While,
