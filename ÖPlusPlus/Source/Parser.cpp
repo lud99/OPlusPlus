@@ -661,7 +661,7 @@ void Parser::CreateAST(std::vector<Token>& tokens, ASTNode* node, ASTNode* paren
 		{
 			ASTNode* line = new ASTNode;
 
-			CreateAST(lines[i], line, parent->type == node);
+			CreateAST(lines[i], line, node);
 			if (m_Error != "") return;
 		
 			node->arguments.push_back(line);

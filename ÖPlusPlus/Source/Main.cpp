@@ -64,6 +64,9 @@ int main()
 
 	parser.CreateAST(lexer.m_Tokens, &tree, tree.parent);
 
+	if (parser.m_Error != "")
+		std::cout << "AST Error: " << parser.m_Error << "\n";
+
 	parser.PrintASTTree(tree.parent, 0);
 
 	while (true)
