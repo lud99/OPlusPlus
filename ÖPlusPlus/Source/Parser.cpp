@@ -547,6 +547,21 @@ bool Parser::IsValidVariableDeclarationExpression(std::vector<Token> tokens)
 	return true;
 }
 
+bool Parser::IsValidCompoundAssignment(std::vector<Token> tokens, int operatorPosition)
+{
+	return false;
+}
+
+bool Parser::IsValidPostIncDecExpression(std::vector<Token> tokens)
+{
+	return false;
+}
+
+bool Parser::IsValidPreIncDecExpression(std::vector<Token> tokens)
+{
+	return false;
+}
+
 //// {variable} += {expression}
 //bool Parser::IsValidCompoundAssignment(std::vector<Token> tokens, int operatorPosition)
 //{
@@ -695,6 +710,8 @@ void Parser::CreateAST(std::vector<Token>& tokens, ASTNode* node, ASTNode* paren
 	// Check for else
 	//
 
+	// if statements
+
 	if (!ParseAssignment(tokens, node))
 	{
 		if (m_Error != "")
@@ -702,19 +719,30 @@ void Parser::CreateAST(std::vector<Token>& tokens, ASTNode* node, ASTNode* paren
 	}
 	else return;
 
-	// Comparison operators
-	if (!ParseComparisonOperators(tokens, node))
-	{
-		if (m_Error != "")
-			return;
-	} else return;
-
-	// Variable declaration
-	if (!ParseVariableDeclaration(tokens, node))
+	if (!ParsePlusMinusEquals(tokens, node))
 	{
 		if (m_Error != "")
 			return;
 	}
+	else return;
+
+	// parse else 
+
+	// parse return 
+
+	if (!ParseLogicalAndOr(tokens, node))
+	{
+		if (m_Error != "")
+			return;
+	}
+	else return;
+
+	if (!ParseComparisonOperators(tokens, node))
+	{
+		if (m_Error != "")
+			return;
+	}
+	else return;
 
 	if (!ParseMathExpression(tokens, node))
 	{
@@ -723,12 +751,25 @@ void Parser::CreateAST(std::vector<Token>& tokens, ASTNode* node, ASTNode* paren
 	}
 	else return;
 
-	// Parentheses
 	if (!ParseParentheses(tokens, node))
 	{
 		if (m_Error != "")
 			return;
 	}
+
+	if (!ParseIncrementDecrement(tokens, node))
+	{
+		if (m_Error != "")
+			return;
+	}
+	else return;
+
+	if (!ParseVariableDeclaration(tokens, node))
+	{
+		if (m_Error != "")
+			return;
+	}
+	else return;
 
 	// Single token nodes
 	if (tokens.size() == 1)
@@ -786,6 +827,37 @@ bool Parser::ParseAssignment(Tokens& tokens, ASTNode* node)
 	return false;
 }
 
+bool Parser::ParseLogicalAndOr(Tokens& tokens, ASTNode* node)
+{
+	for (int i = 0; i < tokens.size(); i++)
+	{
+		if (tokens[i].m_Type == Token::And || tokens[i].m_Type == Token::Or)
+		{
+			if (IsInsideBrackets(tokens, i))
+				continue;
+
+			if (tokens[i].m_Type == Token::And)
+				node->type = ASTTypes::And;
+			if (tokens[i].m_Type == Token::Or)
+				node->type = ASTTypes::Or;
+
+			node->left = new ASTNode;
+			Tokens leftTokens = SliceVector(tokens, 0, i);
+			CreateAST(leftTokens, node->left, node);
+			if (m_Error != "") return false;
+
+			node->right = new ASTNode;
+			Tokens rightTokens = SliceVector(tokens, i + 1);
+			CreateAST(rightTokens, node->right, node);
+			if (m_Error != "") return false;
+
+			return true;
+		}
+	}
+
+	return false;
+}
+
 bool Parser::ParseComparisonOperators(Tokens& tokens, ASTNode* node)
 {
 	for (int i = 0; i < tokens.size(); i++)
@@ -822,6 +894,57 @@ bool Parser::ParseComparisonOperators(Tokens& tokens, ASTNode* node)
 
 			CreateAST(lhs, node->left, node);
 			CreateAST(rhs, node->right, node);
+
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool Parser::ParsePlusMinusEquals(Tokens& tokens, ASTNode* node)
+{
+	// Plus/Minus Equals. left += right
+	for (int i = 0; i < tokens.size(); i++)
+	{
+		if (tokens[i].m_Type == Token::PlusEquals || tokens[i].m_Type == Token::MinusEquals)
+		{
+			if (IsInsideBrackets(tokens, i))
+				continue;
+
+			// To the left should be a variable or type + variable and nothing else
+			if (!ElementExists(tokens, i - 1))
+				return MakeError("Expected variable to the left of += operator");
+
+			if (tokens[i - 1].m_Type != Token::Variable)
+				return MakeError("Expected variable to the left of += operator");
+
+			node->type = ASTTypes::Assign;
+
+			node->left = new ASTNode;
+			Tokens newTokens = SliceVector(tokens, 0, i);
+			CreateAST(newTokens, node->left, node);
+			if (m_Error != "") return false;
+
+			node->right = new ASTNode;
+			node->right->left = new ASTNode;
+
+			if (tokens[i].m_Type == Token::PlusEquals)
+				node->right->type = ASTTypes::Add;
+			else if (tokens[i].m_Type == Token::MinusEquals)
+				node->right->type = ASTTypes::Subtract;
+
+			node->right->left->type = ASTTypes::Variable;
+			node->right->left->stringValue = tokens[i - 1].m_Value;
+
+			node->right->right = new ASTNode;
+			newTokens = SliceVector(tokens, i + 1);
+
+			if (newTokens.size() == 0)
+				return MakeError("Expected something after += sign");
+
+			CreateAST(newTokens, node->right->right, node->right);
+			if (m_Error != "") return false;
 
 			return true;
 		}
@@ -896,4 +1019,44 @@ bool Parser::ParseParentheses(Tokens& tokens, ASTNode* node)
 	}
 
 	return true;
+}
+
+bool Parser::ParseIncrementDecrement(Tokens& tokens, ASTNode* node)
+{
+	for (int i = 0; i < tokens.size(); i++)
+	{
+		if ((tokens[i].m_Type == Token::PostIncrement || tokens[i].m_Type == Token::PostDecrement))
+		{
+			// Check if these tokens are inside a function argument
+			if (IsInsideBrackets(tokens, i))
+				continue;
+
+			// Must have variable++, otherwise invalid syntax
+			if (!ElementExists(tokens, i - 1) || tokens[i - 1].m_Type != Token::Variable)
+				return MakeError("Expected a variable before increment or decrement operation");
+
+			if (tokens[i].m_Type == Token::PostIncrement)
+				node->type = ASTTypes::PostIncrement;
+			else if (tokens[i].m_Type == Token::PostDecrement)
+				node->type = ASTTypes::PostDecrement;
+
+			// The left side should be a variable
+			node->left = new ASTNode;
+			std::vector<Token> newTokens = SliceVector(tokens, 0, i);
+
+			CreateAST(newTokens, node->left, node);
+			if (m_Error != "") return false;
+
+			// Parse the right side
+			node->right = new ASTNode;
+			newTokens = SliceVector(tokens, i + 1);
+
+			CreateAST(newTokens, node->right, node);
+			if (m_Error != "") return false;
+
+			return true;
+		}
+	}
+
+	return false;
 }

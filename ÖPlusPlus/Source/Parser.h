@@ -113,17 +113,17 @@ public:
 	bool IsValidPreIncDecExpression(std::vector<Token> tokens);
 	//bool IsValidModifier(std::vector<Token> tokens);
 
-	
 
 	void CreateAST(std::vector<Token>& tokens, ASTNode* node, ASTNode* parent = nullptr);
 
 	bool ParseAssignment(Tokens& tokens, ASTNode* node);
-	// and
+	bool ParseLogicalAndOr(Tokens& tokens, ASTNode* node);
 	bool ParseComparisonOperators(Tokens& tokens, ASTNode* node);
-	// +=
+	bool ParsePlusMinusEquals(Tokens& tokens, ASTNode* node);
 	bool ParseMathExpression(Tokens& tokens, ASTNode* node);
 	bool ParseVariableDeclaration(Tokens& tokens, ASTNode* node);
 	bool ParseParentheses(Tokens& tokens, ASTNode* node);
+	bool ParseIncrementDecrement(Tokens& tokens, ASTNode* node);
 
 public:
 	std::string m_Error = "";

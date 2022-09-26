@@ -21,6 +21,8 @@ std::string Token::ToString()
 		"Variable",
 
 		"Semicolon",
+		"Comma",
+		"Colon",
 
 		"Add",
 		"Subtract",
@@ -28,7 +30,7 @@ std::string Token::ToString()
 		"Divide",
 		"PlusEquals",
 		"MinusEquals",
-	
+
 		"SetEquals",
 		"CompareEquals",
 		"NotEquals",
@@ -36,6 +38,15 @@ std::string Token::ToString()
 		"GreaterThan",
 		"LessThanEqual",
 		"GreaterThanEqual",
+
+		"And",
+		"Or",
+		"Not",
+		"LeftShift",
+		"RightShift",
+		"Xor",
+		"UpArrow",
+		"Modulus",
 
 		"PostIncrement",
 		"PreIncrement",
@@ -48,6 +59,13 @@ std::string Token::ToString()
 		"RightCurlyBracket",
 		"LeftSquareBracket",
 		"RightSquareBracket",
+
+		"If",
+		"Else",
+		"While",
+		"For",
+		"Break",
+		"Continue"
 	};
 
 	return names[(int)m_Type];
@@ -632,30 +650,30 @@ std::string Lexer::CreateTokens(const std::string& source)
 				continue;
 			}
 
-			//// Logical and
-			//if (i < string.length() - 1 && (string[i] == '&' && string[i + 1] == '&'))
-			//{
-			//	token = AddToken(tokens, Token::And, "&&");
-			//	i++;
-			//	continue;
-			//}
-			//// Logical or
-			//if (i < string.length() - 1 && (string[i] == '|' && string[i + 1] == '|'))
-			//{
-			//	token = AddToken(tokens, Token::Or, "||");
-			//	i++;
-			//	continue;
-			//}
+			// Logical and
+			if (IsNext() && (Current() == '&' && Next() == '&'))
+			{
+				token = AddToken(Token(Token::And, "&&"));
+				Skip();
+				continue;
+			}
+			// Logical or
+			if (IsNext() && (Current() == '|' && Next() == '|'))
+			{
+				token = AddToken(Token(Token::Or, "||"));
+				Skip();
+				continue;
+			}
 
-			//// Not
-			//if (string[i] == '!')
-			//	token = AddToken(tokens, Token::Not, "!");
-			//// Power
-			//if (string[i] == '^')
-			//	token = AddToken(tokens, Token::ToThePower, "^");
-			//// Modulus
-			//if (string[i] == '%')
-			//	token = AddToken(tokens, Token::Modulus, "%");
+			// Not
+			if (Current() == '!')
+				token = AddToken(Token(Token::Not, "!"));
+			// Power
+			if (Current() == '^')
+				token = AddToken(Token(Token::UpArrow, "^"));
+			// Modulus
+			if (Current() == '%')
+				token = AddToken(Token(Token::Modulus, "%"));
 
 			// Plus
 			if (Current() == '+')
