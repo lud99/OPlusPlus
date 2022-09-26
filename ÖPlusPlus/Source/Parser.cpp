@@ -316,57 +316,111 @@ bool IsTokenValidPartOfExpression(Token token)
 //
 //	return false;
 //}
-//
-//void ParseMathExpression(std::vector<Token>& tokens, int positionOfMathOperator, ASTNode* node)
-//{
-//	// Check if these tokens are inside a function argument
-//	if (IsInsideBrackets(tokens, positionOfMathOperator))
-//		return;
-//
-//	// to the left is a number
-//	node->left = new ASTNode;
-//	std::vector<Token> leftSide = SliceVector(tokens, 0, positionOfMathOperator);
-//	//ReduceDepthOfBrackets(leftSide, Token::LeftParentheses);
-//
-//	if (leftSide.size() == 0)
-//	{
-//		// Assume 
-//		if (node->type == ASTTypes::Subtract)
-//		{
-//			node->left->type = ASTTypes::Number;
-//			node->left->numberValue = 0.0f;
-//		}
-//		else
-//		{
-//			Parser::CreateError("Expected something to the left of math operator");
-//			return;
-//		}
-//	}
-//
-//	Parser::CreateAST(leftSide, node->left, node);
-//	//if (error != "") return error;
-//
-//	node->right = new ASTNode;
-//	std::vector<Token> rightSide = SliceVector(tokens, positionOfMathOperator + 1);
-//
-//	if (rightSide.size() == 0)
-//	{
-//		Parser::CreateError("Expected something to the right of math operator");
-//		return;
-//	}
-//
-//	Parser::CreateAST(rightSide, node->right, node);
-//}
-//
-//void ReduceDepth(std::vector<Token>& tokens, Token::Types toFind)
-//{
-//	for (int i = 0; i < tokens.size(); i++)
-//	{
-//		if (tokens[i].m_Type == toFind)
-//			tokens[i].m_Depth--;
-//	}
-//}
-//
+
+bool Parser::ParseMathExpression(Tokens& tokens, ASTNode* node)
+{
+	auto ParseMath = [&](int positionOfMathOperator) {
+		node->left = new ASTNode;
+		std::vector<Token> leftSide = SliceVector(tokens, 0, positionOfMathOperator);
+
+		//ReduceDepthOfBrackets(leftSide, Token::LeftParentheses);
+
+		if (leftSide.size() == 0)
+		{
+			return MakeError("Nothing to the left of math operator");
+			// Assume 
+			/*if (node->type == ASTTypes::Subtract)
+			{
+				node->left->type = ASTTypes::Number;
+				node->left->numberValue = 0.0f;
+			}
+			else
+			{
+				Parser::CreateError("Expected something to the left of math operator");
+				return;
+			}*/
+		}
+
+		CreateAST(leftSide, node->left, node);
+		if (m_Error != "") return false;
+
+		node->right = new ASTNode;
+		std::vector<Token> rightSide = SliceVector(tokens, positionOfMathOperator + 1);
+
+		if (rightSide.size() == 0)
+			return MakeError("Expected something to the right of math operator");
+
+		CreateAST(rightSide, node->right, node);
+		if (m_Error != "") return false;
+
+		return true;
+	};
+
+	//Add
+	for (int i = 0; i < tokens.size(); i++)
+	{
+		if (tokens[i].m_Type == Token::Add)
+		{
+			// Check if these tokens are inside a function argument
+			if (IsInsideBrackets(tokens, i))
+				continue;
+
+			node->type = ASTTypes::Add;
+			return ParseMath(i);
+		}
+	}
+	// Subtract
+	for (int i = 0; i < tokens.size(); i++)
+	{
+		if (tokens[i].m_Type == Token::Subtract)
+		{
+			// Check if these tokens are inside a function argument
+			if (IsInsideBrackets(tokens, i))
+				continue;
+
+			node->type = ASTTypes::Subtract;
+			return ParseMath(i);
+		}
+	}
+	// Divide
+	for (int i = 0; i < tokens.size(); i++)
+	{
+		if (tokens[i].m_Type == Token::Divide)
+		{
+			// Check if these tokens are inside a function argument
+			if (IsInsideBrackets(tokens, i))
+				continue;
+
+			node->type = ASTTypes::Divide;
+			return ParseMath(i);
+		}
+	}
+	// Multiply
+	for (int i = 0; i < tokens.size(); i++)
+	{
+		if (tokens[i].m_Type == Token::Multiply)
+		{
+			// Check if these tokens are inside a function argument
+			if (IsInsideBrackets(tokens, i))
+				continue;
+
+			node->type = ASTTypes::Multiply;
+			return ParseMath(i);
+		}
+	}
+
+	return false;
+}
+
+void ReduceDepth(std::vector<Token>& tokens, Token::Types toFind)
+{
+	for (int i = 0; i < tokens.size(); i++)
+	{
+		if (tokens[i].m_Type == toFind)
+			tokens[i].m_Depth--;
+	}
+}
+
 std::vector<std::vector<Token>> MakeScopeIntoLines(std::vector<Token> tokens, int start, int end)
 {
 	std::vector<std::vector<Token>> lines;
@@ -727,66 +781,13 @@ void Parser::CreateAST(std::vector<Token>& tokens, ASTNode* node, ASTNode* paren
 			return;
 	}
 
-	//// Add
-	//for (int i = 0; i < tokens.size(); i++)
-	//{
-	//	if (tokens[i].m_Type == Token::Add)
-	//	{
-	//		node->type = ASTTypes::Add;
+	if (!ParseMathExpression(tokens, node))
+	{
+		if (m_Error != "")
+			return;
+	}
+	else return;
 
-	//		// Check if these tokens are inside a function argument
-	//		if (IsInsideBrackets(tokens, i))
-	//			continue;
-
-	//		return ParseMathExpression(tokens, i, node);
-	//	}
-	//}
-	//// Subtract
-	//for (int i = 0; i < tokens.size(); i++)
-	//{
-	//	if (tokens[i].m_Type == Token::Subtract)
-	//	{
-	//		node->type = ASTTypes::Subtract;
-
-	//		// Check if these tokens are inside a function argument
-	//		if (IsInsideBrackets(tokens, i))
-	//			continue;
-
-	//		return ParseMathExpression(tokens, i, node);
-	//	}
-	//}
-	//// Multiplication
-	//for (int i = 0; i < tokens.size(); i++)
-	//{
-	//	if (tokens[i].m_Type == Token::Multiply)
-	//	{
-	//		node->type = ASTTypes::Multiply;
-
-	//		// Check if these tokens are inside a function argument
-	//		if (IsInsideBrackets(tokens, i))
-	//			continue;
-
-	//		return ParseMathExpression(tokens, i, node);
-	//	}
-	//}
-	//// Division
-	//for (int i = 0; i < tokens.size(); i++)
-	//{
-	//	if (tokens[i].m_Type == Token::Divide)
-	//	{
-	//		node->type = ASTTypes::Divide;
-
-	//		// Check if these tokens are inside a function argument
-	//		if (IsInsideBrackets(tokens, i))
-	//			continue;
-
-	//		return ParseMathExpression(tokens, i, node);
-	//	}
-	//}
-	//
-	// 
-	// 
-	
 	// Parentheses
 	if (!ParseParentheses(tokens, node))
 	{
