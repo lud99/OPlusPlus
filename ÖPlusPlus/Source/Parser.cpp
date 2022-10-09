@@ -60,7 +60,7 @@ std::string ASTNode::ToString(bool includeData)
 		"WhileStatement",
 		"ForStatement",
 		"FunctionDefinition",
-		"AnonymousFunction",
+		"FunctionPrototype",
 		"Break",
 		"Continue",
 		"Import",
@@ -766,6 +766,30 @@ void Parser::CreateAST(std::vector<Token>& tokens, ASTNode* node, ASTNode* paren
 	}
 	else return;
 
+	if (!ParseFunctionDeclaration(tokens, node))
+	{
+		if (HasError())
+			return;
+	}
+	else return;
+
+	// parse return 
+	if (tokens[0].m_Type == Token::Return)
+	{
+		node->left = new ASTNode;
+		node->type = ASTTypes::Return;
+
+		// Parse the expression after the return
+		std::vector<Token> returnValue = SliceVector(tokens, 1);
+
+		CreateAST(returnValue, node->left, node);
+
+		if (node->left->type == ASTTypes::Assign)
+			return MakeErrorVoid("Cannot return a variable assignment");
+
+		return;
+	}
+
 	if (!ParseAssignment(tokens, node))
 	{
 		if (HasError())
@@ -781,8 +805,6 @@ void Parser::CreateAST(std::vector<Token>& tokens, ASTNode* node, ASTNode* paren
 	else return;
 
 	// parse else 
-
-	// parse return 
 
 	if (!ParseLogicalAndOr(tokens, node))
 	{
@@ -963,6 +985,89 @@ bool Parser::ParseStatement(Tokens& tokens, ASTNode* node)
 	return true;
 }
 
+bool Parser::ParseFunctionDeclaration(Tokens& tokens, ASTNode* node)
+{
+	for (int i = 0; i < tokens.size(); i++)
+	{
+		if (tokens[i].m_Type == Token::RightArrow)
+		{
+			if (tokens[i].m_Depth != 0)
+				continue;
+
+			//if (!IsValidAssignmentExpression(tokens, i))
+				//return false;
+
+			node->type = ASTTypes::FunctionDefinition;
+
+			node->left = new ASTNode(ASTTypes::FunctionPrototype);
+			node->right = new ASTNode;
+
+			Tokens functionPrototype = SliceVector(tokens, 0, i);
+
+			if (!ParseFunctionPrototype(functionPrototype, node->left))
+				return false;
+
+			Tokens functionBody = SliceVector(tokens, i + 1);
+			CreateAST(functionBody, node->right, node);
+			if (HasError()) return false;
+
+			return true;
+		}
+	}
+
+	return false;
+}
+
+// {returnType} {name} (...args)
+bool Parser::ParseFunctionPrototype(Tokens& tokens, ASTNode* node)
+{
+	if (!ElementExists(tokens, 0) || !tokens[0].IsVariableType())
+		return MakeError("Expected return type of the function at the start of the function prototype");
+
+	if (!ElementExists(tokens, 1) || !tokens[1].m_Type == Token::Variable)
+		return MakeError("Expected function name after the function return type");
+
+	if (!ElementExists(tokens, 2) || !tokens[2].m_Type == Token::LeftParentheses)
+		return MakeError("Expected left parentheses after function name in prototype");
+
+	// Return type
+	ASTNode* returnType = new ASTNode(ASTTypes::VariableType);
+	returnType->stringValue = tokens[0].m_Value;
+ 	node->arguments.push_back(returnType);
+
+	// Function name
+	ASTNode* functionName = new ASTNode(ASTTypes::Variable);
+	functionName->stringValue = tokens[1].m_Value;
+	node->arguments.push_back(functionName);
+
+	int endParanthesisPosition = FindMatchingEndBracket(tokens, tokens[2]);
+	std::vector<Token> argContent = SliceVector(tokens, 3, endParanthesisPosition);
+
+	if (!ElementExists(tokens, endParanthesisPosition) || !tokens[endParanthesisPosition].m_Type == Token::RightParentheses)
+		return MakeError("Expected right parentheses after parameters in function prototype");
+
+	// No parameters
+	if (argContent.empty())
+		return true;
+
+	std::vector<Tokens> parameters = DepthSplit(argContent, Token::Comma, tokens[2].m_Depth);
+
+	// Resolve the arguments
+	for (int i = 0; i < parameters.size(); i++)
+	{
+		// If an argument has no tokens, then there was nothing after the comma
+		if (parameters[i].empty())
+			return MakeError("Expected a parameter after the comma in the function prototype");
+
+		ASTNode* argNode = new ASTNode;
+		CreateAST(parameters[i], argNode, node);
+
+		node->arguments.push_back(argNode);
+	}
+
+	return true;
+}
+
 bool Parser::ParseAssignment(Tokens& tokens, ASTNode* node)
 {
 	for (int i = 0; i < tokens.size(); i++)
@@ -1125,9 +1230,9 @@ bool Parser::ParseVariableDeclaration(Tokens& tokens, ASTNode* node)
 	node->left->type = ASTTypes::VariableType;
 	node->left->stringValue = tokens[0].m_Value;
 
-	node->left = new ASTNode;
-	node->left->type = ASTTypes::Variable;
-	node->left->stringValue = tokens[1].m_Value;
+	node->right = new ASTNode;
+	node->right->type = ASTTypes::Variable;
+	node->right->stringValue = tokens[1].m_Value;
 
 	return true;
 }
@@ -1232,7 +1337,7 @@ bool Parser::ParseIncrementDecrement(Tokens& tokens, ASTNode* node)
 			if (IsInsideBrackets(tokens, i))
 				continue;
 
-			if (!IsValidPostIncDecExpression(tokens, i))
+			if (!IsValidPostIncDecExpression(tokens, i - 1))
 				return false;
 
 			if (tokens[i].m_Type == Token::PostIncrement)

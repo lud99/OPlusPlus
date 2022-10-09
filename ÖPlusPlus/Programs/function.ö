@@ -1,3 +1,5 @@
-int func (int a, int b) => {
+int func () => {
+	string a = 2;
 
+	return;
 }

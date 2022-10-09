@@ -57,7 +57,7 @@ enum class ASTTypes
 	WhileStatement,
 	ForStatement,
 	FunctionDefinition,
-	AnonymousFunction,
+	FunctionPrototype,
 	Break,
 	Continue,
 	Import,
@@ -123,6 +123,8 @@ public:
 
 	bool ParseElseStatement(Tokens& tokens, ASTNode* node);
 	bool ParseStatement(Tokens& tokens, ASTNode* node);
+	bool ParseFunctionDeclaration(Tokens& tokens, ASTNode* node);
+	bool ParseFunctionPrototype(Tokens& tokens, ASTNode* node);
 	bool ParseAssignment(Tokens& tokens, ASTNode* node);
 	bool ParseLogicalAndOr(Tokens& tokens, ASTNode* node);
 	bool ParseComparisonOperators(Tokens& tokens, ASTNode* node);
