@@ -39,6 +39,8 @@ struct Token
 		LessThanEqual,
 		GreaterThanEqual,
 
+		RightArrow,
+
 		And,
 		Or,
 		Not,

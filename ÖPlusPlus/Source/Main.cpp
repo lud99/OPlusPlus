@@ -35,7 +35,7 @@ int main()
 {
 	setlocale(LC_ALL, "");
 
-	std::string filepath = "Programs/test.ö";
+	std::string filepath = "Programs/function.ö";
 
 	std::ifstream file(filepath);
 	if (!file.good())

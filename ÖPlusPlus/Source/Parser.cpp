@@ -123,7 +123,7 @@ bool IsInsideBrackets(std::vector<Token> tokens, int start)
 	{
 		if (ElementExists(tokens, i - 1))
 		{
-			if (tokens[i - 1].m_Type == Token::LeftParentheses || 
+			if (tokens[i - 1].m_Type == Token::LeftParentheses ||
 				tokens[i - 1].m_Type == Token::LeftSquareBracket)
 				return true;
 		}
@@ -135,7 +135,7 @@ bool IsInsideBrackets(std::vector<Token> tokens, int start)
 			return tokens[i].m_Depth != 1;
 		}
 	}
-	
+
 	return false;
 }
 
@@ -396,7 +396,7 @@ std::vector<Tokens> MakeScopeIntoLines(std::vector<Token> tokens, int start, int
 		isInsideDeeperScope = token.m_Depth > scopeDepth;
 		bool isInsideStatement = statementDepth > 0;
 
-		if (token.IsStatementKeyword()) 
+		if (token.IsStatementKeyword())
 		{
 			statementDepth++;
 			insideStatementArgs = true;
@@ -437,7 +437,7 @@ std::vector<Tokens> MakeScopeIntoLines(std::vector<Token> tokens, int start, int
 				{
 					if (tokens[i + 1].m_Type == Token::Else)
 					{
-						
+
 					}
 					else {
 						lines.push_back(currentLine);
@@ -487,7 +487,7 @@ std::vector<Tokens> MakeScopeIntoLines(std::vector<Token> tokens, int start, int
 					if (curlyBracketDepth > 0 || insideStatementArgs)
 						token.m_Depth--;
 				}
-					
+
 				currentLine.push_back(token);
 			}
 			else
@@ -736,7 +736,7 @@ void Parser::CreateAST(std::vector<Token>& tokens, ASTNode* node, ASTNode* paren
 			lines = MakeScopeIntoLines(tokens, 1, tokens.size() - 1);
 
 		// Evaluate each of the lines, and make the result a child of a line node
-		ASTNode* lineNode = new ASTNode;    
+		ASTNode* lineNode = new ASTNode;
 
 		// Finally, evaluate all lines
 		for (int i = 0; i < lines.size(); i++)
@@ -745,7 +745,7 @@ void Parser::CreateAST(std::vector<Token>& tokens, ASTNode* node, ASTNode* paren
 
 			CreateAST(lines[i], line, node);
 			if (HasError()) return;
-		
+
 			node->arguments.push_back(line);
 		}
 
@@ -891,7 +891,7 @@ bool Parser::ParseElseStatement(Tokens& tokens, ASTNode* node)
 
 			CreateAST(ifScope, node->left, node);
 			CreateAST(elseScope, node->right, node);
-			
+
 			return true;
 		}
 	}
@@ -1137,7 +1137,7 @@ bool Parser::ParseParentheses(Tokens& tokens, ASTNode* node)
 	// Paranthesis
 	if (tokens[0].m_Type != Token::LeftParentheses)
 		return false;
-	
+
 	// Slice until next parenthesis
 	int end = FindMatchingEndBracket(tokens, tokens[0]);
 	if (end == -1)

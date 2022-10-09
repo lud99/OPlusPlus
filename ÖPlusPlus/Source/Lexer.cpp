@@ -39,6 +39,8 @@ std::string Token::ToString()
 		"LessThanEqual",
 		"GreaterThanEqual",
 
+		"RightArrow",
+
 		"And",
 		"Or",
 		"Not",
@@ -627,6 +629,12 @@ std::string Lexer::CreateTokens(const std::string& source)
 					if (Current() == '>' && Next() == '=')
 					{
 						AddToken(Token(Token::GreaterThanEqual, ">="));
+						foundMatch = true;
+					}
+					// =>
+					if (Current() == '=' && Next() == '>')
+					{
+						AddToken(Token(Token::RightArrow, "=>"));
 						foundMatch = true;
 					}
 				}
