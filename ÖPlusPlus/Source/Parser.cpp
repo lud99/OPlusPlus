@@ -28,6 +28,7 @@ std::string ASTNode::ToString(bool includeData)
 		"Not",
 		"Null",
 		"IntLiteral",
+		"FloatLiteral",
 		"StringLiteral",
 		"Bool",
 		"ArrayType",
@@ -124,19 +125,77 @@ bool IsInsideBrackets(std::vector<Token> tokens, int start)
 		if (ElementExists(tokens, i - 1))
 		{
 			if (tokens[i - 1].m_Type == Token::LeftParentheses ||
-				tokens[i - 1].m_Type == Token::LeftSquareBracket)
-				return true;
+				tokens[i - 1].m_Type == Token::LeftSquareBracket) {
+				if (tokens[i].m_Depth == tokens[start].m_Depth)
+					return true;
+			}
+				
 		}
+	}
+
+	for (int i = start; i < tokens.size(); i++) // Walk from here forward
+	{
 		if (tokens[i].m_Type == Token::RightParentheses ||
 			tokens[i].m_Type == Token::RightSquareBracket)
 		{
 			assert(tokens[i].m_Depth != -1);
 
-			return tokens[i].m_Depth != 1;
+			if (tokens[i].m_Depth == tokens[start].m_Depth)
+				return true;
 		}
 	}
 
 	return false;
+}
+
+bool IsInsideNestedIfStatement(std::vector<Token> tokens, int start)
+{
+	if (start <= 0)
+		return false;
+
+	bool foundMatchingIf = false;
+	bool isHigherUpIf = false;
+	for (int i = start - 1; i >= 0; i--) // Walk from here backwards
+	{
+		if (tokens[i].m_Type == Token::If) {
+			if (tokens[i].m_Depth < tokens[start].m_Depth)
+				isHigherUpIf = true;
+
+			if (tokens[i].m_Depth == tokens[start].m_Depth)
+				foundMatchingIf = true;
+		}
+	}
+
+	//for (int i = start; i < tokens.size(); i++) // Walk from here forwards
+	//{
+	//	if (ElementExists(tokens, i + 1))
+	//	{
+	//		if (tokens[i + 1].m_Type == Token::Else) {
+	//			if (tokens[i].m_Depth < tokens[start].m_Depth)
+	//				isHigherUpIf = true;
+
+	//			if (tokens[i].m_Depth == tokens[start].m_Depth)
+	//				foundMatchingIf = true;
+	//		}
+	//	}
+	//}
+
+	if (foundMatchingIf && !isHigherUpIf)
+		return false;
+
+	//for (int i = start; i < tokens.size(); i++) // Walk from here forward
+	//{
+	//	if (tokens[i].m_Type == Token::RightParentheses ||
+	//		tokens[i].m_Type == Token::RightSquareBracket)
+	//	{
+	//		assert(tokens[i].m_Depth != -1);
+
+	//		if (tokens[i].m_Depth == tokens[start].m_Depth)
+	//			return true;
+	//	}
+	//}
+
+	return true;
 }
 
 bool IsInsideScope(std::vector<Token> tokens, int start)
@@ -190,6 +249,10 @@ void ReduceDepthOfBrackets(std::vector<Token>& tokens, Token::Types type)
 
 	for (int i = 0; i < tokens.size(); i++)
 	{
+		if (tokens[i].m_Depth == 0)
+		{
+			int a = 2;
+		}
 		assert(tokens[i].m_Depth != 0);
 
 		if (tokens[i].m_Type == type || tokens[i].m_Type == typeOfEnd)
@@ -371,12 +434,12 @@ void ReduceDepth(std::vector<Token>& tokens, Token::Types toFind)
 	}
 }
 
-std::vector<Tokens> MakeScopeIntoLines(std::vector<Token> tokens, int start, int end)
+std::vector<Tokens> MakeScopeIntoLines(std::vector<Token> tokens, int start, int end, int startingDepth)
 {
 	std::vector<Tokens> lines;
 	std::vector<Token> currentLine;
 
-	int scopeDepth = 0;
+	int scopeDepth = startingDepth;// tokens[0].m_Depth;
 	bool isInsideParentheses = false;
 	bool isInsideDeeperScope = false;
 
@@ -386,6 +449,13 @@ std::vector<Tokens> MakeScopeIntoLines(std::vector<Token> tokens, int start, int
 	int curlyBracketDepth = 0;
 	int statementDepth = 0;
 	bool insideStatementArgs = false;
+
+	bool dontReduceDepth = tokens[0].m_Depth == 0;
+
+	auto ReduceTokenDepth = [dontReduceDepth](Token& token) {
+		//if (!dontReduceDepth)
+			//token.m_Depth--;
+	};
 
 	tokens = SliceVector(tokens, start, end);
 
@@ -400,12 +470,12 @@ std::vector<Tokens> MakeScopeIntoLines(std::vector<Token> tokens, int start, int
 		{
 			statementDepth++;
 			insideStatementArgs = true;
-			token.m_Depth--;
+			ReduceTokenDepth(token);
 			currentLine.push_back(token);
 		}
 		else if (token.m_Type == Token::LeftCurlyBracket)
 		{
-			token.m_Depth--;
+			ReduceTokenDepth(token);
 
 			currentLine.push_back(token);
 
@@ -413,7 +483,7 @@ std::vector<Tokens> MakeScopeIntoLines(std::vector<Token> tokens, int start, int
 		}
 		else if (token.m_Type == Token::RightCurlyBracket)
 		{
-			token.m_Depth--;
+			ReduceTokenDepth(token);
 
 			currentLine.push_back(token);
 
@@ -453,14 +523,15 @@ std::vector<Tokens> MakeScopeIntoLines(std::vector<Token> tokens, int start, int
 		}
 		else if (token.m_Type == Token::Else)
 		{
-			currentLine.emplace_back(Token::Else, "", token.m_Depth - 1);
+			ReduceTokenDepth(token);
+			currentLine.push_back(token);
 		}
 		else if (token.m_Type == Token::LeftParentheses)
 		{
 			isInsideParentheses = true;
 
 			if (curlyBracketDepth > 0 || insideStatementArgs)
-				token.m_Depth--;
+				ReduceTokenDepth(token);
 
 			currentLine.push_back(token);
 		}
@@ -469,7 +540,7 @@ std::vector<Tokens> MakeScopeIntoLines(std::vector<Token> tokens, int start, int
 			isInsideParentheses = true;
 
 			if (curlyBracketDepth > 0 || insideStatementArgs)
-				token.m_Depth--;
+				ReduceTokenDepth(token);
 
 			if (statementDepth == token.m_Depth) insideStatementArgs = false;
 
@@ -485,7 +556,7 @@ std::vector<Tokens> MakeScopeIntoLines(std::vector<Token> tokens, int start, int
 			{
 				if (isInsideDeeperScope) {
 					if (curlyBracketDepth > 0 || insideStatementArgs)
-						token.m_Depth--;
+						ReduceTokenDepth(token);
 				}
 
 				currentLine.push_back(token);
@@ -502,7 +573,7 @@ std::vector<Tokens> MakeScopeIntoLines(std::vector<Token> tokens, int start, int
 				}
 				else
 				{
-					token.m_Depth--;
+					ReduceTokenDepth(token);
 					currentLine.push_back(token);
 				}
 			}
@@ -695,6 +766,8 @@ bool Parser::IsValidFunctionCallExpression(Tokens tokens)
 		return MakeError("Found no closing parenthesis for function call");
 
 	std::vector<Token> argContent = SliceVector(tokens, 2, endParanthesisPosition);
+	if (argContent.empty()) 
+		return true;
 	if (argContent.front().m_Type == Token::Comma)
 		return MakeError("Expected an argument before the first comma in the function call");
 	if (argContent.back().m_Type == Token::Comma)
@@ -731,9 +804,9 @@ void Parser::CreateAST(std::vector<Token>& tokens, ASTNode* node, ASTNode* paren
 
 		// There are no first and last brackets to exlude if it's the root program, so iterate all tokens
 		if (parent->type == ASTTypes::ProgramBody)
-			lines = MakeScopeIntoLines(tokens, 0, tokens.size());
+			lines = MakeScopeIntoLines(tokens, 0, tokens.size(), 0);
 		else
-			lines = MakeScopeIntoLines(tokens, 1, tokens.size() - 1);
+			lines = MakeScopeIntoLines(tokens, 1, tokens.size() - 1, tokens[0].m_Depth);
 
 		// Evaluate each of the lines, and make the result a child of a line node
 		ASTNode* lineNode = new ASTNode;
@@ -899,7 +972,7 @@ bool Parser::ParseElseStatement(Tokens& tokens, ASTNode* node)
 	{
 		if (tokens[i].m_Type == Token::Else)
 		{
-			if (tokens[i].m_Depth != 0)//if (IsInsideScope(tokens, i))
+			if (IsInsideNestedIfStatement(tokens, i))
 				continue;
 			if (!IsValidElseStatement(tokens, i))
 				return false;
@@ -1008,6 +1081,11 @@ bool Parser::ParseFunctionDeclaration(Tokens& tokens, ASTNode* node)
 				return false;
 
 			Tokens functionBody = SliceVector(tokens, i + 1);
+			for (int j = 0; j < functionBody.size(); j++)
+			{
+				//functionBody[j].m_Depth++;
+			}
+
 			CreateAST(functionBody, node->right, node);
 			if (HasError()) return false;
 

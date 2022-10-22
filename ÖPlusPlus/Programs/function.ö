@@ -1,5 +1,9 @@
-int func () => {
-	string a = 2;
+int func(int n) => {
+	if (n <= 1) {
+		return 1;
+	};
 
-	return;
-}
+	return n * fact(n - 1);
+};
+
+func(3);
