@@ -28,7 +28,15 @@ if (-1) {
 	print("else2");
 } else {}*/
 
+// SHould error
+/*
+if (1) {
 
+} else {
+
+} else {
+}
+*/
 // 5.
 /*
 if (1) {

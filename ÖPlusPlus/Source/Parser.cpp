@@ -967,11 +967,15 @@ void Parser::CreateAST(std::vector<Token>& tokens, ASTNode* node, ASTNode* paren
 
 bool Parser::ParseElseStatement(Tokens& tokens, ASTNode* node)
 {
+	bool hasFoundElse = false;
 	// Check for else
 	for (int i = 0; i < tokens.size(); i++)
 	{
 		if (tokens[i].m_Type == Token::Else)
 		{
+			if (hasFoundElse)
+				return MakeError("Cannot have multiple else statements after the same if statement");
+
 			if (IsInsideNestedIfStatement(tokens, i))
 				continue;
 			if (!IsValidElseStatement(tokens, i))
@@ -987,9 +991,12 @@ bool Parser::ParseElseStatement(Tokens& tokens, ASTNode* node)
 			CreateAST(ifScope, node->left, node);
 			CreateAST(elseScope, node->right, node);
 
-			return true;
+			hasFoundElse = true;
 		}
 	}
+
+	if (hasFoundElse) 
+		return true;
 
 	return false;
 }
