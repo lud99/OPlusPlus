@@ -75,7 +75,7 @@ int main()
 	BytecodeFunctions::InitializeDefaultFunctions();
 
 	std::string error;
-	BytecodeInterpreter::Get().CreateAndRunProgram("Programs/test.ö", error);
+	BytecodeInterpreter::Get().CreateAndRunProgram("Programs/function.ö", error);
 
 	if (error != "") std::cout << "error: " << error;
 

@@ -36,6 +36,9 @@
     <ClCompile Include="Source\Interpreter\Bytecode\BytecodeFunctions.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Interpreter\Bytecode\Debugger.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\Lexer.h">
@@ -57,6 +60,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Source\Interpreter\Bytecode\BytecodeFunctions.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Interpreter\Bytecode\Debugger.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

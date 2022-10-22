@@ -28,7 +28,7 @@ std::string ASTNode::ToString(bool includeData)
 		"Not",
 		"Null",
 		"IntLiteral",
-		"FloatLiteral",
+		"DoubleLiteral",
 		"StringLiteral",
 		"Bool",
 		"ArrayType",
@@ -952,6 +952,11 @@ void Parser::CreateAST(std::vector<Token>& tokens, ASTNode* node, ASTNode* paren
 			node->type = ASTTypes::IntLiteral;
 			node->numberValue = std::stoi(token.m_Value);
 		}
+		if (token.m_Type == Token::DoubleLiteral)
+		{
+			node->type = ASTTypes::DoubleLiteral;
+			node->numberValue = StringToDouble(token.m_Value);
+		}
 		if (token.m_Type == Token::StringLiteral)
 		{
 			node->type = ASTTypes::StringLiteral;
@@ -1400,8 +1405,8 @@ bool Parser::ParseFunctionCall(Tokens& tokens, ASTNode* node)
 		if (arguments[i].empty())
 			return MakeError("Expected an argument after the comma in the function call");
 
-		ReduceDepthOfBrackets(arguments[i], Token::LeftParentheses);
-		ReduceDepth(arguments[i], Token::Comma);
+		//ReduceDepthOfBrackets(arguments[i], Token::LeftParentheses);
+		//ReduceDepth(arguments[i], Token::Comma);
 
 		ASTNode* argNode = new ASTNode;
 		CreateAST(arguments[i], argNode, node);

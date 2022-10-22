@@ -24,8 +24,8 @@ public:
 	void* m_Data = nullptr;
 };
 
-constexpr int STACK_SIZE = 256;
-constexpr int STACKFRAME_SIZE = 32;
+constexpr int STACK_SIZE = 64;
+constexpr int STACKFRAME_SIZE = 64;
 
 enum ValueTypes
 {
@@ -49,6 +49,8 @@ public:
 
 	HeapEntry* m_HeapEntryPointer = nullptr;
 	
+	bool m_IsLocal = false;
+
 	StackValue() {};
 	StackValue(ValueTypes type) : m_Type(type) {};
 	StackValue(int value, ValueTypes type) : m_ValueInt(value), m_Type(type) {};

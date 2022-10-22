@@ -146,6 +146,7 @@
     <ClCompile Include="Source\Interpreter\Bytecode\BytecodeCompiler.cpp" />
     <ClCompile Include="Source\Interpreter\Bytecode\BytecodeFunctions.cpp" />
     <ClCompile Include="Source\Interpreter\Bytecode\BytecodeInterpreter.cpp" />
+    <ClCompile Include="Source\Interpreter\Bytecode\Debugger.cpp" />
     <ClCompile Include="Source\Interpreter\Bytecode\StackValue.cpp" />
     <ClCompile Include="Source\Lexer.cpp" />
     <ClCompile Include="Source\Main.cpp" />
@@ -154,6 +155,7 @@
   <ItemGroup>
     <ClInclude Include="Source\Interpreter\Bytecode\BytecodeCompiler.h" />
     <ClInclude Include="Source\Interpreter\Bytecode\BytecodeInterpreter.h" />
+    <ClInclude Include="Source\Interpreter\Bytecode\Debugger.h" />
     <ClInclude Include="Source\Interpreter\Bytecode\StackValue.h" />
     <ClInclude Include="Source\Interpreter\Bytecode\BytecodeFunctions.h" />
     <ClInclude Include="Source\Lexer.h" />

@@ -86,10 +86,10 @@ StackValue BytecodeInterpreter::CreateAndRunProgram(std::string filepath, std::s
 
 	std::cout << sizeof(StackFrame) << ", " << sizeof(StackValue) << ", " << sizeof(ExecutionContext) << "\n";
 
-	//m_Debugger = Debugger(instructions);
-	//m_Debugger.m_Enabled = true;
+	m_Debugger = Debugger(instructions);
+	m_Debugger.m_Enabled = true;
 
-	//m_Debugger.Render();
+	
 
 	auto start = std::chrono::high_resolution_clock::now();
 
@@ -194,7 +194,12 @@ void StackFrame::StoreVariable(uint32_t index, StackValue value, ValueTypes vari
 
 void StackFrame::PushOperand(StackValue value)
 {
-	assert(m_OperandStackTop >= 0 && m_OperandStackTop < STACK_SIZE - 1);
+	assert(m_OperandStackTop >= 0);
+
+	if (m_OperandStackTop >= STACK_SIZE - 1) {
+		std::cout << "STACK OVERFLOW";
+		abort();
+	}
 
 	m_OperandStack[m_OperandStackTop] = value;
 	m_OperandStackTop++;
@@ -308,7 +313,7 @@ void ExecutionContext::Execute()
 
 	while (true)
 	{
-		//m_Debugger.Render();
+		//BytecodeInterpreter::Get().m_Debugger.Render();
 
 		StackFrame& stackFrame = m_StackFrames[m_StackFrameTop];
 
@@ -427,8 +432,14 @@ void ExecutionContext::Execute()
 
 			uint32_t index = instruction.m_Arguments[0].GetInt();
 
-			if (instruction.m_ArgsCount >= 2)
+			if (instruction.m_ArgsCount >= 2) {
 				stackFrame.StoreVariable(index, operand, variableType);
+				
+				if (instruction.m_ArgsCount == 4)
+				{
+					stackFrame.m_VariablesList[index].m_IsLocal = true;
+				}
+			} 
 			else
 				stackFrame.StoreVariable(index, operand);
 
@@ -776,6 +787,7 @@ void ExecutionContext::Execute()
 		{
 			PushFrame(this);
 			StackFrame& newFrame = GetTopFrame();
+			newFrame.m_ReturnAdress = stackFrame.m_ReturnAdress;
 
 			// Copy the variables from the previous scope into this
 			for (int i = 0; i < STACK_SIZE; i++)
@@ -910,8 +922,11 @@ void ExecutionContext::DeleteLocalVariables(StackFrame& topFrame, StackFrame& lo
 		// If a variable is new
 		if (localFrame.m_VariablesList[i].m_Type != ValueTypes::Void && localFrame.m_InitialVariablesList[i].m_Type == ValueTypes::Void)
 			localFrame.m_VariablesList[i].Delete();
-		else
-			topFrame.m_VariablesList[i] = localFrame.m_VariablesList[i];
+		else {
+			if (!topFrame.m_VariablesList[i].m_IsLocal)
+				topFrame.m_VariablesList[i] = localFrame.m_VariablesList[i];
+		}
+			
 	}
 }
 

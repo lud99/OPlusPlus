@@ -548,7 +548,12 @@ std::string Lexer::CreateTokens(const std::string& source)
 					if (error != "") return MakeError(error);
 
 					token.m_Value += Current();
-					token.m_Type = Token::IntLiteral;
+
+					if (token.m_Value.find('.') != std::string::npos)
+						token.m_Type = Token::DoubleLiteral;
+					else
+						token.m_Type = Token::IntLiteral;
+
 					Skip();
 				}
 				if (error != "") return MakeError(error);

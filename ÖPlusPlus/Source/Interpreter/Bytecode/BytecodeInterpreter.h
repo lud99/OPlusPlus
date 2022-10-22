@@ -2,6 +2,7 @@
 
 #include "StackValue.h"
 #include "BytecodeCompiler.h"
+#include "Debugger.h"
 
 #include <tuple>
 
@@ -108,6 +109,6 @@ public:
 
 	BytecodeCompiler m_Compiler;
 
-	/*Console m_Console;
-	Debugger m_Debugger;*/
+	/*Console m_Console;*/
+	Debugger m_Debugger;
 };

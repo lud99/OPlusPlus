@@ -25,7 +25,7 @@ enum class ASTTypes
 	Not,
 	Null,
 	IntLiteral,
-	FloatLiteral,
+	DoubleLiteral,
 	StringLiteral,
 	Bool,
 	ArrayType,

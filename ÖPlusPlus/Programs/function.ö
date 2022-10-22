@@ -1,9 +1,9 @@
-int func(int n) => {
-	if (n <= 1) {
-		return 1;
+int fact(double n) => {
+	if (n <= 1.0) {
+		return 1.0;
 	};
 
-	return n * fact(n - 1);
+	return n * fact(n - 1.0);
 };
 
-func(3);
+print(fact(16.0));

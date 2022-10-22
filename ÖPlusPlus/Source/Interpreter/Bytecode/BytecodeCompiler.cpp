@@ -14,6 +14,7 @@ ValueTypes NodeVariableTypeToValueType(ASTNode* n)
 
 	if (n->stringValue == "int") return ValueTypes::Integer;
 	if (n->stringValue == "float") return ValueTypes::Float;
+	if (n->stringValue == "double") return ValueTypes::Float;
 	if (n->stringValue == "string") return ValueTypes::StringConstant;
 	//if (n->stringValue == "char") return ValueTypes::Char;
 	//if (n->stringValue == "array") return ValueTypes::Array;
@@ -137,10 +138,10 @@ int BytecodeCompiler::CompileFunction(ASTNode* node, std::vector<Instruction>& i
 
 	int functionStart = instructions.size() + 1;
 
-	std::vector<Instruction> function;
+	//std::vector<Instruction> function;
 
-	function.emplace_back(Opcodes::skip_function);
-	function.push_back(Instruction(Opcodes::create_function_frame).Arg((int)m_CurrentScope));
+	instructions.emplace_back(Opcodes::skip_function);
+	instructions.push_back(Instruction(Opcodes::create_function_frame).Arg((int)m_CurrentScope));
 
 	// Reset export variable so the local function variables don't get exported
 	bool shouldExport = m_Context.m_ShouldExportVariable;
@@ -148,7 +149,7 @@ int BytecodeCompiler::CompileFunction(ASTNode* node, std::vector<Instruction>& i
 
 	if (node->right)
 	{
-		Instructions body;
+		//Instructions body;
 
 		// Compile arguments
 		if (node->left->arguments.size() >= 3)
@@ -159,39 +160,40 @@ int BytecodeCompiler::CompileFunction(ASTNode* node, std::vector<Instruction>& i
 				
 				if (n->type == ASTTypes::VariableDeclaration)
 				{
-					Compile(n, body, false);
-					body.erase(body.end() - 2);
+					Compile(n, instructions, false);
+					instructions.erase(instructions.end() - 2);
+					instructions[instructions.size() - 1].Arg(0).m_Arguments[3].m_IsLocal = true;
 					//body[body.size() - 2] = Instruction(Opcodes::pop);
 				}
 			}
 		}
 
-		Compile(node->right, body, false);
+		Compile(node->right, instructions, false);
 
 		// Make the function global in case of it being marked as threaded
-		if (m_Context.m_IsThreadedFunction)
-			m_Constants.m_GlobalFunctions[variable.m_Name] = body;
+		//if (m_Context.m_IsThreadedFunction)
+		//	m_Constants.m_GlobalFunctions[variable.m_Name] = body;
 
-		function = ConcatVectors(function, body);
+		//function = ConcatVectors(function, body);
 
 	}
 
 	m_Context.m_ShouldExportVariable = shouldExport;
 
 	// Some function defenitions has a manual return statement, but if none exists then create one automatically
-	if (function.back().m_Type != Opcodes::ret && function.back().m_Type != Opcodes::ret_void)
+	if (instructions.back().m_Type != Opcodes::ret && instructions.back().m_Type != Opcodes::ret_void)
 	{
 		//if (m_Context.m_IsThreadedFunction)
 			//function.emplace_back(Opcodes::thread_end);
 		//else
-		function.emplace_back(Opcodes::ret_void);
+		instructions.emplace_back(Opcodes::ret_void);
 	}
 
 	// Function before
-	function[0 /* skip_function instruction*/].m_Arguments[0] = StackValue(int(function.size() + instructions.size()), ValueTypes::Integer);
+	instructions[functionStart - 1].m_Arguments[0] = StackValue(int(instructions.size()), ValueTypes::Integer);
 
 	// Insert the function instructions at the start of the bytecode
-	instructions = ConcatVectors(instructions, function);
+	//instructions = ConcatVectors(instructions, function);
 
 	if (m_Context.m_ShouldExportVariable)
 		instructions.push_back(Instruction(Opcodes::load).Arg(m_Context.m_ModuleIndex));
@@ -969,7 +971,7 @@ void BytecodeCompiler::Compile(ASTNode* node, std::vector<Instruction>& instruct
 		break;
 	}
 
-	case ASTTypes::FloatLiteral:
+	case ASTTypes::DoubleLiteral:
 	{
 		//bool discardValue = node->parent->type == ASTTypes::Scope;
 
