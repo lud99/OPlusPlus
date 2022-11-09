@@ -39,6 +39,12 @@
     <ClCompile Include="Source\Interpreter\Bytecode\Debugger.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Interpreter\AST\ASTInterpreter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Interpreter\AST\Value.hpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\Lexer.h">
@@ -65,9 +71,19 @@
     <ClInclude Include="Source\Interpreter\Bytecode\Debugger.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Source\Interpreter\AST\ASTInterpreter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Interpreter\ValueTypes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Interpreter\AST\Value.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Programs\test.ö" />
     <None Include="Programs\function.ö" />
+    <None Include="Programs\ASTint.ö" />
   </ItemGroup>
 </Project>

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../../Parser.h"
+#include "../ValueTypes.h"
 
 #include <string>
 
@@ -26,16 +27,6 @@ public:
 
 constexpr int STACK_SIZE = 64;
 constexpr int STACKFRAME_SIZE = 64;
-
-enum ValueTypes
-{
-	Void,
-	Integer,
-	Float,
-	String,
-	StringReference,
-	StringConstant,
-};
 
 class StackValue
 {

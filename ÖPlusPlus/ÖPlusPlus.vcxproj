@@ -143,6 +143,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Source\Interpreter\AST\ASTInterpreter.cpp" />
+    <ClCompile Include="Source\Interpreter\AST\Value.hpp" />
     <ClCompile Include="Source\Interpreter\Bytecode\BytecodeCompiler.cpp" />
     <ClCompile Include="Source\Interpreter\Bytecode\BytecodeFunctions.cpp" />
     <ClCompile Include="Source\Interpreter\Bytecode\BytecodeInterpreter.cpp" />
@@ -153,16 +155,20 @@
     <ClCompile Include="Source\Parser.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Source\Interpreter\AST\ASTInterpreter.h" />
+    <ClInclude Include="Source\Interpreter\AST\Value.h" />
     <ClInclude Include="Source\Interpreter\Bytecode\BytecodeCompiler.h" />
     <ClInclude Include="Source\Interpreter\Bytecode\BytecodeInterpreter.h" />
     <ClInclude Include="Source\Interpreter\Bytecode\Debugger.h" />
     <ClInclude Include="Source\Interpreter\Bytecode\StackValue.h" />
     <ClInclude Include="Source\Interpreter\Bytecode\BytecodeFunctions.h" />
+    <ClInclude Include="Source\Interpreter\ValueTypes.h" />
     <ClInclude Include="Source\Lexer.h" />
     <ClInclude Include="Source\Parser.h" />
     <ClInclude Include="Source\Utils.hpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="Programs\ASTint.ö" />
     <None Include="Programs\function.ö" />
     <None Include="Programs\test.ö" />
   </ItemGroup>
