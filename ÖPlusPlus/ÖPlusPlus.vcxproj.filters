@@ -42,7 +42,10 @@
     <ClCompile Include="Source\Interpreter\AST\ASTInterpreter.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Interpreter\AST\Value.hpp">
+    <ClCompile Include="Source\Interpreter\AST\Value.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Interpreter\AST\ASTFunctions.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -78,6 +81,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Source\Interpreter\AST\Value.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Interpreter\AST\ASTFunctions.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

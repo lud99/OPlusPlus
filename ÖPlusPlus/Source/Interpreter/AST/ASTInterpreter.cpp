@@ -1,5 +1,7 @@
 #include "ASTInterpreter.h"
 
+#include "../Bytecode/BytecodeFunctions.h";
+
 namespace ASTint
 {
 	ASTInterpreter& ASTInterpreter::Get()
@@ -16,11 +18,16 @@ namespace ASTint
 	{
 		m_Error = error;
 	}
+	Value ASTInterpreter::MakeErrorValueReturn(std::string error)
+	{
+		m_Error = error;
+		return Value(ValueTypes::Void);
+	}
 
 	Value ASTInterpreter::InterpretTree(ASTNode* node)
 	{
 		if (m_Error != "")
-			return Value();
+			return Value(ValueTypes::Void);
 
 		switch (node->type)
 		{
@@ -68,16 +75,11 @@ namespace ASTint
 		case ASTTypes::Null:
 			break;
 		case ASTTypes::IntLiteral:
-		{
-			Value v;
-			v.m_IntValue = node->numberValue;
-			return v;
-		}
-			break;
+			return Value((int)node->numberValue, ValueTypes::Integer);
 		case ASTTypes::DoubleLiteral:
-			break;
+			return Value(node->numberValue, ValueTypes::Float);
 		case ASTTypes::StringLiteral:
-			break;
+			return Value(node->stringValue, ValueTypes::StringConstant);
 		case ASTTypes::Bool:
 			break;
 		case ASTTypes::ArrayType:
@@ -94,12 +96,7 @@ namespace ASTint
 			Value lhs = InterpretTree(node->left);
 			Value rhs = InterpretTree(node->right);
 
-			Value v;
-			v.m_IntValue = lhs.m_IntValue + rhs.m_IntValue;
-
-			return v;
-
-			break;
+			return Value::Add(lhs, rhs);
 		}
 		case ASTTypes::Subtract:
 			break;
@@ -125,9 +122,19 @@ namespace ASTint
 			break;
 		case ASTTypes::PreDecrement:
 			break;
-		
 		case ASTTypes::FunctionCall:
+		{
+			std::vector<Value> args(node->arguments.size());
+
+			for (int i = 0; i < node->arguments.size(); i++)
+			{
+				args[i] = InterpretTree(node->arguments[i]);
+			}
+
+			Functions
+
 			break;
+		}
 		case ASTTypes::Return:
 			break;
 		case ASTTypes::IfStatement:

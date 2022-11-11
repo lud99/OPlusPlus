@@ -144,7 +144,8 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Source\Interpreter\AST\ASTInterpreter.cpp" />
-    <ClCompile Include="Source\Interpreter\AST\Value.hpp" />
+    <ClCompile Include="Source\Interpreter\AST\ASTFunctions.cpp" />
+    <ClCompile Include="Source\Interpreter\AST\Value.cpp" />
     <ClCompile Include="Source\Interpreter\Bytecode\BytecodeCompiler.cpp" />
     <ClCompile Include="Source\Interpreter\Bytecode\BytecodeFunctions.cpp" />
     <ClCompile Include="Source\Interpreter\Bytecode\BytecodeInterpreter.cpp" />
@@ -156,6 +157,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\Interpreter\AST\ASTInterpreter.h" />
+    <ClInclude Include="Source\Interpreter\AST\ASTFunctions.h" />
     <ClInclude Include="Source\Interpreter\AST\Value.h" />
     <ClInclude Include="Source\Interpreter\Bytecode\BytecodeCompiler.h" />
     <ClInclude Include="Source\Interpreter\Bytecode\BytecodeInterpreter.h" />
