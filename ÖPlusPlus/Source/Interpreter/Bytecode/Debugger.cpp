@@ -63,7 +63,7 @@ void Debugger::Render()
 
 		for (int a = 0; a < INSTRUCTION_ARG_SIZE; a++)
 		{
-			if (m_Instructions[i].m_Arguments[a].m_Type != ValueTypes::Void)
+			if (m_Instructions[i].m_Arguments[a].GetType() != ValueTypes::Void)
 			{
 				if (a > 0 && a < INSTRUCTION_ARG_SIZE - 1) std::cout << ", ";
 				std::cout << m_Instructions[i].m_Arguments[a].ToString();
@@ -76,23 +76,23 @@ void Debugger::Render()
 	std::cout << "\nOperand stack	   Variables stack\n";
 	for (int i = 0; i < 8; i++)
 	{
-		StackValue& stack = ctx->GetTopFrame().m_OperandStack[i];
-		StackValue& variable = ctx->GetTopFrame().m_VariablesList[i];
+		Value& stack = ctx->GetTopFrame().m_OperandStack[i];
+		Value& variable = ctx->GetTopFrame().m_VariablesList[i];
 
-		std::cout << "(" << ValueTypeToString(stack.m_Type) << ") ";
-		if (stack.IsObject())
-			std::cout << stack.m_HeapEntryPointer << ", ";
+		std::cout << "(" << ValueTypeToString(stack.GetType()) << ") ";
+		//if (stack.IsObject())
+			//std::cout << stack.m_HeapEntryPointer << ", ";
 
 		std::cout << stack.ToFormattedString();
 		std::cout << "               ";
 
-		std::cout << "(" << ValueTypeToString(variable.m_Type) << ") ";
-		if (variable.IsObject())
-			std::cout << variable.m_HeapEntryPointer << ", ";
+		std::cout << "(" << ValueTypeToString(variable.GetType()) << ") ";
+		//if (variable.IsObject())
+			//std::cout << variable.m_HeapEntryPointer << ", ";
 		std::cout << variable.ToFormattedString() << "\n";
 	}
-	std::cout << "\Current instruction: " << ctx->m_ProgramCounter << "\n";
-	std::cout << "\Breakpoint: " << m_Breakpoint << "\n\n";
+	std::cout << "\ Current instruction: " << ctx->m_ProgramCounter << "\n";
+	std::cout << "\ Breakpoint: " << m_Breakpoint << "\n\n";
 
 	ReadCommands();
 }

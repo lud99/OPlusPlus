@@ -5,7 +5,7 @@
 
 #include "../../Lexer.h"
 #include "../../Parser.h"
-#include "StackValue.h"
+#include "../Value.h"
 
 // https://dzone.com/articles/introduction-to-java-bytecode
 enum class Opcodes
@@ -150,8 +150,17 @@ static std::string OpcodeToString(Opcodes opcode)
 
 	return names[(int)opcode];
 }
+ 
+class InstructionArgument : public Value
+{
+public:
+	using Value::Value;
 
-constexpr int INSTRUCTION_ARG_SIZE = 64;
+	std::string m_ArgStringValue;
+	int m_ArgIntValue;
+};
+
+constexpr int INSTRUCTION_ARG_SIZE = 8;
 struct Instruction
 {
 public:
@@ -159,7 +168,7 @@ public:
 	Instruction(Opcodes type) : m_Type(type) {};
 	Instruction(Opcodes type, bool discardValue) : m_Type(type), m_DiscardValue(discardValue) {};
 
-	Instruction& Arg(StackValue arg);
+	Instruction& Arg(InstructionArgument arg);
 	Instruction& Arg(int arg);
 	Instruction& Arg(double arg, ValueTypes type);
 	Instruction& Arg(std::string arg);
@@ -168,7 +177,7 @@ public:
 	Opcodes m_Type = Opcodes::no_op;
 	bool m_DiscardValue = false;
 
-	StackValue m_Arguments[INSTRUCTION_ARG_SIZE];
+	InstructionArgument m_Arguments[INSTRUCTION_ARG_SIZE];
 
 	uint8_t m_ArgsCount = 0;
 };

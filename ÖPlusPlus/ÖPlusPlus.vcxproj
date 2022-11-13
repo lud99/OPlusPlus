@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -86,7 +86,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>BYTECODE_INTERPRETER;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
@@ -101,7 +101,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions);AST_INTERPRETER</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
@@ -116,7 +116,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions);AST_INTERPRETER</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
@@ -131,7 +131,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions);AST_INTERPRETER</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
@@ -144,26 +144,24 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Source\Interpreter\AST\ASTInterpreter.cpp" />
-    <ClCompile Include="Source\Interpreter\AST\ASTFunctions.cpp" />
-    <ClCompile Include="Source\Interpreter\AST\Value.cpp" />
     <ClCompile Include="Source\Interpreter\Bytecode\BytecodeCompiler.cpp" />
     <ClCompile Include="Source\Interpreter\Bytecode\BytecodeFunctions.cpp" />
     <ClCompile Include="Source\Interpreter\Bytecode\BytecodeInterpreter.cpp" />
     <ClCompile Include="Source\Interpreter\Bytecode\Debugger.cpp" />
-    <ClCompile Include="Source\Interpreter\Bytecode\StackValue.cpp" />
+    <ClCompile Include="Source\Interpreter\Bytecode\Heap.cpp" />
+    <ClCompile Include="Source\Interpreter\Value.cpp" />
     <ClCompile Include="Source\Lexer.cpp" />
     <ClCompile Include="Source\Main.cpp" />
     <ClCompile Include="Source\Parser.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\Interpreter\AST\ASTInterpreter.h" />
-    <ClInclude Include="Source\Interpreter\AST\ASTFunctions.h" />
-    <ClInclude Include="Source\Interpreter\AST\Value.h" />
     <ClInclude Include="Source\Interpreter\Bytecode\BytecodeCompiler.h" />
+    <ClInclude Include="Source\Interpreter\Bytecode\BytecodeFunctions.h" />
     <ClInclude Include="Source\Interpreter\Bytecode\BytecodeInterpreter.h" />
     <ClInclude Include="Source\Interpreter\Bytecode\Debugger.h" />
-    <ClInclude Include="Source\Interpreter\Bytecode\StackValue.h" />
-    <ClInclude Include="Source\Interpreter\Bytecode\BytecodeFunctions.h" />
+    <ClInclude Include="Source\Interpreter\Bytecode\Heap.h" />
+    <ClInclude Include="Source\Interpreter\Value.h" />
     <ClInclude Include="Source\Interpreter\ValueTypes.h" />
     <ClInclude Include="Source\Lexer.h" />
     <ClInclude Include="Source\Parser.h" />

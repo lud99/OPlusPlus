@@ -39,7 +39,17 @@ int main()
 {
 	setlocale(LC_ALL, "");
 
-	std::string filepath = "Programs/ASTint.ö";
+	std::string filepath = "Programs/function.ö";
+
+	std::string error;
+	Value v;
+#ifdef BYTECODE_INTERPRETER
+	BytecodeFunctions::InitializeDefaultFunctions();
+
+	v = BytecodeInterpreter::Get().CreateAndRunProgram(filepath, error);
+#endif // BYTECODE_INTERPRETER
+#ifdef AST_INTERPRETER
+	
 
 	std::ifstream file(filepath);
 	if (!file.good())
@@ -52,7 +62,7 @@ int main()
 	}
 
 	Lexer lexer;
-	std::string error = lexer.CreateTokens(fileContent);
+	error = lexer.CreateTokens(fileContent);
 	if (error != "")
 		std::cout << error << "\n\n";
 
@@ -73,12 +83,10 @@ int main()
 
 	parser.PrintASTTree(tree.parent, 0);
 
-	//BytecodeFunctions::InitializeDefaultFunctions();
-
-	//std::string error;
-
 	ASTint::ASTInterpreter interpreter(tree.parent);
-	ASTint::Value v = interpreter.InterpretTree(tree.parent);
+	v = interpreter.InterpretTree(tree.parent);
+#endif // AST_INTERPRETER
+
 	//BytecodeInterpreter::Get().CreateAndRunProgram("Programs/function.ö", error);
 
 	if (error != "") std::cout << "error: " << error;

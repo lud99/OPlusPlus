@@ -1,4 +1,4 @@
-#include "Value.h"
+#include "../Value.h"
 
 #include <iostream>
 #include <assert.h>
@@ -13,8 +13,7 @@ static std::string ValueTypeToString(ValueTypes type)
 	return names[(int)type];
 }
 
-namespace ASTint
-{
+
 	Value::Value(int value, ValueTypes type)
 	{
 		assert(type == ValueTypes::Integer);
@@ -370,7 +369,7 @@ namespace ASTint
 	Value Value::Add(Value& lhs, Value& rhs)
 	{
 		if (!Value::IsSamePrimitiveType(lhs, rhs))
-			return ASTInterpreter::Get().MakeErrorValueReturn("Cannot add types " + ValueTypeToString(lhs.m_Type) + " and " + ValueTypeToString(rhs.m_Type));
+			return MakeRuntimeError("Cannot add types " + ValueTypeToString(lhs.m_Type) + " and " + ValueTypeToString(rhs.m_Type));
 
 		if (lhs.m_Type == ValueTypes::Integer)
 		{
@@ -403,107 +402,107 @@ namespace ASTint
 			return Functions::array_concat(&arr);
 		}*/
 
-		return ASTInterpreter::Get().MakeErrorValueReturn("Unhandled addition of types " + ValueTypeToString(lhs.m_Type) + " and " + ValueTypeToString(rhs.m_Type));
+		return MakeRuntimeError("Unhandled addition of types " + ValueTypeToString(lhs.m_Type) + " and " + ValueTypeToString(rhs.m_Type));
 	}
 
 	Value Value::Subtract(Value& lhs, Value& rhs)
 	{
 		if (!Value::IsSamePrimitiveType(lhs, rhs))
-			return ASTInterpreter::Get().MakeErrorValueReturn("Cannot subtract types " + ValueTypeToString(lhs.m_Type) + " and " + ValueTypeToString(rhs.m_Type));
+			return MakeRuntimeError("Cannot subtract types " + ValueTypeToString(lhs.m_Type) + " and " + ValueTypeToString(rhs.m_Type));
 
 		if (lhs.m_Type == ValueTypes::Integer)
 			return Value(lhs.GetInt() - rhs.GetInt(), ValueTypes::Integer);
 		else if (lhs.m_Type == ValueTypes::Float)
 			return Value(lhs.GetFloat() - rhs.GetFloat(), ValueTypes::Float);
 		else if (lhs.IsString())
-			return ASTInterpreter::Get().MakeErrorValueReturn("Cannot subtract two strings");
+			return MakeRuntimeError("Cannot subtract two strings");
 
-		return ASTInterpreter::Get().MakeErrorValueReturn("Unhandled subtraction of types " + ValueTypeToString(lhs.m_Type) + " and " + ValueTypeToString(rhs.m_Type));
+		return MakeRuntimeError("Unhandled subtraction of types " + ValueTypeToString(lhs.m_Type) + " and " + ValueTypeToString(rhs.m_Type));
 	}
 
 	Value Value::Divide(Value& lhs, Value& rhs)
 	{
 		if (!Value::IsSamePrimitiveType(lhs, rhs))
-			return ASTInterpreter::Get().MakeErrorValueReturn("Cannot divide types " + ValueTypeToString(lhs.m_Type) + " and " + ValueTypeToString(rhs.m_Type));
+			return MakeRuntimeError("Cannot divide types " + ValueTypeToString(lhs.m_Type) + " and " + ValueTypeToString(rhs.m_Type));
 
 		if (lhs.m_Type == ValueTypes::Integer)
 		{
-			if (rhs.GetInt() == 0) return ASTInterpreter::Get().MakeErrorValueReturn("Division by 0");
+			if (rhs.GetInt() == 0) return MakeRuntimeError("Division by 0");
 
 			return Value(lhs.GetInt() / rhs.GetInt(), ValueTypes::Integer);
 		}
 		else if (lhs.m_Type == ValueTypes::Float)
 		{
-			if (rhs.GetFloat() == 0) return ASTInterpreter::Get().MakeErrorValueReturn("Division by 0");
+			if (rhs.GetFloat() == 0) return MakeRuntimeError("Division by 0");
 
 			return Value(lhs.GetFloat() / rhs.GetFloat(), ValueTypes::Float);
 		}
 
 		else if (lhs.IsString())
-			return ASTInterpreter::Get().MakeErrorValueReturn("Cannot divide two strings");
+			return MakeRuntimeError("Cannot divide two strings");
 
-		return ASTInterpreter::Get().MakeErrorValueReturn("Unhandled division of types " + ValueTypeToString(lhs.m_Type) + " and " + ValueTypeToString(rhs.m_Type));
+		return MakeRuntimeError("Unhandled division of types " + ValueTypeToString(lhs.m_Type) + " and " + ValueTypeToString(rhs.m_Type));
 	}
 
 	Value Value::Multiply(Value& lhs, Value& rhs)
 	{
 		if (!Value::IsSamePrimitiveType(lhs, rhs))
-			return ASTInterpreter::Get().MakeErrorValueReturn("Cannot multiply types " + ValueTypeToString(lhs.m_Type) + " and " + ValueTypeToString(rhs.m_Type));
+			return MakeRuntimeError("Cannot multiply types " + ValueTypeToString(lhs.m_Type) + " and " + ValueTypeToString(rhs.m_Type));
 
 		if (lhs.m_Type == ValueTypes::Integer)
 			return Value(lhs.GetInt() * rhs.GetInt(), ValueTypes::Integer);
 		else if (lhs.m_Type == ValueTypes::Float)
 			return Value(lhs.GetFloat() * rhs.GetFloat(), ValueTypes::Float);
 		else if (lhs.IsString())
-			return ASTInterpreter::Get().MakeErrorValueReturn("Cannot multiply two strings");
+			return MakeRuntimeError("Cannot multiply two strings");
 
-		return ASTInterpreter::Get().MakeErrorValueReturn("Unhandled multiplication of types " + ValueTypeToString(lhs.m_Type) + " and " + ValueTypeToString(rhs.m_Type));
+		return MakeRuntimeError("Unhandled multiplication of types " + ValueTypeToString(lhs.m_Type) + " and " + ValueTypeToString(rhs.m_Type));
 	}
 
 	//Value Value::Pow(Value& base, Value& exponent)
 	//{
 	//	if (!Value::IsSamePrimitiveType(base, exponent))
-	//		return ASTInterpreter::Get().MakeErrorValueReturn("Cannot do exponents with types " + ValueTypeToString(base.m_Type) + " and " + ValueTypeToString(exponent.m_Type));
+	//		return MakeRuntimeError("Cannot do exponents with types " + ValueTypeToString(base.m_Type) + " and " + ValueTypeToString(exponent.m_Type));
 	//
 	//	if (base.m_Type == Value::Number)
 	//	{
 	//		// Check for imaginary numbers. base < 0 and exponent is not a whole number
 	//		if (base.m_Value < 0 && (std::floor(exponent.m_Value) != exponent.m_Value))
-	//			return ASTInterpreter::Get().MakeErrorValueReturn("Undefined math operation. Imaginary number");
+	//			return MakeRuntimeError("Undefined math operation. Imaginary number");
 	//
 	//		return Value(pow(base.m_Value, exponent.m_Value), Value::Number);
 	//	}
 	//	else if (base.IsString())
-	//		return ASTInterpreter::Get().MakeErrorValueReturn("Cannot pow two strings");
+	//		return MakeRuntimeError("Cannot pow two strings");
 	//
-	//	return ASTInterpreter::Get().MakeErrorValueReturn("Unhandled pow of types " + ValueTypeToString(base.m_Type) + " and " + ValueTypeToString(exponent.m_Type));
+	//	return MakeRuntimeError("Unhandled pow of types " + ValueTypeToString(base.m_Type) + " and " + ValueTypeToString(exponent.m_Type));
 	//}
 	//
 	//Value Value::Mod(Value& lhs, Value& rhs)
 	//{
 	//	if (!Value::IsSamePrimitiveType(lhs, rhs))
-	//		return ASTInterpreter::Get().MakeErrorValueReturn("Cannot mod types " + ValueTypeToString(lhs.m_Type) + " and " + ValueTypeToString(rhs.m_Type));
+	//		return MakeRuntimeError("Cannot mod types " + ValueTypeToString(lhs.m_Type) + " and " + ValueTypeToString(rhs.m_Type));
 	//
 	//	if (lhs.m_Type == Value::Number)
 	//	{
 	//		if (rhs.m_Value == 0)
-	//			return ASTInterpreter::Get().MakeErrorValueReturn("Undefined math operation. Cannot mod something with 0");
+	//			return MakeRuntimeError("Undefined math operation. Cannot mod something with 0");
 	//
 	//		return Value((int)lhs.m_Value % (int)rhs.m_Value, Value::Number);
 	//	}
 	//
-	//	return ASTInterpreter::Get().MakeErrorValueReturn("Cannot perform modulus on types " + ValueTypeToString(lhs.m_Type) + " and " + ValueTypeToString(rhs.m_Type));
+	//	return MakeRuntimeError("Cannot perform modulus on types " + ValueTypeToString(lhs.m_Type) + " and " + ValueTypeToString(rhs.m_Type));
 	//}
 	//
 	//Value Value::Xor(Value& lhs, Value& rhs)
 	//{
 	//	if (!Value::IsSamePrimitiveType(lhs, rhs))
-	//		return ASTInterpreter::Get().MakeErrorValueReturn("Cannot xor types " + ValueTypeToString(lhs.m_Type) + " and " + ValueTypeToString(rhs.m_Type));
+	//		return MakeRuntimeError("Cannot xor types " + ValueTypeToString(lhs.m_Type) + " and " + ValueTypeToString(rhs.m_Type));
 	//
 	//	if (lhs.m_Type == Value::Number)
 	//		return Value((int)lhs.m_Value ^ (int)rhs.m_Value, Value::Number);
 	//
-	//	return ASTInterpreter::Get().MakeErrorValueReturn("Cannot perform xor on types " + ValueTypeToString(lhs.m_Type) + " and " + ValueTypeToString(rhs.m_Type));
+	//	return MakeRuntimeError("Cannot perform xor on types " + ValueTypeToString(lhs.m_Type) + " and " + ValueTypeToString(rhs.m_Type));
 	//}
 
 	//HeapEntry& Heap::CreateObject(int type, char* data)
@@ -575,4 +574,3 @@ namespace ASTint
 	//{
 	//	return Value(*this).ToFormattedString(true);
 	//}
-}

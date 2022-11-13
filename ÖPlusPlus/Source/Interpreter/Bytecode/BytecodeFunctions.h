@@ -3,9 +3,11 @@
 #include <vector>
 #include <string>
 
-#include "StackValue.h"
+#include <map>
 
-typedef StackValue(*CallableFunction)(StackValueArray*);
+#include "../Value.h"
+
+typedef Value(*CallableFunction)(ValueArray*);
 
 namespace BytecodeFunctions
 {
@@ -17,65 +19,65 @@ namespace BytecodeFunctions
 	void ThrowException(std::string error);
 
 	// Debug
-	//StackValue __print_stack(StackValueArray* args);
+	//StackValue __print_stack(ValueArray* args);
 
-	StackValue print(StackValueArray* args);
-	StackValue printf(StackValueArray* args);
-	/*StackValue to_string(StackValueArray* args);
-	StackValue to_string_raw(StackValueArray* args);
-	StackValue to_number(StackValueArray* args);
-	StackValue typeof(StackValueArray* args);
-	StackValue floor(StackValueArray* args);
-	StackValue round(StackValueArray* args);
-	StackValue ceil(StackValueArray* args);
-	StackValue random(StackValueArray* args);
-	StackValue restart(StackValueArray* args);
-	StackValue to_char(StackValueArray* args);
-	StackValue to_ascii_code(StackValueArray* args);*/
-	StackValue format_string(StackValueArray* args);
+	Value print(ValueArray* args);
+	Value printf(ValueArray* args);
+	/*StackValue to_string(ValueArray* args);
+	StackValue to_string_raw(ValueArray* args);
+	StackValue to_number(ValueArray* args);
+	StackValue typeof(ValueArray* args);
+	StackValue floor(ValueArray* args);
+	StackValue round(ValueArray* args);
+	StackValue ceil(ValueArray* args);
+	StackValue random(ValueArray* args);
+	StackValue restart(ValueArray* args);
+	StackValue to_char(ValueArray* args);
+	StackValue to_ascii_code(ValueArray* args);*/
+	Value format_string(ValueArray* args);
 
-	/*StackValue time_now(StackValueArray* args);
+	/*StackValue time_now(ValueArray* args);
 
-	StackValue length(StackValueArray* args);
-	StackValue at(StackValueArray* args);
+	StackValue length(ValueArray* args);
+	StackValue at(ValueArray* args);
 
-	StackValue sleep_for(StackValueArray* args);*/
+	StackValue sleep_for(ValueArray* args);*/
 
-	//StackValue get_next_arg(StackValueArray* args);
+	//StackValue get_next_arg(ValueArray* args);
 
 	/* Arrays */
-	//StackValue array_push(StackValueArray* args);
-	//StackValue array_concat(StackValueArray* args);
-	//StackValue array_pop(StackValueArray* args);
-	//StackValue array_at(StackValueArray* args);
-	//StackValue array_reverse(StackValueArray* args);
+	//StackValue array_push(ValueArray* args);
+	//StackValue array_concat(ValueArray* args);
+	//StackValue array_pop(ValueArray* args);
+	//StackValue array_at(ValueArray* args);
+	//StackValue array_reverse(ValueArray* args);
 
 	///* Threads */
-	//StackValue thread_start(StackValueArray* args);
+	//StackValue thread_start(ValueArray* args);
 
-	//StackValue execute_program_source(StackValueArray* args);
+	//StackValue execute_program_source(ValueArray* args);
 
 	/* IO */
-	//StackValue console_read_line(StackValueArray* args);
-	//StackValue console_init_drawing(StackValueArray* args);
-	//StackValue console_write_pixel(StackValueArray* args);
-	//StackValue console_read_pixel(StackValueArray* args);
-	//StackValue console_fill(StackValueArray* args);
-	//StackValue console_clear(StackValueArray* args);
-	//StackValue console_update(StackValueArray* args);
-	//StackValue console_width(StackValueArray* args);
-	//StackValue console_height(StackValueArray* args);
-	//StackValue open_file(StackValueArray* args);
-	//StackValue close_file(StackValueArray* args);
-	//StackValue read_file(StackValueArray* args);
-	//StackValue write_file(StackValueArray* args);
+	//StackValue console_read_line(ValueArray* args);
+	//StackValue console_init_drawing(ValueArray* args);
+	//StackValue console_write_pixel(ValueArray* args);
+	//StackValue console_read_pixel(ValueArray* args);
+	//StackValue console_fill(ValueArray* args);
+	//StackValue console_clear(ValueArray* args);
+	//StackValue console_update(ValueArray* args);
+	//StackValue console_width(ValueArray* args);
+	//StackValue console_height(ValueArray* args);
+	//StackValue open_file(ValueArray* args);
+	//StackValue close_file(ValueArray* args);
+	//StackValue read_file(ValueArray* args);
+	//StackValue write_file(ValueArray* args);
 
 	///* Network */
-	//StackValue open_socket(StackValueArray* args);
-	//StackValue send_socket(StackValueArray* args);
-	//StackValue receive_socket(StackValueArray* args);
+	//StackValue open_socket(ValueArray* args);
+	//StackValue send_socket(ValueArray* args);
+	//StackValue receive_socket(ValueArray* args);
 
-	//StackValue exit(StackValueArray* args);
+	//StackValue exit(ValueArray* args);
 
-	//StackValue get_key_down(StackValueArray* args);
+	//StackValue get_key_down(ValueArray* args);
 }

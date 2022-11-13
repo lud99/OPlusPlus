@@ -19,7 +19,7 @@ BytecodeInterpreter& BytecodeInterpreter::Get()
 	return instance;
 }
 
-StackValue BytecodeInterpreter::CreateAndRunProgram(std::string filepath, std::string& error, bool verbose)
+Value BytecodeInterpreter::CreateAndRunProgram(std::string filepath, std::string& error, bool verbose)
 {
 	std::ifstream file(filepath);
 	if (!file.good())
@@ -54,7 +54,7 @@ StackValue BytecodeInterpreter::CreateAndRunProgram(std::string filepath, std::s
 	parser.PrintASTTree(tree.parent, 0);
 
 	std::vector<Instruction> instructions;
-	m_Compiler.Compile(&tree, instructions);
+	m_Compiler.Compile(tree.parent, instructions);
 
 	//m_ProgramCounter = m_Compiler.m_StartExecutionAt;
 	m_ConstantsPool = m_Compiler.m_Constants;
@@ -67,7 +67,7 @@ StackValue BytecodeInterpreter::CreateAndRunProgram(std::string filepath, std::s
 
 		for (int a = 0; a < INSTRUCTION_ARG_SIZE; a++)
 		{
-			if (instructions[i].m_Arguments[a].m_Type != ValueTypes::Void)
+			if (instructions[i].m_Arguments[a].GetType() != ValueTypes::Void)
 			{
 				if (a > 0 && a < INSTRUCTION_ARG_SIZE - 1) std::cout << ", ";
 				std::cout << instructions[i].m_Arguments[a].ToString();
@@ -81,13 +81,13 @@ StackValue BytecodeInterpreter::CreateAndRunProgram(std::string filepath, std::s
 	if (m_Compiler.m_Error != "")
 	{
 		error = "Bytecode compilation error: " + m_Compiler.m_Error;
-		return StackValue();
+		return Value();
 	}
 
-	std::cout << sizeof(StackFrame) << ", " << sizeof(StackValue) << ", " << sizeof(ExecutionContext) << "\n";
+	std::cout << sizeof(StackFrame) << ", " << sizeof(Value) << ", " << sizeof(ExecutionContext) << "\n";
 
 	m_Debugger = Debugger(instructions);
-	m_Debugger.m_Enabled = true;
+	m_Debugger.m_Enabled = false;
 
 	
 
@@ -106,7 +106,7 @@ StackValue BytecodeInterpreter::CreateAndRunProgram(std::string filepath, std::s
 
 	std::cout << "\nExecution took: " << (duration.count()) << "ms" << "\n";
 
-	return StackValue();
+	return Value();
 }
 
 std::string BytecodeInterpreter::InterpretBytecode()
@@ -133,22 +133,22 @@ StackFrame::StackFrame(ExecutionContext* ctx)
 
 void StackFrame::Alloc()
 {
-	/*m_InitialVariablesList = new StackValue[STACK_SIZE];
-	m_VariablesList = new StackValue[STACK_SIZE];
-	m_OperandStack = new StackValue[STACK_SIZE];*/
+	/*m_InitialVariablesList = new Value[STACK_SIZE];
+	m_VariablesList = new Value[STACK_SIZE];
+	m_OperandStack = new Value[STACK_SIZE];*/
 }
 
-StackValue& StackFrame::GetVariable(uint32_t index)
+Value& StackFrame::GetVariable(uint32_t index)
 {
 	// If out of range, throw exception
 	assert(index >= 0 && index < STACK_SIZE);
 
-	assert(m_VariablesList[index].m_Type != ValueTypes::Void);
+	assert(m_VariablesList[index].GetType() != ValueTypes::Void);
 
 	return m_VariablesList[index];
 }
 
-StackValue StackFrame::PopOperand()
+Value StackFrame::PopOperand()
 {
 	// If no operands to pop, throw exception
 	assert(m_OperandStackTop >= 0 && m_OperandStackTop < STACK_SIZE);
@@ -156,43 +156,43 @@ StackValue StackFrame::PopOperand()
 	assert(m_OperandStackTop != 0);
 
 	m_OperandStackTop--;
-	StackValue top = m_OperandStack[m_OperandStackTop];
+	Value top = m_OperandStack[m_OperandStackTop];
 
-	m_OperandStack[m_OperandStackTop] = StackValue();
+	m_OperandStack[m_OperandStackTop] = Value();
 
 	return top;
 }
 
-void StackFrame::StoreVariable(uint32_t index, StackValue value)
+void StackFrame::StoreVariable(uint32_t index, Value value)
 {
 	assert(index >= 0 && index < STACK_SIZE);
 
-	ValueTypes variableType = m_VariablesList[index].m_Type;
+	ValueTypes variableType = m_VariablesList[index].GetType();
 
 	// Do type checking
-	if (value.m_Type != ValueTypes::Void &&
+	if (value.GetType() != ValueTypes::Void &&
 		variableType != ValueTypes::Void &&
 		variableType != ValueTypes::Void &&
-		!StackValue::IsSamePrimitiveType(variableType, value.m_Type))
+		!Value::IsSamePrimitiveType(variableType, value.GetType()))
 
-		return m_Context->ThrowExceptionVoid("Cannot store a value of type " + ValueTypeToString(value.m_Type) +
+		return m_Context->ThrowExceptionVoid("Cannot store a value of type " + ValueTypeToString(value.GetType()) +
 			" into a variable of type " + ValueTypeToString(variableType));
 
 	m_VariablesList[index] = value;
 }
 
-void StackFrame::StoreVariable(uint32_t index, StackValue value, ValueTypes variableType)
+void StackFrame::StoreVariable(uint32_t index, Value value, ValueTypes variableType)
 {
 	assert(index >= 0 && index < STACK_SIZE);
 
-	if (value.m_Type != ValueTypes::Void && !StackValue::IsSamePrimitiveType(value.m_Type, variableType))
-		return m_Context->ThrowExceptionVoid("Cannot assign a value of type " + ValueTypeToString(value.m_Type) +
+	if (value.GetType() != ValueTypes::Void && !Value::IsSamePrimitiveType(value.GetType(), variableType))
+		return m_Context->ThrowExceptionVoid("Cannot assign a value of type " + ValueTypeToString(value.GetType()) +
 			" to a variable of type " + ValueTypeToString(variableType));
 
 	m_VariablesList[index] = value;
 }
 
-void StackFrame::PushOperand(StackValue value)
+void StackFrame::PushOperand(Value value)
 {
 	assert(m_OperandStackTop >= 0);
 
@@ -207,11 +207,11 @@ void StackFrame::PushOperand(StackValue value)
 
 void StackFrame::PushOperand(double value)
 {
-	PushOperand(StackValue(value, ValueTypes::Float));
+	PushOperand(Value(value, ValueTypes::Float));
 }
 void StackFrame::PushOperand(int value)
 {
-	PushOperand(StackValue(value, ValueTypes::Integer));
+	PushOperand(Value(value, ValueTypes::Integer));
 }
 
 void StackFrame::Delete()
@@ -313,7 +313,7 @@ void ExecutionContext::Execute()
 
 	while (true)
 	{
-		//BytecodeInterpreter::Get().m_Debugger.Render();
+		BytecodeInterpreter::Get().m_Debugger.Render();
 
 		StackFrame& stackFrame = m_StackFrames[m_StackFrameTop];
 
@@ -327,10 +327,10 @@ void ExecutionContext::Execute()
 		case Opcodes::push_number:
 		{
 			if (!instruction.m_DiscardValue) {
-				if (instruction.m_Arguments[0].m_Type == ValueTypes::Float)
+				if (instruction.m_Arguments[0].GetType() == ValueTypes::Float)
 					stackFrame.PushOperand(instruction.m_Arguments[0].GetFloat());
 
-				if (instruction.m_Arguments[0].m_Type == ValueTypes::Integer)
+				if (instruction.m_Arguments[0].GetType() == ValueTypes::Integer)
 					stackFrame.PushOperand(instruction.m_Arguments[0].GetInt());
 			}
 			
@@ -341,7 +341,7 @@ void ExecutionContext::Execute()
 			HeapEntry& stringConstant = constants.m_StringConstants[instruction.m_Arguments[0].GetInt()];
 
 			if (!instruction.m_DiscardValue)
-				stackFrame.PushOperand(StackValue(stringConstant, ValueTypes::StringConstant));
+				stackFrame.PushOperand(Value(stringConstant, ValueTypes::StringConstant));
 
 			break;
 		}
@@ -349,14 +349,14 @@ void ExecutionContext::Execute()
 		{
 			abort();
 			if (!instruction.m_DiscardValue)
-				stackFrame.PushOperand(StackValue(0, ValueTypes::Void));
+				stackFrame.PushOperand(Value(0, ValueTypes::Void));
 
 			break;
 		}
 		case Opcodes::push_functionpointer:
 		{
 			if (!instruction.m_DiscardValue)
-				stackFrame.PushOperand(StackValue(instruction.m_Arguments[0].GetInt(), ValueTypes::Integer/*ValueTypes::FunctionPointer*/));
+				stackFrame.PushOperand(Value(instruction.m_Arguments[0].GetInt(), ValueTypes::Integer/*ValueTypes::FunctionPointer*/));
 
 			break;
 		}
@@ -365,7 +365,7 @@ void ExecutionContext::Execute()
 			HeapEntry& emptyArray = heap.CreateArray();
 
 			if (!instruction.m_DiscardValue)
-				stackFrame.PushOperand(StackValue(emptyArray));
+				stackFrame.PushOperand(Value(emptyArray));
 
 			break;
 		}*/
@@ -375,7 +375,7 @@ void ExecutionContext::Execute()
 
 		//	int itemCount = instruction.m_Arguments[0].GetInt();
 
-		//	StackValueArray arrayItems;
+		//	ValueArray arrayItems;
 		//	arrayItems.emplace_back(emptyArray);
 
 		//	// Pull all the operands that should be added
@@ -387,19 +387,19 @@ void ExecutionContext::Execute()
 		//	Functions::array_push(&arrayItems);
 
 		//	if (!instruction.m_DiscardValue)
-		//		stackFrame.PushOperand(StackValue(emptyArray));
+		//		stackFrame.PushOperand(Value(emptyArray));
 
 		//	break;
 		//}
 		//case Opcodes::object_create_empty:
 		//{
-		//	stackFrame.PushOperand(StackValue(heap.CreateObject()));
+		//	stackFrame.PushOperand(Value(heap.CreateObject()));
 
 		//	break;
 		//}
 		//case Opcodes::object_create:
 		//{
-		//	StackValue emptyObject = heap.CreateObject();
+		//	Value emptyObject = heap.CreateObject();
 
 		//	ObjectInstance& object = *emptyObject.GetObjectInstance();
 
@@ -408,7 +408,7 @@ void ExecutionContext::Execute()
 		//	// Pull all the operands that should be added
 		//	for (int i = 0; i < itemCount; i++)
 		//	{
-		//		StackValue value = stackFrame.PopOperand();
+		//		Value value = stackFrame.PopOperand();
 		//		std::string key = stackFrame.PopOperand().GetString();
 		//		object[key] = value;
 		//	}
@@ -426,7 +426,7 @@ void ExecutionContext::Execute()
 		}
 		case Opcodes::store:
 		{
-			StackValue operand = stackFrame.PopOperand();
+			Value operand = stackFrame.PopOperand();
 
 			ValueTypes variableType = (ValueTypes)(instruction.m_Arguments[1].GetInt());
 
@@ -437,7 +437,8 @@ void ExecutionContext::Execute()
 				
 				if (instruction.m_ArgsCount == 4)
 				{
-					stackFrame.m_VariablesList[index].m_IsLocal = true;
+					// TODO: fix
+					stackFrame.m_VariablesList[index].m_Flag = Value::Flags::LocalVariable;
 				}
 			} 
 			else
@@ -448,8 +449,8 @@ void ExecutionContext::Execute()
 
 		/*case Opcodes::store_property:
 		{
-			StackValue value = stackFrame.PopOperand();
-			StackValue objectVal = stackFrame.PopOperand();
+			Value value = stackFrame.PopOperand();
+			Value objectVal = stackFrame.PopOperand();
 
 			if (objectVal.m_Type != ValueTypes::Object)
 			{
@@ -469,7 +470,7 @@ void ExecutionContext::Execute()
 		{
 			uint32_t index = instruction.m_Arguments[0].GetInt();
 
-			StackValue& variable = stackFrame.GetVariable(index);
+			Value& variable = stackFrame.GetVariable(index);
 			if (Exception()) return;
 
 			stackFrame.PushOperand(variable);
@@ -483,7 +484,7 @@ void ExecutionContext::Execute()
 
 		//	// Property doesn't exist
 		//	if (object.count(key) == 0)
-		//		stackFrame.PushOperand(StackValue(Value::Empty));
+		//		stackFrame.PushOperand(Value(Value::Empty));
 		//	else
 		//		stackFrame.PushOperand(object[key]);
 
@@ -492,63 +493,63 @@ void ExecutionContext::Execute()
 
 		case Opcodes::eq:
 		{
-			StackValue value1 = stackFrame.PopOperand();
-			StackValue value2 = stackFrame.PopOperand();
+			Value value1 = stackFrame.PopOperand();
+			Value value2 = stackFrame.PopOperand();
 
-			stackFrame.PushOperand(StackValue::CompareEquals(value1, value2));
+			stackFrame.PushOperand(Value::CompareEquals(value1, value2));
 
 			break;
 		}
 		case Opcodes::neq:
 		{
-			StackValue value1 = stackFrame.PopOperand();
-			StackValue value2 = stackFrame.PopOperand();
+			Value value1 = stackFrame.PopOperand();
+			Value value2 = stackFrame.PopOperand();
 
-			stackFrame.PushOperand(StackValue::CompareNotEquals(value1, value2));
+			stackFrame.PushOperand(Value::CompareNotEquals(value1, value2));
 
 			break;
 		}
 
 		case Opcodes::cmpgt:
 		{
-			StackValue value1 = stackFrame.PopOperand();
-			StackValue value2 = stackFrame.PopOperand();
+			Value value1 = stackFrame.PopOperand();
+			Value value2 = stackFrame.PopOperand();
 
-			stackFrame.PushOperand(StackValue::CompareGreaterThan(value1, value2));
+			stackFrame.PushOperand(Value::CompareGreaterThan(value1, value2));
 
 			break;
 		}
 		case Opcodes::cmpge:
 		{
-			StackValue value1 = stackFrame.PopOperand();
-			StackValue value2 = stackFrame.PopOperand();
+			Value value1 = stackFrame.PopOperand();
+			Value value2 = stackFrame.PopOperand();
 
-			stackFrame.PushOperand(StackValue::CompareGreaterThanEqual(value1, value2));
+			stackFrame.PushOperand(Value::CompareGreaterThanEqual(value1, value2));
 
 			break;
 		}
 		case Opcodes::cmplt:
 		{
-			StackValue value1 = stackFrame.PopOperand();
-			StackValue value2 = stackFrame.PopOperand();
+			Value value1 = stackFrame.PopOperand();
+			Value value2 = stackFrame.PopOperand();
 
-			stackFrame.PushOperand(StackValue::CompareLessThan(value1, value2));
+			stackFrame.PushOperand(Value::CompareLessThan(value1, value2));
 
 			break;
 		}
 		case Opcodes::cmple:
 		{
-			StackValue value1 = stackFrame.PopOperand();
-			StackValue value2 = stackFrame.PopOperand();
+			Value value1 = stackFrame.PopOperand();
+			Value value2 = stackFrame.PopOperand();
 
-			stackFrame.PushOperand(StackValue::CompareLessThanEqual(value1, value2));
+			stackFrame.PushOperand(Value::CompareLessThanEqual(value1, value2));
 
 			break;
 		}
 		case Opcodes::logical_and:
 		{
-			StackValue value1 = stackFrame.PopOperand();
-			StackValue value2 = stackFrame.PopOperand();
+			Value value1 = stackFrame.PopOperand();
+			Value value2 = stackFrame.PopOperand();
 
 			stackFrame.PushOperand(value1.IsTruthy() && value2.IsTruthy());
 
@@ -556,8 +557,8 @@ void ExecutionContext::Execute()
 		}
 		case Opcodes::logical_or:
 		{
-			StackValue value1 = stackFrame.PopOperand();
-			StackValue value2 = stackFrame.PopOperand();
+			Value value1 = stackFrame.PopOperand();
+			Value value2 = stackFrame.PopOperand();
 
 			stackFrame.PushOperand(value1.IsTruthy() || value2.IsTruthy());
 
@@ -565,7 +566,7 @@ void ExecutionContext::Execute()
 		}
 		case Opcodes::logical_not:
 		{
-			StackValue value1 = stackFrame.PopOperand();
+			Value value1 = stackFrame.PopOperand();
 
 			stackFrame.PushOperand(!value1.IsTruthy());
 
@@ -580,7 +581,7 @@ void ExecutionContext::Execute()
 		}
 		case Opcodes::jmp_if_true:
 		{
-			StackValue value = stackFrame.PopOperand();
+			Value value = stackFrame.PopOperand();
 
 			if (value.IsTruthy())
 				m_ProgramCounter = instruction.m_Arguments[0].GetInt();
@@ -589,7 +590,7 @@ void ExecutionContext::Execute()
 		}
 		case Opcodes::jmp_if_false:
 		{
-			StackValue value = stackFrame.PopOperand();
+			Value value = stackFrame.PopOperand();
 
 			if (!value.IsTruthy())
 				m_ProgramCounter = instruction.m_Arguments[0].GetInt();
@@ -599,109 +600,109 @@ void ExecutionContext::Execute()
 
 		case Opcodes::add:
 		{
-			StackValue value1 = stackFrame.PopOperand();
-			StackValue value2 = stackFrame.PopOperand();
+			Value value1 = stackFrame.PopOperand();
+			Value value2 = stackFrame.PopOperand();
 
-			stackFrame.PushOperand(StackValue::Add(value1, value2));
+			stackFrame.PushOperand(Value::Add(value1, value2));
 
 			break;
 		}
 		case Opcodes::sub:
 		{
-			StackValue value1 = stackFrame.PopOperand();
-			StackValue value2 = stackFrame.PopOperand();
+			Value value1 = stackFrame.PopOperand();
+			Value value2 = stackFrame.PopOperand();
 
-			stackFrame.PushOperand(StackValue::Subtract(value1, value2));
+			stackFrame.PushOperand(Value::Subtract(value1, value2));
 
 			break;
 		}
 		case Opcodes::sub_reverse:
 		{
-			StackValue value1 = stackFrame.PopOperand();
-			StackValue value2 = stackFrame.PopOperand();
+			Value value1 = stackFrame.PopOperand();
+			Value value2 = stackFrame.PopOperand();
 
-			stackFrame.PushOperand(StackValue::Subtract(value2, value1));
+			stackFrame.PushOperand(Value::Subtract(value2, value1));
 
 			break;
 		}
 		case Opcodes::mul:
 		{
-			StackValue value1 = stackFrame.PopOperand();
-			StackValue value2 = stackFrame.PopOperand();
+			Value value1 = stackFrame.PopOperand();
+			Value value2 = stackFrame.PopOperand();
 
-			stackFrame.PushOperand(StackValue::Multiply(value1, value2));
+			stackFrame.PushOperand(Value::Multiply(value1, value2));
 
 			break;
 		}
 		case Opcodes::div:
 		{
-			StackValue value1 = stackFrame.PopOperand();
-			StackValue value2 = stackFrame.PopOperand();
+			Value value1 = stackFrame.PopOperand();
+			Value value2 = stackFrame.PopOperand();
 
-			stackFrame.PushOperand(StackValue::Divide(value1, value2));
+			stackFrame.PushOperand(Value::Divide(value1, value2));
 
 			break;
 		}
 		case Opcodes::div_reverse:
 		{
-			StackValue value1 = stackFrame.PopOperand();
-			StackValue value2 = stackFrame.PopOperand();
+			Value value1 = stackFrame.PopOperand();
+			Value value2 = stackFrame.PopOperand();
 
-			stackFrame.PushOperand(StackValue::Divide(value2, value1));
+			stackFrame.PushOperand(Value::Divide(value2, value1));
 
 			break;
 		}
 		/*case Opcodes::pow:
 		{
-			StackValue value1 = stackFrame.PopOperand();
-			StackValue value2 = stackFrame.PopOperand();
+			Value value1 = stackFrame.PopOperand();
+			Value value2 = stackFrame.PopOperand();
 
-			stackFrame.PushOperand(StackValue::Pow(value1, value2));
+			stackFrame.PushOperand(Value::Pow(value1, value2));
 
 			break;
 		}
 		case Opcodes::pow_rev:
 		{
-			StackValue value1 = stackFrame.PopOperand();
-			StackValue value2 = stackFrame.PopOperand();
+			Value value1 = stackFrame.PopOperand();
+			Value value2 = stackFrame.PopOperand();
 
-			stackFrame.PushOperand(StackValue::Pow(value2, value1));
+			stackFrame.PushOperand(Value::Pow(value2, value1));
 
 			break;
 		}
 		case Opcodes::mod:
 		{
-			StackValue value1 = stackFrame.PopOperand();
-			StackValue value2 = stackFrame.PopOperand();
+			Value value1 = stackFrame.PopOperand();
+			Value value2 = stackFrame.PopOperand();
 
-			stackFrame.PushOperand(StackValue::Mod(value1, value2));
+			stackFrame.PushOperand(Value::Mod(value1, value2));
 
 			break;
 		}
 		case Opcodes::mod_rev:
 		{
-			StackValue value1 = stackFrame.PopOperand();
-			StackValue value2 = stackFrame.PopOperand();
+			Value value1 = stackFrame.PopOperand();
+			Value value2 = stackFrame.PopOperand();
 
-			stackFrame.PushOperand(StackValue::Mod(value2, value1));
+			stackFrame.PushOperand(Value::Mod(value2, value1));
 
 			break;
 		}
 		case Opcodes::xr:
 		{
-			StackValue value1 = stackFrame.PopOperand();
-			StackValue value2 = stackFrame.PopOperand();
+			Value value1 = stackFrame.PopOperand();
+			Value value2 = stackFrame.PopOperand();
 
-			stackFrame.PushOperand(StackValue::Xor(value1, value2));
+			stackFrame.PushOperand(Value::Xor(value1, value2));
 
 			break;
 		}
 		case Opcodes::xr_rev:
 		{
-			StackValue value1 = stackFrame.PopOperand();
-			StackValue value2 = stackFrame.PopOperand();
+			Value value1 = stackFrame.PopOperand();
+			Value value2 = stackFrame.PopOperand();
 
-			stackFrame.PushOperand(StackValue::Xor(value2, value1));
+			stackFrame.PushOperand(Value::Xor(value2, value1));
 
 			break;
 		}*/
@@ -709,15 +710,15 @@ void ExecutionContext::Execute()
 		{
 			uint32_t index = instruction.m_Arguments[0].GetInt();
 
-			StackValue& variable = stackFrame.GetVariable(index);
+			Value& variable = stackFrame.GetVariable(index);
 
 			if (!instruction.m_DiscardValue)
 				stackFrame.PushOperand(variable);
 
-			if (variable.m_Type == ValueTypes::Integer)
-				variable.m_ValueInt++;
-			else if(variable.m_Type == ValueTypes::Float)
-				variable.m_ValueFloat++;
+			if (variable.GetType() == ValueTypes::Integer)
+				variable.GetInt()++;
+			else if(variable.GetType() == ValueTypes::Float)
+				variable.GetFloat()++;
 
 			break;
 		}
@@ -725,15 +726,15 @@ void ExecutionContext::Execute()
 		{
 			uint32_t index = instruction.m_Arguments[0].GetInt();
 
-			StackValue& variable = stackFrame.GetVariable(index);
+			Value& variable = stackFrame.GetVariable(index);
 
 			if (!instruction.m_DiscardValue)
 				stackFrame.PushOperand(variable);
 
-			if (variable.m_Type == ValueTypes::Integer)
-				variable.m_ValueInt--;
-			else if (variable.m_Type == ValueTypes::Float)
-				variable.m_ValueFloat--;
+			if (variable.GetType() == ValueTypes::Integer)
+				variable.GetInt()--;
+			else if (variable.GetType() == ValueTypes::Float)
+				variable.GetFloat()--;
 
 			break;
 		}
@@ -753,7 +754,7 @@ void ExecutionContext::Execute()
 			// If to actually return anything
 			if (functionStack.m_OperandStackTop != 0)
 			{
-				StackValue returnValue = functionStack.PopOperand();
+				Value returnValue = functionStack.PopOperand();
 
 				GetTopFrame().PushOperand(returnValue);
 			}
@@ -769,7 +770,7 @@ void ExecutionContext::Execute()
 
 			StackFrame functionStack = PopFrame();
 
-			GetTopFrame().PushOperand(StackValue(0, ValueTypes::Void));
+			GetTopFrame().PushOperand(Value(0, ValueTypes::Void));
 
 			DeleteLocalVariables(GetTopFrame(), functionStack);
 
@@ -806,10 +807,10 @@ void ExecutionContext::Execute()
 			PushFrame(this);
 			StackFrame& newFrame = GetTopFrame();
 
-			// Copy the variables from the previous scope into this
+			// Copy the variables from the global scope into this frame
 			for (int i = 0; i < STACK_SIZE; i++)
 			{
-				newFrame.m_VariablesList[i] = stackFrame.m_VariablesList[i];
+				newFrame.m_VariablesList[i] = m_StackFrames[0].m_VariablesList[i];
 
 				// Set the initiali variables so local variables can be compared, and discarded
 				newFrame.m_InitialVariablesList[i] = newFrame.m_VariablesList[i];
@@ -857,11 +858,11 @@ void ExecutionContext::Execute()
 		{
 			int argCount = instruction.m_Arguments[0].GetInt();
 
-			StackValue functionLocation = stackFrame.PopOperand();
+			Value functionLocation = stackFrame.PopOperand();
 
-			if (functionLocation.m_Type == ValueTypes::Void)
+			if (functionLocation.GetType() == ValueTypes::Void)
 			{
-				std::string name = instruction.m_Arguments[1]._m_String;
+				std::string name = instruction.m_Arguments[1].GetString();
 				return ThrowExceptionVoid("Function '" + name + "' is not defined");
 			}
 
@@ -881,25 +882,25 @@ void ExecutionContext::Execute()
 
 		case Opcodes::call_native:
 		{
-			std::string functionName = instruction.m_Arguments[0]._m_String;
+			std::string functionName = instruction.m_Arguments[0].GetString();
 			uint32_t argCount = instruction.m_Arguments[1].GetInt();
 
 			// Get the args
-			StackValueArray args;
+			ValueArray args;
 			for (int i = 0; i < argCount; i++)
 			{
 				args.push_back(stackFrame.PopOperand());
 			}
 
 			CallableFunction function = BytecodeFunctions::GetFunctionByName(functionName);
-			StackValue returnValue = function(&args);
+			Value returnValue = function(&args);
 
 			if (Exception())
 				ThrowExceptionVoid(functionName + "(): " + m_Exception);
 
 			if (!instruction.m_DiscardValue) 
 			{
-				assert(returnValue.m_Type != ValueTypes::Void);
+				assert(returnValue.GetType() != ValueTypes::Void);
 				stackFrame.PushOperand(returnValue);
 			}	
 
@@ -920,10 +921,10 @@ void ExecutionContext::DeleteLocalVariables(StackFrame& topFrame, StackFrame& lo
 	for (int i = 0; i < STACK_SIZE; i++)
 	{
 		// If a variable is new
-		if (localFrame.m_VariablesList[i].m_Type != ValueTypes::Void && localFrame.m_InitialVariablesList[i].m_Type == ValueTypes::Void)
+		if (localFrame.m_VariablesList[i].GetType() != ValueTypes::Void && localFrame.m_InitialVariablesList[i].GetType() == ValueTypes::Void)
 			localFrame.m_VariablesList[i].Delete();
 		else {
-			if (!topFrame.m_VariablesList[i].m_IsLocal)
+			if (topFrame.m_VariablesList[i].m_Flag == Value::Flags::LocalVariable)
 				topFrame.m_VariablesList[i] = localFrame.m_VariablesList[i];
 		}
 			
@@ -938,10 +939,10 @@ void ExecutionContext::ClearOperands(StackFrame& frame)
 	}
 }
 
-StackValue ExecutionContext::ThrowExceptionValue(std::string error)
+Value ExecutionContext::ThrowExceptionValue(std::string error)
 {
 	m_Exception = error;
-	return StackValue();
+	return Value();
 }
 void ExecutionContext::ThrowExceptionVoid(std::string error) { m_Exception = error; }
 bool ExecutionContext::Exception() { return m_Exception != "" || BytecodeInterpreter::Get().ExceptionError != ""; }

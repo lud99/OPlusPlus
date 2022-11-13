@@ -1,12 +1,14 @@
 #pragma once
 
-#include "BytecodeCompiler.h"
-#include "BytecodeFunctions.h"
-
 #include <fstream>
 #include <iostream>
 
+#include "BytecodeCompiler.h"
+#include "BytecodeFunctions.h"
+
 #include "../../Utils.hpp"
+
+#include "Heap.h"
 
 ValueTypes NodeVariableTypeToValueType(ASTNode* n)
 {
@@ -162,7 +164,10 @@ int BytecodeCompiler::CompileFunction(ASTNode* node, std::vector<Instruction>& i
 				{
 					Compile(n, instructions, false);
 					instructions.erase(instructions.end() - 2);
-					instructions[instructions.size() - 1].Arg(0).m_Arguments[3].m_IsLocal = true;
+					// TODO: fix
+					// Mark the variable as local
+					instructions[instructions.size() - 1].Arg(0).m_Arguments[3].m_ArgIntValue = 1;
+					instructions[instructions.size() - 1].m_Arguments[3].m_ArgStringValue = "is local";
 					//body[body.size() - 2] = Instruction(Opcodes::pop);
 				}
 			}
@@ -190,7 +195,7 @@ int BytecodeCompiler::CompileFunction(ASTNode* node, std::vector<Instruction>& i
 	}
 
 	// Function before
-	instructions[functionStart - 1].m_Arguments[0] = StackValue(int(instructions.size()), ValueTypes::Integer);
+	instructions[functionStart - 1].m_Arguments[0] = InstructionArgument(int(instructions.size()), ValueTypes::Integer);
 
 	// Insert the function instructions at the start of the bytecode
 	//instructions = ConcatVectors(instructions, function);
@@ -242,7 +247,7 @@ int BytecodeCompiler::CompileAnonymousFunction(ASTNode* node, std::vector<Instru
 	if (instructions.back().m_Type != Opcodes::ret && instructions.back().m_Type != Opcodes::ret_void)
 		instructions.emplace_back(Opcodes::ret_void);
 
-	instructions[functionStart - 1].m_Arguments[0] = StackValue((int)instructions.size(), ValueTypes::Integer);
+	instructions[functionStart - 1].m_Arguments[0] = InstructionArgument((int)instructions.size(), ValueTypes::Integer);
 
 	// The variable for the function stores the adress of the function
 	instructions.push_back(Instruction(Opcodes::push_functionpointer).Arg(functionStart));
@@ -966,7 +971,7 @@ void BytecodeCompiler::Compile(ASTNode* node, std::vector<Instruction>& instruct
 	{
 		//bool discardValue = node->parent->type == ASTTypes::Scope;
 
-		instructions.push_back(Instruction(Opcodes::push_number).Arg(node->numberValue));
+		instructions.push_back(Instruction(Opcodes::push_number).Arg((int)node->numberValue));
 
 		break;
 	}
@@ -1023,29 +1028,26 @@ void BytecodeCompiler::Throw(std::string error)
 	m_Error = error;
 }
 
-Instruction& Instruction::Arg(StackValue arg)
+Instruction& Instruction::Arg(InstructionArgument arg)
 {
 	m_Arguments[m_ArgsCount++] = arg;
 	return *this;
 }
 Instruction& Instruction::Arg(int arg)
 {
-	m_Arguments[m_ArgsCount++] = StackValue(arg, ValueTypes::Integer);
+	m_Arguments[m_ArgsCount++] = InstructionArgument(arg, ValueTypes::Integer);
 	return *this;
 }
 Instruction& Instruction::Arg(double arg, ValueTypes type)
 {
 	assert(type == ValueTypes::Float);
 
-	m_Arguments[m_ArgsCount++] = StackValue(arg, ValueTypes::Float);
+	m_Arguments[m_ArgsCount++] = InstructionArgument(arg, ValueTypes::Float);
 	return *this;
 }
 Instruction& Instruction::Arg(std::string arg)
 {
-	StackValue s;
-	s.m_Type = ValueTypes::String;
-	s._m_String = arg;
-	m_Arguments[m_ArgsCount++] = s;
+	m_Arguments[m_ArgsCount++] = InstructionArgument(arg, ValueTypes::String);
 
 	return *this;
 }

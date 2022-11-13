@@ -13,7 +13,7 @@
 //#define EnsureTypeOfArg(arguments, index, expectedType) \
 //{ \
 //	if (!ElementExists(*arguments, index)) return BytecodeInterpreter::Get().ThrowExceptionValue("Argument " + std::to_string(index)  + " expected, but not found"); \
-//	StackValue& val = arguments->at(index); \
+//	Value& val = arguments->at(index); \
 //	bool isCorrectType = false; \
 //	if (expectedType == Value::String) \
 //		isCorrectType = val.IsString(); \
@@ -96,14 +96,14 @@ void BytecodeFunctions::ThrowException(std::string error)
 
 }
 //
-//StackValue BytecodeFunctions::__print_stack(StackValueArray* args)
+//Value BytecodeFunctions::__print_stack(ValueArray* args)
 //{
 //	std::cout << "\nOperand stack	   Variables stack\n";
 //	std::cout << "Top: " << Runner::Get().GetContext(0)->GetTopFrame().m_OperandStackTop << "\n";
 //	for (int i = 0; i < 16; i++)
 //	{
-//		StackValue& stack = Runner::Get().GetContext(0)->GetTopFrame().m_OperandStack[i];
-//		StackValue& variable = Runner::Get().GetContext(0)->GetTopFrame().m_VariablesList[i];
+//		Value& stack = Runner::Get().GetContext(0)->GetTopFrame().m_OperandStack[i];
+//		Value& variable = Runner::Get().GetContext(0)->GetTopFrame().m_VariablesList[i];
 //
 //		std::cout << "(" << ValueTypeToString(stack.m_Type) << ") ";
 //		if (stack.IsObject())
@@ -142,10 +142,10 @@ void BytecodeFunctions::ThrowException(std::string error)
 //		std::cout << s << "\n";
 //	}
 //
-//	return StackValue(Value::Null);
+//	return Value(Value::Null);
 //}
 
-StackValue BytecodeFunctions::print(StackValueArray* args)
+Value BytecodeFunctions::print(ValueArray* args)
 {
 	std::string printed;
 	for (int i = 0; i < args->size(); i++)
@@ -157,22 +157,22 @@ StackValue BytecodeFunctions::print(StackValueArray* args)
 
 	std::cout << printed << "\n";
 
-	return StackValue(ValueTypes::Void);
+	return Value(ValueTypes::Void);
 }
 
 
-StackValue BytecodeFunctions::printf(StackValueArray* args)
+Value BytecodeFunctions::printf(ValueArray* args)
 {
-	StackValue formatted = format_string(args);
+	Value formatted = format_string(args);
 	std::cout << formatted.ToString() << "\n";
 
 	// Cleanup
 	BytecodeInterpreter::Get().m_Heap.DeleteObject(formatted.m_HeapEntryPointer);
 
-	return StackValue(ValueTypes::Void);
+	return Value(ValueTypes::Void);
 }
 
-StackValue BytecodeFunctions::format_string(StackValueArray* args)
+Value BytecodeFunctions::format_string(ValueArray* args)
 {
 	//EnsureTypeOfArg(args, 0, ValueTypes::String);
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "StackValue.h"
+#include "../Value.h"
 #include "BytecodeCompiler.h"
 #include "Debugger.h"
 
@@ -17,12 +17,12 @@ public:
 
 	void Alloc();
 
-	StackValue& GetVariable(uint32_t index);
-	StackValue PopOperand();
+	Value& GetVariable(uint32_t index);
+	Value PopOperand();
 
-	void StoreVariable(uint32_t index, StackValue value);
-	void StoreVariable(uint32_t index, StackValue value, ValueTypes variableType);
-	void PushOperand(StackValue value);
+	void StoreVariable(uint32_t index, Value value);
+	void StoreVariable(uint32_t index, Value value, ValueTypes variableType);
+	void PushOperand(Value value);
 	void PushOperand(double value);
 	void PushOperand(int value);
 
@@ -30,10 +30,10 @@ public:
 	~StackFrame();
 
 public:
-	StackValue m_VariablesList[STACK_SIZE];// = nullptr;
-	StackValue m_OperandStack[STACK_SIZE];// = nullptr;
+	Value m_VariablesList[STACK_SIZE];// = nullptr;
+	Value m_OperandStack[STACK_SIZE];// = nullptr;
 
-	StackValue m_InitialVariablesList[STACK_SIZE];// = nullptr;
+	Value m_InitialVariablesList[STACK_SIZE];// = nullptr;
 
 	int m_ReturnAdress = 0;
 
@@ -57,7 +57,7 @@ public:
 	void DeleteLocalVariables(StackFrame& topFrame, StackFrame& localFrame);
 	void ClearOperands(StackFrame& frame);
 
-	StackValue ThrowExceptionValue(std::string error);
+	Value ThrowExceptionValue(std::string error);
 	void ThrowExceptionVoid(std::string error);
 	bool Exception();
 
@@ -82,7 +82,7 @@ class BytecodeInterpreter
 public:
 	static BytecodeInterpreter& Get();
 
-	StackValue CreateAndRunProgram(std::string source, std::string& error, bool verbose = false);
+	Value CreateAndRunProgram(std::string source, std::string& error, bool verbose = false);
 
 	std::string InterpretBytecode();
 
@@ -91,7 +91,7 @@ public:
 	void RemoveContext(int id);
 	ExecutionContext* GetContext(int id);
 
-	inline StackValue ThrowExceptionValue(std::string error) { ExceptionError = error; return StackValue(ValueTypes::Void); };
+	inline Value ThrowExceptionValue(std::string error) { ExceptionError = error; return Value(ValueTypes::Void); };
 
 private:
 	BytecodeInterpreter() {};

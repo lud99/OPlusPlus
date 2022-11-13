@@ -1,6 +1,8 @@
 #include "ASTInterpreter.h"
 
-#include "../Bytecode/BytecodeFunctions.h";
+#include "../Bytecode/BytecodeFunctions.h"
+
+#include <iostream>
 
 namespace ASTint
 {
@@ -124,14 +126,14 @@ namespace ASTint
 			break;
 		case ASTTypes::FunctionCall:
 		{
-			std::vector<Value> args(node->arguments.size());
+			std::vector<Value> args;// (node->arguments.size());
 
 			for (int i = 0; i < node->arguments.size(); i++)
 			{
-				args[i] = InterpretTree(node->arguments[i]);
+				args.push_back(InterpretTree(node->arguments[i]));
 			}
 
-			Functions
+			std::cout << args[0].ToString() << "\n";
 
 			break;
 		}

@@ -1077,8 +1077,8 @@ bool Parser::ParseFunctionDeclaration(Tokens& tokens, ASTNode* node)
 		if (tokens[i].m_Type == Token::RightArrow)
 		{
 			if (tokens[i].m_Depth != 0)
-				continue;
-
+				MakeError("Function declaration has to be at the global scope");
+				
 			//if (!IsValidAssignmentExpression(tokens, i))
 				//return false;
 

@@ -3,7 +3,7 @@
 #include "../../Parser.h"
 #include "../ValueTypes.h"
 #include <string>
-#include "Value.h"
+#include "../Value.h"
 
 #include <map>
 
@@ -12,7 +12,7 @@ namespace ASTint
 
 class ScopeFrame 
 {
-	std::map<std::string, ASTint::Value> m_Variables;
+	std::map<std::string, Value> m_Variables;
 };
 
 class ASTInterpreter
