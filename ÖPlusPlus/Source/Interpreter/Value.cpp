@@ -49,6 +49,7 @@ Value::Value(std::string value, ValueTypes type)
 
 	m_StringValue = value;
 }
+#ifdef BYTECODE_INTERPRETER
 Value::Value(HeapEntry& value)
 {
 	m_HeapEntryPointer = &value;
@@ -60,6 +61,7 @@ Value::Value(HeapEntry& value)
 	else if (value.m_Type == 2)
 		m_Type = Value::Object;*/
 }
+#endif
 std::string Value::GetString()
 {
 	assert(IsString());
@@ -84,6 +86,33 @@ double& Value::GetFloat()
 	assert(m_Type == ValueTypes::Float);
 
 	return m_FloatValue;
+}
+
+void Value::SetString(std::string value)
+{
+	assert(IsString());
+
+	// TODO: might cause problems
+	m_StringValue = value;
+
+#ifdef BYTECODE_INTERPRETER
+	if (m_HeapEntryPointer != nullptr)
+		return (char*)(m_HeapEntryPointer)->m_Data;
+#endif // BYTECODE_INTERPRETER
+}
+
+void Value::SetInt(int value)
+{
+	assert(m_Type == ValueTypes::Integer);
+
+	m_IntValue = value;
+}
+
+void Value::SetFloat(double value)
+{
+	assert(m_Type == ValueTypes::Float);
+
+	m_FloatValue = value;
 }
 
 ValueTypes Value::GetType()

@@ -86,7 +86,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>BYTECODE_INTERPRETER;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>AST_INTERPRETER;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
@@ -144,11 +144,21 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Source\Interpreter\AST\ASTInterpreter.cpp" />
-    <ClCompile Include="Source\Interpreter\Bytecode\BytecodeCompiler.cpp" />
-    <ClCompile Include="Source\Interpreter\Bytecode\BytecodeFunctions.cpp" />
-    <ClCompile Include="Source\Interpreter\Bytecode\BytecodeInterpreter.cpp" />
-    <ClCompile Include="Source\Interpreter\Bytecode\Debugger.cpp" />
-    <ClCompile Include="Source\Interpreter\Bytecode\Heap.cpp" />
+    <ClCompile Include="Source\Interpreter\Bytecode\BytecodeCompiler.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="Source\Interpreter\Bytecode\BytecodeFunctions.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="Source\Interpreter\Bytecode\BytecodeInterpreter.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="Source\Interpreter\Bytecode\Debugger.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="Source\Interpreter\Bytecode\Heap.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="Source\Interpreter\Value.cpp" />
     <ClCompile Include="Source\Lexer.cpp" />
     <ClCompile Include="Source\Main.cpp" />
@@ -156,11 +166,21 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\Interpreter\AST\ASTInterpreter.h" />
-    <ClInclude Include="Source\Interpreter\Bytecode\BytecodeCompiler.h" />
-    <ClInclude Include="Source\Interpreter\Bytecode\BytecodeFunctions.h" />
-    <ClInclude Include="Source\Interpreter\Bytecode\BytecodeInterpreter.h" />
-    <ClInclude Include="Source\Interpreter\Bytecode\Debugger.h" />
-    <ClInclude Include="Source\Interpreter\Bytecode\Heap.h" />
+    <ClInclude Include="Source\Interpreter\Bytecode\BytecodeCompiler.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="Source\Interpreter\Bytecode\BytecodeFunctions.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="Source\Interpreter\Bytecode\BytecodeInterpreter.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="Source\Interpreter\Bytecode\Debugger.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="Source\Interpreter\Bytecode\Heap.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+    </ClInclude>
     <ClInclude Include="Source\Interpreter\Value.h" />
     <ClInclude Include="Source\Interpreter\ValueTypes.h" />
     <ClInclude Include="Source\Lexer.h" />

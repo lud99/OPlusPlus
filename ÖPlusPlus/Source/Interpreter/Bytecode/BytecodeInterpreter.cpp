@@ -957,6 +957,8 @@ void ExecutionContext::DeleteLocalVariables(StackFrame& topFrame, StackFrame& lo
 			// If a variable that has changed the value of a 'global' variable
 			if (topFrame.m_VariablesList[i].GetType() != ValueTypes::Void)
 				topFrame.m_VariablesList[i] = localFrame.m_VariablesList[i];
+
+			localFrame.m_VariablesList[i].Delete();
 		}
 			
 	}

@@ -3,6 +3,52 @@
 #include "../Bytecode/BytecodeFunctions.h"
 
 #include <iostream>
+#include <assert.h>
+
+ValueTypes NodeVariableTypeToValueType(ASTNode* n)
+{
+	assert(n->type == ASTTypes::VariableType);
+
+	if (n->stringValue == "int") return ValueTypes::Integer;
+	if (n->stringValue == "float") return ValueTypes::Float;
+	if (n->stringValue == "double") return ValueTypes::Float;
+	if (n->stringValue == "string") return ValueTypes::String;
+	//if (n->stringValue == "char") return ValueTypes::Char;
+	//if (n->stringValue == "array") return ValueTypes::Array;
+	//if (n->stringValue == "function") return ValueTypes::Function;
+	//if (n->stringValue == "object") return ValueTypes::Object;
+
+	return ValueTypes::Void;
+}
+
+// Scope frame
+namespace ASTint
+{
+	bool ScopeFrame::HasVariable(const std::string& name)
+	{
+		return m_Variables.count(name) == 1;
+	}
+
+	Value& ScopeFrame::GetVariable(const std::string& name)
+	{
+		assert(HasVariable(name));
+		return m_Variables[name];
+	}
+
+	void ScopeFrame::SetVariable(const std::string& name, Value value)
+	{
+		assert(HasVariable(name));
+		m_Variables[name] = value;
+	}
+
+	Value& ScopeFrame::CreateVariable(const std::string& name, Value value)
+	{
+		assert(!HasVariable(name));
+
+		m_Variables[name] = value;
+		return m_Variables[name];
+	}
+}
 
 namespace ASTint
 {
@@ -14,6 +60,11 @@ namespace ASTint
 	ASTInterpreter::ASTInterpreter(ASTNode* tree)
 	{
 		m_ASTTree = tree;
+		m_ScopeFrames.resize(ScopeFramesCount);
+		for (int i = 0; i < ScopeFramesCount; i++)
+		{
+			m_ScopeFrames[i] = ScopeFrame();
+		}
 	}
 
 	void ASTInterpreter::MakeError(std::string error)
@@ -31,6 +82,11 @@ namespace ASTint
 		if (m_Error != "")
 			return Value(ValueTypes::Void);
 
+		if (node->type == ASTTypes::ProgramBody)
+			PushFrame();
+
+		ScopeFrame& currentFrame = GetTopFrame();
+
 		switch (node->type)
 		{
 		case ASTTypes::Empty:
@@ -39,6 +95,7 @@ namespace ASTint
 			return InterpretTree(node->left);
 		case ASTTypes::Scope:
 		{
+			ScopeFrame frame = PushFrame();
 			auto& nodes = node->arguments;
 			for (int i = 0; i < nodes.size() - 1; i++)
 			{
@@ -49,31 +106,106 @@ namespace ASTint
 			return InterpretTree(nodes[nodes.size() - 1]);
 		}
 		case ASTTypes::VariableDeclaration:
-			break;
+		{
+			const std::string& variableName = node->right->stringValue;
+			
+			ValueTypes variableType = NodeVariableTypeToValueType(node->left);
+
+			Value value;
+
+			if (variableType == ValueTypes::Integer)
+				value = Value(0, ValueTypes::Integer);
+			else if (variableType == ValueTypes::Float)
+				value = Value(0.0, ValueTypes::Float);
+			else if (variableType == ValueTypes::String)
+				value = Value("", ValueTypes::String);
+
+			return currentFrame.CreateVariable(variableName, value);
+		}
 		case ASTTypes::VariableType:
 			break;
 		case ASTTypes::Assign:
-			break;
+		{
+			std::string variableName = node->left->stringValue;
+
+			// Create the variable first if it is a declaration
+			if (node->left->type == ASTTypes::VariableDeclaration)
+			{
+				variableName = node->left->right->stringValue;
+				InterpretTree(node->left);
+			}
+
+			// Evaluate value at rhs
+			Value rhs = InterpretTree(node->right);
+			currentFrame.SetVariable(variableName, rhs);
+
+			return rhs;
+		}
 		case ASTTypes::PropertyAssign:
 			break;
 		case ASTTypes::CompareEquals:
-			break;
+		{
+			Value lhs = InterpretTree(node->left);
+			Value rhs = InterpretTree(node->right);
+
+			return Value(Value::CompareEquals(lhs, rhs), ValueTypes::Integer);
+		}
 		case ASTTypes::CompareNotEquals:
-			break;
+		{
+			Value lhs = InterpretTree(node->left);
+			Value rhs = InterpretTree(node->right);
+
+			return Value(Value::CompareNotEquals(lhs, rhs), ValueTypes::Integer);
+		}
 		case ASTTypes::CompareLessThan:
-			break;
+		{
+			Value lhs = InterpretTree(node->left);
+			Value rhs = InterpretTree(node->right);
+
+			return Value(Value::CompareLessThan(lhs, rhs), ValueTypes::Integer);
+		}
 		case ASTTypes::CompareGreaterThan:
-			break;
+		{
+			Value lhs = InterpretTree(node->left);
+			Value rhs = InterpretTree(node->right);
+
+			return Value(Value::CompareGreaterThan(lhs, rhs), ValueTypes::Integer);
+		}
 		case ASTTypes::CompareLessThanEqual:
-			break;
+		{
+			Value lhs = InterpretTree(node->left);
+			Value rhs = InterpretTree(node->right);
+
+			return Value(Value::CompareLessThanEqual(lhs, rhs), ValueTypes::Integer);
+		}
 		case ASTTypes::CompareGreaterThanEqual:
-			break;
+		{
+			Value lhs = InterpretTree(node->left);
+			Value rhs = InterpretTree(node->right);
+
+			return Value(Value::CompareGreaterThanEqual(lhs, rhs), ValueTypes::Integer);
+		}
 		case ASTTypes::And:
-			break;
+		{
+			Value lhs = InterpretTree(node->left);
+			Value rhs = InterpretTree(node->right);
+
+			return Value(lhs.IsTruthy() && rhs.IsTruthy(), ValueTypes::Integer);
+		}
 		case ASTTypes::Or:
-			break;
+		{
+			Value lhs = InterpretTree(node->left);
+			Value rhs = InterpretTree(node->right);
+
+			return Value(lhs.IsTruthy() || rhs.IsTruthy(), ValueTypes::Integer);
+		}
 		case ASTTypes::Not:
-			break;
+		{
+			Value lhs = InterpretTree(node->left);
+			Value rhs = InterpretTree(node->right);
+
+			return Value(!lhs.IsTruthy(), ValueTypes::Integer);
+		}
 		case ASTTypes::Null:
 			break;
 		case ASTTypes::IntLiteral:
@@ -91,8 +223,14 @@ namespace ASTint
 		case ASTTypes::ObjectType:
 			break;
 		case ASTTypes::Variable:
-			break;
-		
+		{
+			const std::string& variableName = node->stringValue;
+			
+			if (!currentFrame.HasVariable(variableName))
+				MakeErrorValueReturn("Variable '" + variableName + "' has not been defined");
+			
+			return currentFrame.GetVariable(variableName);
+		}		
 		case ASTTypes::Add: 
 		{
 			Value lhs = InterpretTree(node->left);
@@ -101,11 +239,26 @@ namespace ASTint
 			return Value::Add(lhs, rhs);
 		}
 		case ASTTypes::Subtract:
-			break;
+		{
+			Value lhs = InterpretTree(node->left);
+			Value rhs = InterpretTree(node->right);
+
+			return Value::Subtract(lhs, rhs);
+		}
 		case ASTTypes::Multiply:
-			break;
+		{
+			Value lhs = InterpretTree(node->left);
+			Value rhs = InterpretTree(node->right);
+
+			return Value::Multiply(lhs, rhs);
+		}
 		case ASTTypes::Divide:
-			break;
+		{
+			Value lhs = InterpretTree(node->left);
+			Value rhs = InterpretTree(node->right);
+
+			return Value::Divide(lhs, rhs);
+		}
 		case ASTTypes::Xor:
 			break;
 		case ASTTypes::ToThePower:
@@ -126,7 +279,7 @@ namespace ASTint
 			break;
 		case ASTTypes::FunctionCall:
 		{
-			std::vector<Value> args;// (node->arguments.size());
+			std::vector<Value> args;
 
 			for (int i = 0; i < node->arguments.size(); i++)
 			{
@@ -159,5 +312,36 @@ namespace ASTint
 		default:
 			break;
 		}
+
+		return Value(ValueTypes::Void);
+	}
+
+	ScopeFrame& ASTInterpreter::PushFrame()
+	{
+		assert(m_ScopeFrameTop >= 0 && m_ScopeFrameTop < ScopeFramesCount - 1);
+
+		m_ScopeFrameTop++;
+		m_ScopeFrames[m_ScopeFrameTop] = ScopeFrame();
+		return m_ScopeFrames[m_ScopeFrameTop];
+	}
+
+	ScopeFrame ASTInterpreter::PopFrame()
+	{
+		assert(m_ScopeFrameTop > 0 && m_ScopeFrameTop < ScopeFramesCount);
+
+		ScopeFrame top = m_ScopeFrames[m_ScopeFrameTop];
+
+		m_ScopeFrames[m_ScopeFrameTop] = ScopeFrame();
+
+		m_ScopeFrameTop--;
+
+		return top;
+	}
+
+	ScopeFrame& ASTInterpreter::GetTopFrame()
+	{
+		assert(m_ScopeFrameTop >= 0 && m_ScopeFrameTop < ScopeFramesCount);
+
+		return m_ScopeFrames[m_ScopeFrameTop];
 	}
 }

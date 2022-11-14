@@ -28,6 +28,10 @@ public:
 	int& GetInt();
 	double& GetFloat();
 
+	void SetString(std::string value);
+	void SetInt(int value);
+	void SetFloat(double value);
+
 	ValueTypes GetType();
 	void SetType(ValueTypes type);
 

@@ -15,9 +15,13 @@
 #include <locale>
 #include <sstream>
 
+#ifdef BYTECODE_INTERPRETER
 #include "Interpreter/Bytecode/BytecodeInterpreter.h"
 #include "Interpreter/Bytecode/BytecodeFunctions.h"
+#endif
+#ifdef AST_INTERPRETER
 #include "Interpreter/AST/ASTInterpreter.h"
+#endif
 
 std::string stringRaw(std::string s)
 {
@@ -39,7 +43,7 @@ int main()
 {
 	setlocale(LC_ALL, "");
 
-	std::string filepath = "Programs/function.ö";
+	std::string filepath = "Programs/ASTint.ö";
 
 	std::string error;
 	Value v;

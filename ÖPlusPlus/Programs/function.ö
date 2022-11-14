@@ -11,12 +11,3 @@ int fact(int n) => {
 
 print("fact:", fact(6));
 print("times:", iterations);
-
-if (true) {
-	int n = 4;
-	{
-		n = 5;
-	};
-
-	print(n);
-};

@@ -5,13 +5,24 @@
 #include <string>
 #include "../Value.h"
 
+#include <vector>
+
 #include <map>
 
 namespace ASTint 
 {
 
+constexpr int ScopeFramesCount = 64;
+
 class ScopeFrame 
 {
+public:
+	bool HasVariable(const std::string& name);
+	Value& GetVariable(const std::string& name);
+	void SetVariable(const std::string& name, Value value);
+	Value& CreateVariable(const std::string& name, Value value);
+
+public:
 	std::map<std::string, Value> m_Variables;
 };
 
@@ -28,6 +39,14 @@ public:
 
 private:
 	ASTInterpreter() {};
+
+	ScopeFrame& PushFrame();
+	ScopeFrame PopFrame();
+	ScopeFrame& GetTopFrame();
+
+private:
+	std::vector<ScopeFrame> m_ScopeFrames;
+	int m_ScopeFrameTop = 0;
 
 public:
 	ASTNode* m_ASTTree = nullptr;
