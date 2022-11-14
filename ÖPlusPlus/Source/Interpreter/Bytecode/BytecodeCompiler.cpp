@@ -161,6 +161,8 @@ int BytecodeCompiler::CompileFunction(ASTNode* node, std::vector<Instruction>& i
 	{
 		//Instructions body;
 
+		BytecodeConverterContext initialContext = m_Context;
+
 		// Compile arguments
 		if (node->left->arguments.size() >= 3)
 		{
@@ -172,16 +174,13 @@ int BytecodeCompiler::CompileFunction(ASTNode* node, std::vector<Instruction>& i
 				{
 					Compile(n, instructions, false);
 					instructions.erase(instructions.end() - 2);
-					// TODO: fix
-					// Mark the variable as local
-					//instructions[instructions.size() - 1].Arg(0).m_Arguments[3].m_ArgIntValue = 1;
-					//instructions[instructions.size() - 1].m_Arguments[3].m_ArgStringValue = "is local";
-					//body[body.size() - 2] = Instruction(Opcodes::pop);
 				}
 			}
 		}
 
 		Compile(node->right, instructions, false);
+
+		m_Context.m_Variables = initialContext.m_Variables;
 
 		// Make the function global in case of it being marked as threaded
 		//if (m_Context.m_IsThreadedFunction)
