@@ -1,6 +1,6 @@
 int a = 5.0 + 2.0;
 
 
-if (a > 2.0) {
+if (a > 2) {
 	print("here");
 }

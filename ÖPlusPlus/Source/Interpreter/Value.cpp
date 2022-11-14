@@ -24,6 +24,17 @@ Value Value::MakeRuntimeError(std::string error)
 
 }
 
+bool Value::MakeRuntimeErrorBool(std::string error)
+{
+#ifdef AST_INTERPRETER
+	ASTint::ASTInterpreter::Get().MakeErrorValueReturn(error);
+#endif // AST_INTERPRETER
+#ifdef BYTECODE_INTERPRETER
+	BytecodeInterpreter::Get().ThrowExceptionValue(error);
+#endif // BYTECODE_INTERPRETER
+	return false;
+}
+
 Value::Value()
 {
 }
@@ -298,7 +309,8 @@ bool Value::Compare(Value lhs, Value rhs, ASTTypes comparisonType)
 
 bool Value::CompareEquals(Value lhs, Value rhs)
 {
-	if (!Value::IsSamePrimitiveType(lhs, rhs)) return false;
+	if (!Value::IsSamePrimitiveType(lhs, rhs)) 
+		return MakeRuntimeErrorBool("Cannot compare type " + ValueTypeToString(lhs.GetType()) + " with " + ValueTypeToString(rhs.GetType()));
 
 	ValueTypes& type = lhs.m_Type;
 
@@ -319,7 +331,8 @@ bool Value::CompareEquals(Value lhs, Value rhs)
 
 bool Value::CompareNotEquals(Value lhs, Value rhs)
 {
-	if (!Value::IsSamePrimitiveType(lhs, rhs)) return false;
+	if (!Value::IsSamePrimitiveType(lhs, rhs))
+		return MakeRuntimeErrorBool("Cannot compare type " + ValueTypeToString(lhs.GetType()) + " with " + ValueTypeToString(rhs.GetType()));
 
 	ValueTypes& type = lhs.m_Type;
 
@@ -339,7 +352,8 @@ bool Value::CompareNotEquals(Value lhs, Value rhs)
 
 bool Value::CompareLessThan(Value lhs, Value rhs)
 {
-	if (!Value::IsSamePrimitiveType(lhs, rhs)) return false;
+	if (!Value::IsSamePrimitiveType(lhs, rhs))
+		return MakeRuntimeErrorBool("Cannot compare type " + ValueTypeToString(lhs.GetType()) + " with " + ValueTypeToString(rhs.GetType()));
 
 	ValueTypes& type = lhs.m_Type;
 
@@ -359,7 +373,8 @@ bool Value::CompareLessThan(Value lhs, Value rhs)
 
 bool Value::CompareGreaterThan(Value lhs, Value rhs)
 {
-	if (!Value::IsSamePrimitiveType(lhs, rhs)) return false;
+	if (!Value::IsSamePrimitiveType(lhs, rhs))
+		return MakeRuntimeErrorBool("Cannot compare type " + ValueTypeToString(lhs.GetType()) + " with " + ValueTypeToString(rhs.GetType()));
 
 	ValueTypes& type = lhs.m_Type;
 
@@ -379,7 +394,8 @@ bool Value::CompareGreaterThan(Value lhs, Value rhs)
 
 bool Value::CompareLessThanEqual(Value lhs, Value rhs)
 {
-	if (!Value::IsSamePrimitiveType(lhs, rhs)) return false;
+	if (!Value::IsSamePrimitiveType(lhs, rhs))
+		return MakeRuntimeErrorBool("Cannot compare type " + ValueTypeToString(lhs.GetType()) + " with " + ValueTypeToString(rhs.GetType()));
 
 	ValueTypes& type = lhs.m_Type;
 
@@ -402,7 +418,8 @@ bool Value::CompareLessThanEqual(Value lhs, Value rhs)
 
 bool Value::CompareGreaterThanEqual(Value lhs, Value rhs)
 {
-	if (!Value::IsSamePrimitiveType(lhs, rhs)) return false;
+	if (!Value::IsSamePrimitiveType(lhs, rhs))
+		return MakeRuntimeErrorBool("Cannot compare type " + ValueTypeToString(lhs.GetType()) + " with " + ValueTypeToString(rhs.GetType()));
 
 	ValueTypes& type = lhs.m_Type;
 
@@ -426,7 +443,7 @@ bool Value::CompareGreaterThanEqual(Value lhs, Value rhs)
 Value Value::Add(Value& lhs, Value& rhs)
 {
 	if (!Value::IsSamePrimitiveType(lhs, rhs))
-		abort();//return MakeRuntimeError("Cannot add types " + ValueTypeToString(lhs.m_Type) + " and " + ValueTypeToString(rhs.m_Type));
+		return MakeRuntimeError("Cannot add types " + ValueTypeToString(lhs.m_Type) + " and " + ValueTypeToString(rhs.m_Type));
 
 	if (lhs.m_Type == ValueTypes::Integer)
 	{

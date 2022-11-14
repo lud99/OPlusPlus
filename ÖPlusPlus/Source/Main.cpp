@@ -87,8 +87,10 @@ int main()
 
 	parser.PrintASTTree(tree.parent, 0);
 
-	ASTint::ASTInterpreter interpreter(tree.parent);
-	v = interpreter.InterpretTree(tree.parent);
+	auto& interpreter = ASTint::ASTInterpreter::Get();
+
+	v = interpreter.Execute(tree.parent);
+	if (interpreter.m_Error != "") std::cout << "AST Interpreter error: " << interpreter.m_Error << "\n";
 #endif // AST_INTERPRETER
 
 	//BytecodeInterpreter::Get().CreateAndRunProgram("Programs/function.ö", error);

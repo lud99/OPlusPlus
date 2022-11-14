@@ -30,7 +30,8 @@ class ASTInterpreter
 {
 public:
 	static ASTInterpreter& Get();
-	ASTInterpreter(ASTNode* tree);
+	void Initialize(ASTNode* tree);
+	Value Execute(ASTNode* tree);
 
 	void MakeError(std::string error);
 	Value MakeErrorValueReturn(std::string error);

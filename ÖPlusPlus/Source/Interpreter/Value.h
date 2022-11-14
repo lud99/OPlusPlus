@@ -45,6 +45,7 @@ public:
 	void Delete();
 
 	static Value MakeRuntimeError(std::string error);
+	static bool MakeRuntimeErrorBool(std::string error);
 
 	static bool IsSamePrimitiveType(Value lhs, Value rhs);
 	static bool IsSamePrimitiveType(ValueTypes lhs, ValueTypes rhs);

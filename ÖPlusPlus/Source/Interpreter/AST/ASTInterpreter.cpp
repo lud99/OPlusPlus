@@ -57,7 +57,7 @@ namespace ASTint
 		static ASTInterpreter instance;
 		return instance;
 	}
-	ASTInterpreter::ASTInterpreter(ASTNode* tree)
+	void ASTInterpreter::Initialize(ASTNode* tree)
 	{
 		m_ASTTree = tree;
 		m_ScopeFrames.resize(ScopeFramesCount);
@@ -65,6 +65,12 @@ namespace ASTint
 		{
 			m_ScopeFrames[i] = ScopeFrame();
 		}
+	}
+
+	Value ASTInterpreter::Execute(ASTNode* tree)
+	{
+		Initialize(tree);
+		return InterpretTree(m_ASTTree);
 	}
 
 	void ASTInterpreter::MakeError(std::string error)
