@@ -203,9 +203,11 @@ public:
 		std::string m_Name = "";
 		int m_Index = -1;
 
+		bool m_IsGlobal = false;
+
 		ValueTypes m_Type = ValueTypes::Void;
 
-		Variable(int index = -1, std::string name = "", ValueTypes type = ValueTypes::Void) : m_Name(name), m_Index(index), m_Type(type) {};
+		Variable(int index = -1, std::string name = "", ValueTypes type = ValueTypes::Void, bool isGlobal = false) : m_Name(name), m_Index(index), m_Type(type), m_IsGlobal(isGlobal) {};
 	};
 
 	struct LoopInfo

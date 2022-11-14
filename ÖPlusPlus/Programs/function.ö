@@ -1,4 +1,7 @@
+int iterations = 0;
+
 int fact(int n) => {
+	iterations = iterations + 1;
 	if (n <= 1) {
 		return 1;
 	};
@@ -6,4 +9,14 @@ int fact(int n) => {
 	return n * fact(n - 1);
 };
 
-print(fact(6));
+print("fact:", fact(6));
+print("times:", iterations);
+
+if (true) {
+	int n = 4;
+	{
+		n = 5;
+	};
+
+	print(n);
+};

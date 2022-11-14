@@ -64,7 +64,8 @@ public:
 	enum class Flags
 	{
 		None = 0,
-		LocalVariable
+		LocalVariable,
+		GlobalVariable
 	};
 
 public:

@@ -435,18 +435,42 @@ void ExecutionContext::Execute()
 			if (instruction.m_ArgsCount >= 2) {
 				stackFrame.StoreVariable(index, operand, variableType);
 				
+				// arg[4] determines if the variable is global
 				if (instruction.m_ArgsCount == 4)
 				{
-					// TODO: fix
-					stackFrame.m_VariablesList[index].m_Flag = Value::Flags::LocalVariable;
+					if (instruction.m_Arguments[3].GetInt() == true)
+						stackFrame.m_VariablesList[index].m_Flag = Value::Flags::GlobalVariable;
+					else 
+						stackFrame.m_VariablesList[index].m_Flag = Value::Flags::LocalVariable;
 				}
 			} 
 			else
 				stackFrame.StoreVariable(index, operand);
 
+			// Copy the variable into all the stack frames above if it is a global variable
+			if (m_StackFrameTop != 0)
+			{
+				//for (int i = 0; i < STACK_SIZE; i++)
+				{
+					if (stackFrame.m_VariablesList[index].m_Flag == Value::Flags::GlobalVariable)
+					{
+						for (int j = m_StackFrameTop; j >= 0; j--)
+						{
+							// The variable exists in the scope above
+							if (m_StackFrames[j].m_VariablesList[index].GetType() != ValueTypes::Void)
+							{
+								m_StackFrames[j].m_VariablesList[index] = stackFrame.m_VariablesList[index];
+							}
+							else break;
+						}
+					}
+				}
+			}
+			
+
 			break;
 		}
-
+		
 		/*case Opcodes::store_property:
 		{
 			Value value = stackFrame.PopOperand();
@@ -759,7 +783,8 @@ void ExecutionContext::Execute()
 				GetTopFrame().PushOperand(returnValue);
 			}
 
-			DeleteLocalVariables(GetTopFrame(), functionStack);
+			//DeleteLocalVariables(GetTopFrame(), functionStack);
+			DeleteLocalVariables(m_StackFrames[0], functionStack);
 
 			break;
 		}
@@ -922,9 +947,15 @@ void ExecutionContext::DeleteLocalVariables(StackFrame& topFrame, StackFrame& lo
 	{
 		// If a variable is new
 		if (localFrame.m_VariablesList[i].GetType() != ValueTypes::Void && localFrame.m_InitialVariablesList[i].GetType() == ValueTypes::Void)
+		{
 			localFrame.m_VariablesList[i].Delete();
-		else {
-			if (topFrame.m_VariablesList[i].m_Flag == Value::Flags::LocalVariable)
+		} 
+		else 
+		{
+			//if (topFrame.m_VariablesList[i].m_Flag == Value::Flags::LocalVariable)
+			
+			// If a variable that has changed the value of a 'global' variable
+			if (topFrame.m_VariablesList[i].GetType() != ValueTypes::Void)
 				topFrame.m_VariablesList[i] = localFrame.m_VariablesList[i];
 		}
 			

@@ -107,7 +107,7 @@ bool BytecodeConverterContext::CreateVariableIndex(Variable& variable)
 
 	// Use the next free slot
 	variable.m_Index = m_NextFreeVariableIndex++;
-	m_Variables[variable.m_Name] = Variable(variable.m_Index, variable.m_Name, variable.m_Type);
+	m_Variables[variable.m_Name] = Variable(variable.m_Index, variable.m_Name, variable.m_Type, variable.m_IsGlobal);
 	return true;
 }
 
@@ -135,6 +135,14 @@ int BytecodeCompiler::CompileFunction(ASTNode* node, std::vector<Instruction>& i
 		Throw("Function " + variable.m_Name + " has not been declared somehow");
 		return -1;
 	}
+
+	// A function declaration has to be global
+	if (m_CurrentScope != 0)
+	{
+		Throw("Function " + variable.m_Name + " is not in the global scope");
+		return -1;
+	}
+	variable.m_IsGlobal = true;
 
 	m_CurrentScope++;
 
@@ -166,8 +174,8 @@ int BytecodeCompiler::CompileFunction(ASTNode* node, std::vector<Instruction>& i
 					instructions.erase(instructions.end() - 2);
 					// TODO: fix
 					// Mark the variable as local
-					instructions[instructions.size() - 1].Arg(0).m_Arguments[3].m_ArgIntValue = 1;
-					instructions[instructions.size() - 1].m_Arguments[3].m_ArgStringValue = "is local";
+					//instructions[instructions.size() - 1].Arg(0).m_Arguments[3].m_ArgIntValue = 1;
+					//instructions[instructions.size() - 1].m_Arguments[3].m_ArgStringValue = "is local";
 					//body[body.size() - 2] = Instruction(Opcodes::pop);
 				}
 			}
@@ -209,7 +217,8 @@ int BytecodeCompiler::CompileFunction(ASTNode* node, std::vector<Instruction>& i
 	instructions.push_back(Instruction(Opcodes::store)
 		.Arg(variable.m_Index)
 		.Arg((int)variable.m_Type)
-		.Arg(variable.m_Name));
+		.Arg(variable.m_Name)
+		.Arg(variable.m_IsGlobal));
 
 	if (m_Context.m_ShouldExportVariable)
 	{
@@ -270,6 +279,9 @@ void BytecodeCompiler::CompileAssignment(ASTNode* node, std::vector<Instruction>
 	{
 		variable.m_Name = node->left->right->stringValue;
 		variable.m_Type = NodeVariableTypeToValueType(node->left->left);
+
+		bool isGlobal = m_CurrentScope == 0;
+		variable.m_IsGlobal = isGlobal;
 
 		// Create a variable and store it to the module object
 		if (m_Context.m_ShouldExportVariable)
@@ -342,7 +354,8 @@ void BytecodeCompiler::CompileAssignment(ASTNode* node, std::vector<Instruction>
 		instructions.push_back(Instruction(Opcodes::store)
 			.Arg(variable.m_Index)
 			.Arg((int)variable.m_Type)
-			.Arg(variable.m_Name));
+			.Arg(variable.m_Name)
+			.Arg(variable.m_IsGlobal));
 	}
 	else
 	{
@@ -717,12 +730,13 @@ void BytecodeCompiler::Compile(ASTNode* node, std::vector<Instruction>& instruct
 
 	case ASTTypes::VariableDeclaration:
 	{
-		BytecodeConverterContext::Variable variable(-1, right->stringValue, NodeVariableTypeToValueType(left));
+		bool isGlobalVariable = m_CurrentScope == 0;
+		BytecodeConverterContext::Variable variable(-1, right->stringValue, NodeVariableTypeToValueType(left), isGlobalVariable);
 
 		if (m_Context.m_ShouldExportVariable)
 			ExportVariable(node, variable, instructions);
 		else
-			variable.m_Index = m_Context.CreateVariableIndex(variable.m_Name, variable.m_Type);
+			m_Context.CreateVariableIndex(variable);
 
 		// Assign a default value to it
 		if (variable.m_Type == ValueTypes::Integer) // 0
@@ -739,7 +753,8 @@ void BytecodeCompiler::Compile(ASTNode* node, std::vector<Instruction>& instruct
 		instructions.push_back(Instruction(Opcodes::store).
 			Arg(variable.m_Index)
 			.Arg((int)variable.m_Type)
-			.Arg(variable.m_Name));
+			.Arg(variable.m_Name)
+			.Arg(variable.m_IsGlobal));
 
 		// Store the variable value to the module property, but also as a variable
 		if (m_Context.m_ShouldExportVariable)
