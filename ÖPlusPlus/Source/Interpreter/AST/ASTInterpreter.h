@@ -45,6 +45,9 @@ private:
 	ScopeFrame PopFrame();
 	ScopeFrame& GetTopFrame();
 
+	std::string ResolveVariableName(ASTNode* node);
+	void InheritVariables(ScopeFrame& previous, ScopeFrame& current);
+
 private:
 	std::vector<ScopeFrame> m_ScopeFrames;
 	int m_ScopeFrameTop = 0;

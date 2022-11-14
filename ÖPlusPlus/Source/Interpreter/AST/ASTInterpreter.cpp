@@ -104,11 +104,8 @@ namespace ASTint
 			ScopeFrame& previousFrame = GetTopFrame();
 			ScopeFrame& frame = PushFrame();
 
-			// Copy variables from previous frame to the current fram
-			for (auto& map : previousFrame.m_Variables)
-			{
-				frame.m_Variables[map.first] = map.second;
-			}
+			// Copy variables from previous frame to the current frame
+			InheritVariables(previousFrame, frame);
 
 			auto& nodes = node->arguments;
 			for (int i = 0; i < nodes.size() - 1; i++)
@@ -158,7 +155,16 @@ namespace ASTint
 			Value rhs = InterpretTree(node->right);
 			currentFrame.SetVariable(variableName, rhs);
 
-			return rhs;
+			// If this variable exists at scopes above, copy set them to 'rhs'
+			for (int i = m_ScopeFrameTop; i >= 0; i--)
+			{
+				if (m_ScopeFrames[i].HasVariable(variableName))
+					m_ScopeFrames[i].SetVariable(variableName, rhs);
+				else
+					break; // If this frame doesn't have the variable, then the ones furhter above won't either
+			}
+
+			return Value(variableName, ValueTypes::String);
 		}
 		case ASTTypes::PropertyAssign:
 			break;
@@ -246,7 +252,7 @@ namespace ASTint
 			const std::string& variableName = node->stringValue;
 			
 			if (!currentFrame.HasVariable(variableName))
-				return MakeErrorValueReturn("Variable '" + variableName + "' has not been defined");
+				return MakeErrorValueReturn("Variable '" + variableName + "' has not been defined in this scope");
 			
 			return currentFrame.GetVariable(variableName);
 		}		
@@ -334,7 +340,34 @@ namespace ASTint
 			return lastResult;
 		}
 		case ASTTypes::ForStatement:
-			break;
+		{
+			ScopeFrame previousFrame = GetTopFrame();
+			ScopeFrame& frame = PushFrame();
+
+			// Copy variables from previous frame to the current frame
+			InheritVariables(previousFrame, frame);
+
+			// 1. Variable
+			InterpretTree(node->arguments[0]); // Create or set the variable
+			std::string variableName = ResolveVariableName(node->arguments[0]);
+
+			Value lastResult;
+
+			// 2. Condition
+			auto condition = [&]() { return InterpretTree(node->arguments[1]); };
+			while (condition().IsTruthy())
+			{
+				// Execute the scope
+				lastResult = InterpretTree(node->right);
+
+				// 3. Action (increment, decrement)
+				InterpretTree(node->arguments[2]);
+			}
+
+			PopFrame();
+
+			return lastResult;
+		}
 		case ASTTypes::FunctionDefinition:
 			break;
 		case ASTTypes::FunctionPrototype:
@@ -378,5 +411,37 @@ namespace ASTint
 		assert(m_ScopeFrameTop >= 0 && m_ScopeFrameTop < ScopeFramesCount);
 
 		return m_ScopeFrames[m_ScopeFrameTop];
+	}
+	std::string ASTInterpreter::ResolveVariableName(ASTNode* node)
+	{
+		switch (node->type)
+		{
+		case ASTTypes::VariableDeclaration:
+		{
+			std::string variableName = node->left->right->stringValue;
+			return variableName;
+		}
+		case ASTTypes::Assign:
+		{
+			std::string variableName = node->left->stringValue;
+
+			if (node->left->type == ASTTypes::VariableDeclaration)
+				variableName = node->left->right->stringValue;
+
+			return variableName;
+		}
+		default:
+			abort();
+		}
+
+		return "";
+	}
+	void ASTInterpreter::InheritVariables(ScopeFrame& previous, ScopeFrame& current)
+	{
+		// Copy variables from previous frame to the current fram
+		for (auto& map : previous.m_Variables)
+		{
+			current.m_Variables[map.first] = map.second;
+		}
 	}
 }

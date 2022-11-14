@@ -81,6 +81,9 @@ public:
 #ifdef BYTECODE_INTERPRETER
 	HeapEntry* m_HeapEntryPointer = nullptr;
 #endif
+#ifdef AST_INTERPRETER
+	std::string m_Name = "";
+#endif
 
 private:
 	double m_FloatValue = 0.0;
