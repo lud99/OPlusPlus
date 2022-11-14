@@ -290,18 +290,62 @@ namespace ASTint
 			break;
 		case ASTTypes::Modulus:
 			break;
-		case ASTTypes::PlusEquals:
-			break;
-		case ASTTypes::MinusEquals:
-			break;
 		case ASTTypes::PostIncrement:
-			break;
+		{
+			const std::string& variableName = node->left->stringValue;
+
+			if (!currentFrame.HasVariable(variableName))
+				return MakeErrorValueReturn("Variable '" + variableName + "' has not been defined in this scope");
+
+			Value variable = currentFrame.GetVariable(variableName);
+			
+			currentFrame.SetVariable(variableName, Value::Increment(variable));
+
+			// Return the variable as it was before the increment
+			return variable; 
+		}
 		case ASTTypes::PreIncrement:
-			break;
+		{
+			const std::string& variableName = node->left->stringValue;
+
+			if (!currentFrame.HasVariable(variableName))
+				return MakeErrorValueReturn("Variable '" + variableName + "' has not been defined in this scope");
+
+			Value variable = currentFrame.GetVariable(variableName);
+
+			currentFrame.SetVariable(variableName, Value::Increment(variable));
+
+			// Return the variable as it is after the increment
+			return currentFrame.GetVariable(variableName);
+		}
 		case ASTTypes::PostDecrement:
-			break;
+		{
+			const std::string& variableName = node->left->stringValue;
+
+			if (!currentFrame.HasVariable(variableName))
+				return MakeErrorValueReturn("Variable '" + variableName + "' has not been defined in this scope");
+
+			Value variable = currentFrame.GetVariable(variableName);
+
+			currentFrame.SetVariable(variableName, Value::Decrement(variable));
+
+			// Return the variable as it was before the decrement
+			return variable;
+		}
 		case ASTTypes::PreDecrement:
-			break;
+		{
+			const std::string& variableName = node->left->stringValue;
+
+			if (!currentFrame.HasVariable(variableName))
+				return MakeErrorValueReturn("Variable '" + variableName + "' has not been defined in this scope");
+
+			Value variable = currentFrame.GetVariable(variableName);
+
+			currentFrame.SetVariable(variableName, Value::Decrement(variable));
+
+			// Return the variable as it is after the decrement
+			return currentFrame.GetVariable(variableName);
+		}
 		case ASTTypes::FunctionCall:
 		{
 			std::vector<Value> args;
@@ -329,10 +373,10 @@ namespace ASTint
 			break;
 		case ASTTypes::WhileStatement:
 		{
-			Value condition = InterpretTree(node->left);
-
 			Value lastResult;
-			while (condition.IsTruthy())
+
+			auto condition = [&]() { return InterpretTree(node->left); };
+			while (condition().IsTruthy())
 			{
 				lastResult = InterpretTree(node->right);
 			}

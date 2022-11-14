@@ -58,6 +58,9 @@ public:
 	static bool CompareLessThanEqual(Value lhs, Value rhs);
 	static bool CompareGreaterThanEqual(Value lhs, Value rhs);
 
+	static Value Increment(Value& value);
+	static Value Decrement(Value& value);
+
 	static Value Add(Value& lhs, Value& rhs);
 	static Value Subtract(Value& lhs, Value& rhs);
 	static Value Divide(Value& lhs, Value& rhs);

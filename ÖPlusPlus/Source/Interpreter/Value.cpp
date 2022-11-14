@@ -440,6 +440,58 @@ bool Value::CompareGreaterThanEqual(Value lhs, Value rhs)
 	return false;
 }
 
+Value Value::Increment(Value& value)
+{
+	if (value.m_Type == ValueTypes::Integer)
+	{
+		return Value(value.GetInt() + 1, ValueTypes::Integer);
+	}
+	else if (value.m_Type == ValueTypes::Float)
+	{
+		return Value(value.GetFloat() + 1.0, ValueTypes::Float);
+	}
+#ifdef AST_INTERPRETER
+	else if (value.IsString())
+	{
+		char lastChar = value.GetString()[value.GetString().length() - 1];
+		std::string lastCharStr = std::string(1, lastChar);
+		std::string appended = value.GetString() + lastCharStr;
+		
+		// Allocate a new object in the heap that stores the string
+		//HeapEntry& newObject = BytecodeInterpreter::Get().m_Heap.CreateString(appended);
+
+		return Value(appended, ValueTypes::String);
+	}
+#endif
+
+	return MakeRuntimeError("Unhandled increment of type " + ValueTypeToString(value.m_Type));
+}
+
+Value Value::Decrement(Value& value)
+{
+	if (value.m_Type == ValueTypes::Integer)
+	{
+		return Value(value.GetInt() - 1, ValueTypes::Integer);
+	}
+	else if (value.m_Type == ValueTypes::Float)
+	{
+		return Value(value.GetFloat() - 1.0, ValueTypes::Float);
+	}
+#ifdef AST_INTERPRETER
+	else if (value.IsString())
+	{
+		std::string removed = value.GetString().substr(0, value.GetString().length() - 1);
+
+		// Allocate a new object in the heap that stores the string
+		//HeapEntry& newObject = BytecodeInterpreter::Get().m_Heap.CreateString(appended);
+
+		return Value(removed, ValueTypes::String);
+	}
+#endif
+
+	return MakeRuntimeError("Unhandled decrement of type " + ValueTypeToString(value.m_Type));
+}
+
 Value Value::Add(Value& lhs, Value& rhs)
 {
 	if (!Value::IsSamePrimitiveType(lhs, rhs))
