@@ -101,7 +101,15 @@ namespace ASTint
 			return InterpretTree(node->left);
 		case ASTTypes::Scope:
 		{
-			ScopeFrame frame = PushFrame();
+			ScopeFrame& previousFrame = GetTopFrame();
+			ScopeFrame& frame = PushFrame();
+
+			// Copy variables from previous frame to the current fram
+			for (auto& map : previousFrame.m_Variables)
+			{
+				frame.m_Variables[map.first] = map.second;
+			}
+
 			auto& nodes = node->arguments;
 			for (int i = 0; i < nodes.size() - 1; i++)
 			{
@@ -109,7 +117,12 @@ namespace ASTint
 			}
 
 			// Return the value of the last line
-			return InterpretTree(nodes[nodes.size() - 1]);
+			Value valueOfLastLine = InterpretTree(nodes[nodes.size() - 1]);
+
+			// Pop the scope
+			PopFrame();
+			
+			return valueOfLastLine;
 		}
 		case ASTTypes::VariableDeclaration:
 		{
@@ -233,7 +246,7 @@ namespace ASTint
 			const std::string& variableName = node->stringValue;
 			
 			if (!currentFrame.HasVariable(variableName))
-				MakeErrorValueReturn("Variable '" + variableName + "' has not been defined");
+				return MakeErrorValueReturn("Variable '" + variableName + "' has not been defined");
 			
 			return currentFrame.GetVariable(variableName);
 		}		
@@ -302,14 +315,24 @@ namespace ASTint
 		{
 			Value condition = InterpretTree(node->left);
 			if (condition.IsTruthy())
-				return InterpretTree(node->right); // Scope body
+				return InterpretTree(node->right);
 
 			return Value(false, ValueTypes::Integer);
 		}
 		case ASTTypes::Else:
 			break;
 		case ASTTypes::WhileStatement:
-			break;
+		{
+			Value condition = InterpretTree(node->left);
+
+			Value lastResult;
+			while (condition.IsTruthy())
+			{
+				lastResult = InterpretTree(node->right);
+			}
+
+			return lastResult;
+		}
 		case ASTTypes::ForStatement:
 			break;
 		case ASTTypes::FunctionDefinition:
