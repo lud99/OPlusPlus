@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <map>
+#include <stack>
 
 namespace ASTint 
 {
@@ -22,8 +23,13 @@ public:
 	void SetVariable(const std::string& name, Value value);
 	Value& CreateVariable(const std::string& name, Value value);
 
+	bool HasFunction(const std::string& name);
+
 public:
 	std::map<std::string, Value> m_Variables;
+	std::map<std::string, ASTNode*> m_Functions;
+
+	std::vector<Value> m_ArgumentsForFunction;
 };
 
 class ASTInterpreter
@@ -51,6 +57,8 @@ private:
 private:
 	std::vector<ScopeFrame> m_ScopeFrames;
 	int m_ScopeFrameTop = 0;
+
+	bool m_ShouldReturn = false;
 
 public:
 	ASTNode* m_ASTTree = nullptr;

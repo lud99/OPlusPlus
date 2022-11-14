@@ -45,7 +45,7 @@ int main()
 	setlocale(LC_ALL, "");
 	Functions::InitializeDefaultFunctions();
 
-	std::string filepath = "Programs/ASTint.ö";
+	std::string filepath = "Programs/function.ö";
 
 	std::string error;
 	Value v;

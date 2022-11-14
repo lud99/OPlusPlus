@@ -48,6 +48,10 @@ namespace ASTint
 		m_Variables[name] = value;
 		return m_Variables[name];
 	}
+	bool ScopeFrame::HasFunction(const std::string& name)
+	{
+		return m_Functions.count(name) == 1;
+	}
 }
 
 namespace ASTint
@@ -88,6 +92,9 @@ namespace ASTint
 		if (m_Error != "")
 			return Value(ValueTypes::Void);
 
+		if (m_ShouldReturn)
+			return Value();
+
 		if (node->type == ASTTypes::ProgramBody)
 			PushFrame();
 
@@ -107,14 +114,19 @@ namespace ASTint
 			// Copy variables from previous frame to the current frame
 			InheritVariables(previousFrame, frame);
 
+			Value valueOfLastLine;
+
 			auto& nodes = node->arguments;
 			for (int i = 0; i < nodes.size() - 1; i++)
 			{
-				InterpretTree(nodes[i]);
+				valueOfLastLine = InterpretTree(nodes[i]);
+
+				if (m_ShouldReturn)
+					return valueOfLastLine;
 			}
 
 			// Return the value of the last line
-			Value valueOfLastLine = InterpretTree(nodes[nodes.size() - 1]);
+			valueOfLastLine = InterpretTree(nodes[nodes.size() - 1]);
 
 			// Pop the scope
 			PopFrame();
@@ -357,6 +369,41 @@ namespace ASTint
 				args.push_back(InterpretTree(node->arguments[i]));
 			}
 
+			// User defined function
+			if (currentFrame.HasFunction(functionName))
+			{
+				ASTNode* functionDefinition = currentFrame.m_Functions[functionName];
+				ASTNode* functionPrototype = functionDefinition->left;
+
+				ScopeFrame previousFrame = GetTopFrame();
+				ScopeFrame& frame = PushFrame();
+
+				InheritVariables(previousFrame, frame);
+
+				// Args
+				for (int i = 2; i < functionPrototype->arguments.size(); i++)
+				{
+					// Create the parameter variables
+					InterpretTree(functionPrototype->arguments[i]);
+
+					// Set the value of them (if there are any arguments passed)
+					if (!args.empty())
+					{
+						const std::string& variableName = ResolveVariableName(functionPrototype->arguments[i]);
+
+						frame.SetVariable(variableName, args[i - 2]);
+					}
+				}
+				
+				// Jump to the function
+				Value returnValue = InterpretTree(functionDefinition->right);
+
+				m_ShouldReturn = false;
+
+				return returnValue;
+			}
+
+			// Internal function
 			CallableFunction function = Functions::GetFunctionByName(functionName);
 			if (!function)
 				return MakeErrorValueReturn("Function '" + functionName + "' doesn't exist");
@@ -364,14 +411,25 @@ namespace ASTint
 			return function(args);
 		}
 		case ASTTypes::Return:
-			break;
+		{
+			Value returnValue = InterpretTree(node->left);
+			m_ShouldReturn = true;
+
+			return returnValue;
+		}
 		case ASTTypes::IfStatement:
 		{
+			Value lastResult;
 			Value condition = InterpretTree(node->left);
 			if (condition.IsTruthy())
-				return InterpretTree(node->right);
+			{
+				lastResult = InterpretTree(node->right);
 
-			return Value(false, ValueTypes::Integer);
+				if (m_ShouldReturn)
+					return lastResult;
+			}
+
+			return lastResult;
 		}
 		case ASTTypes::Else:
 			break;
@@ -383,6 +441,9 @@ namespace ASTint
 			while (condition().IsTruthy())
 			{
 				lastResult = InterpretTree(node->right);
+
+				if (m_ShouldReturn)
+					return lastResult;
 			}
 
 			return lastResult;
@@ -408,6 +469,9 @@ namespace ASTint
 				// Execute the scope
 				lastResult = InterpretTree(node->right);
 
+				if (m_ShouldReturn)
+					return lastResult;
+
 				// 3. Action (increment, decrement)
 				InterpretTree(node->arguments[2]);
 			}
@@ -417,9 +481,28 @@ namespace ASTint
 			return lastResult;
 		}
 		case ASTTypes::FunctionDefinition:
-			break;
+		{
+			InterpretTree(node->left);
+
+			const std::string& functionName = node->left->arguments[1]->stringValue;
+			currentFrame.m_Functions[functionName] = node;
+
+			return Value(functionName, ValueTypes::String);
+		}
 		case ASTTypes::FunctionPrototype:
-			break;
+		{
+			Value returnValue = NodeVariableTypeToValueType(node->arguments[0]);
+			const std::string& functionName = node->arguments[1]->stringValue;
+			// variables
+			
+			// Create a variable that corresponds to the function
+			if (currentFrame.HasVariable(functionName) || Functions::GetFunctionByName(functionName))
+				return MakeErrorValueReturn("Function '" + functionName + "' has already been defined");
+
+			currentFrame.CreateVariable(functionName, Value("{ function body }", ValueTypes::String));
+			
+			return Value();
+		}
 		case ASTTypes::Break:
 			break;
 		case ASTTypes::Continue:
@@ -475,6 +558,12 @@ namespace ASTint
 
 			if (node->left->type == ASTTypes::VariableDeclaration)
 				variableName = node->left->right->stringValue;
+
+			return variableName;
+		}
+		case ASTTypes::Variable:
+		{
+			std::string variableName = node->stringValue;
 
 			return variableName;
 		}
