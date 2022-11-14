@@ -1,6 +1,6 @@
 #include "ASTInterpreter.h"
 
-#include "../Bytecode/BytecodeFunctions.h"
+#include "../Functions.h"
 
 #include <iostream>
 #include <assert.h>
@@ -348,6 +348,8 @@ namespace ASTint
 		}
 		case ASTTypes::FunctionCall:
 		{
+			const std::string& functionName = node->stringValue;
+
 			std::vector<Value> args;
 
 			for (int i = 0; i < node->arguments.size(); i++)
@@ -355,9 +357,11 @@ namespace ASTint
 				args.push_back(InterpretTree(node->arguments[i]));
 			}
 
-			std::cout << args[0].ToString() << "\n";
+			CallableFunction function = Functions::GetFunctionByName(functionName);
+			if (!function)
+				return MakeErrorValueReturn("Function '" + functionName + "' doesn't exist");
 
-			break;
+			return function(args);
 		}
 		case ASTTypes::Return:
 			break;

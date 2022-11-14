@@ -15,9 +15,10 @@
 #include <locale>
 #include <sstream>
 
+#include "Interpreter/Functions.h"
+
 #ifdef BYTECODE_INTERPRETER
 #include "Interpreter/Bytecode/BytecodeInterpreter.h"
-#include "Interpreter/Bytecode/BytecodeFunctions.h"
 #endif
 #ifdef AST_INTERPRETER
 #include "Interpreter/AST/ASTInterpreter.h"
@@ -42,13 +43,14 @@ std::string stringRaw(std::string s)
 int main()
 {
 	setlocale(LC_ALL, "");
+	Functions::InitializeDefaultFunctions();
 
 	std::string filepath = "Programs/ASTint.ö";
 
 	std::string error;
 	Value v;
 #ifdef BYTECODE_INTERPRETER
-	BytecodeFunctions::InitializeDefaultFunctions();
+	
 
 	v = BytecodeInterpreter::Get().CreateAndRunProgram(filepath, error);
 #endif // BYTECODE_INTERPRETER

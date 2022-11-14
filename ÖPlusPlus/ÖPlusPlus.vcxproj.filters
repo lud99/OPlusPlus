@@ -45,6 +45,12 @@
     <ClCompile Include="Source\Interpreter\Bytecode\Heap.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Interpreter\Functions.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Interpreter\AST\ASTFunctions.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\Lexer.h">
@@ -68,9 +74,6 @@
     <ClInclude Include="Source\Interpreter\Bytecode\BytecodeCompiler.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Interpreter\Bytecode\BytecodeFunctions.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Source\Interpreter\Bytecode\BytecodeInterpreter.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -78,6 +81,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Source\Interpreter\Bytecode\Heap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Interpreter\Functions.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
