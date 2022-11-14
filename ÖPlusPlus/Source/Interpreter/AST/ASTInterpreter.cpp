@@ -293,7 +293,13 @@ namespace ASTint
 		case ASTTypes::Return:
 			break;
 		case ASTTypes::IfStatement:
-			break;
+		{
+			Value condition = InterpretTree(node->left);
+			if (condition.IsTruthy())
+				return InterpretTree(node->right); // Scope body
+
+			return Value(false, ValueTypes::Integer);
+		}
 		case ASTTypes::Else:
 			break;
 		case ASTTypes::WhileStatement:

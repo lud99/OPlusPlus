@@ -1,4 +1,6 @@
 int a = 5.0 + 2.0;
-print(a);
-print(a && 2);
-print(a && 0);
+
+
+if (a > 2.0) {
+	print("here");
+}
