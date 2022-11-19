@@ -10,7 +10,7 @@
 #include <thread>
 
 #include "../../Utils.hpp"
-#include "BytecodeFunctions.h"
+#include "../Functions.h"
 #include "../../Parser.h"
 
 BytecodeInterpreter& BytecodeInterpreter::Get()
@@ -917,8 +917,8 @@ void ExecutionContext::Execute()
 				args.push_back(stackFrame.PopOperand());
 			}
 
-			CallableFunction function = BytecodeFunctions::GetFunctionByName(functionName);
-			Value returnValue = function(&args);
+			CallableFunction function = Functions::GetFunctionByName(functionName);
+			Value returnValue = function(args);
 
 			if (Exception())
 				ThrowExceptionVoid(functionName + "(): " + m_Exception);

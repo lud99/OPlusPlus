@@ -53,8 +53,7 @@
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
-  <ImportGroup Label="ExtensionSettings">
-  </ImportGroup>
+  <ImportGroup Label="ExtensionSettings" />
   <ImportGroup Label="Shared">
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -86,7 +85,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>AST_INTERPRETER;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>ASM_COMPILER;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
@@ -143,23 +142,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Source\Interpreter\AST\ASTFunctions.cpp" />
-    <ClCompile Include="Source\Interpreter\AST\ASTInterpreter.cpp" />
-    <ClCompile Include="Source\Interpreter\Bytecode\BytecodeCompiler.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="Source\Interpreter\Bytecode\BytecodeFunctions.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="Source\Interpreter\Bytecode\BytecodeInterpreter.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="Source\Interpreter\Bytecode\Debugger.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="Source\Interpreter\Bytecode\Heap.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
-    </ClCompile>
+    <ClCompile Include="Source\Compiler\AssemblyCompiler.cpp" />
     <ClCompile Include="Source\Interpreter\Functions.cpp" />
     <ClCompile Include="Source\Interpreter\Value.cpp" />
     <ClCompile Include="Source\Lexer.cpp" />
@@ -167,20 +150,8 @@
     <ClCompile Include="Source\Parser.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Source\Interpreter\AST\ASTInterpreter.h" />
+    <ClInclude Include="Source\Compiler\AssemblyCompiler.h" />
     <ClInclude Include="Source\Interpreter\Functions.h" />
-    <ClInclude Include="Source\Interpreter\Bytecode\BytecodeCompiler.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
-    </ClInclude>
-    <ClInclude Include="Source\Interpreter\Bytecode\BytecodeInterpreter.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
-    </ClInclude>
-    <ClInclude Include="Source\Interpreter\Bytecode\Debugger.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
-    </ClInclude>
-    <ClInclude Include="Source\Interpreter\Bytecode\Heap.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
-    </ClInclude>
     <ClInclude Include="Source\Interpreter\Value.h" />
     <ClInclude Include="Source\Interpreter\ValueTypes.h" />
     <ClInclude Include="Source\Lexer.h" />
@@ -188,11 +159,12 @@
     <ClInclude Include="Source\Utils.hpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="Programs\asm.ö" />
+    <None Include="Programs\asm_math_notes.ö" />
     <None Include="Programs\ASTint.ö" />
     <None Include="Programs\function.ö" />
     <None Include="Programs\test.ö" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-  <ImportGroup Label="ExtensionTargets">
-  </ImportGroup>
+  <ImportGroup Label="ExtensionTargets" />
 </Project>

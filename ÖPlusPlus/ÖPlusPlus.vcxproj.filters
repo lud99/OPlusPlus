@@ -24,31 +24,13 @@
     <ClCompile Include="Source\Parser.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Interpreter\AST\ASTInterpreter.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Source\Interpreter\Value.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Interpreter\Bytecode\BytecodeCompiler.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Interpreter\Bytecode\BytecodeFunctions.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Interpreter\Bytecode\BytecodeInterpreter.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Interpreter\Bytecode\Debugger.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Interpreter\Bytecode\Heap.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Source\Interpreter\Functions.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Interpreter\AST\ASTFunctions.cpp">
+    <ClCompile Include="Source\Compiler\AssemblyCompiler.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -62,28 +44,16 @@
     <ClInclude Include="Source\Parser.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Interpreter\AST\ASTInterpreter.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Source\Interpreter\ValueTypes.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Source\Interpreter\Value.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Interpreter\Bytecode\BytecodeCompiler.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Interpreter\Bytecode\BytecodeInterpreter.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Interpreter\Bytecode\Debugger.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Interpreter\Bytecode\Heap.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Source\Interpreter\Functions.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Compiler\AssemblyCompiler.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -91,5 +61,7 @@
     <None Include="Programs\test.ö" />
     <None Include="Programs\function.ö" />
     <None Include="Programs\ASTint.ö" />
+    <None Include="Programs\asm_math_notes.ö" />
+    <None Include="Programs\asm.ö" />
   </ItemGroup>
 </Project>

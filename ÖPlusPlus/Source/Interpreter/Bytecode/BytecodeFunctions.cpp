@@ -1,4 +1,4 @@
-#include "BytecodeFunctions.h"
+#include "../Functions.h"
 
 #include <iostream>
 #include <fstream>
@@ -23,78 +23,6 @@
 //        return BytecodeInterpreter::Get().ThrowExceptionValue("Argument " + std::to_string(index) + " was " + ValueTypeToString(val.m_Type) + ", expected a " + ValueTypeToString(expectedType)); \
 //}
 
-void BytecodeFunctions::InitializeDefaultFunctions()
-{
-	//NativeFunctions["__print_stack"] = &__print_stack;
-	NativeFunctions["print"] = &print;
-	NativeFunctions["printf"] = &printf;
-	/*NativeFunctions["to_string"] = &to_string;
-	NativeFunctions["to_string_raw"] = &to_string_raw;
-	NativeFunctions["to_number"] = &to_number;
-	NativeFunctions["typeof"] = &typeof;
-	NativeFunctions["floor"] = &floor;
-	NativeFunctions["round"] = &round;
-	NativeFunctions["ceil"] = &ceil;
-	NativeFunctions["random"] = &random;
-	NativeFunctions["restart"] = &restart;
-	NativeFunctions["to_char"] = &to_char;
-	NativeFunctions["to_ascii_code"] = &to_ascii_code;
-	NativeFunctions["format_string"] = &format_string;
-	NativeFunctions["length"] = &length;
-	NativeFunctions["at"] = &at;
-
-	NativeFunctions["time_now"] = &time_now;*/
-	//NativeFunctions["exit"] = &exit;
-
-	//NativeFunctions["sleep_for"] = &sleep_for;
-	//NativeFunctions["get_next_arg"] = &get_next_arg;
-
-	///* Arrays */
-	//NativeFunctions["array_push"] = &array_push;
-	//NativeFunctions["array_concat"] = &array_concat;
-	//NativeFunctions["array_pop"] = &array_pop;
-	//NativeFunctions["array_at"] = &array_at;
-	//NativeFunctions["array_reverse"] = &array_reverse;
-
-	///* Threads */
-	//NativeFunctions["thread_start"] = &thread_start;
-
-	///*NativeFunctions["execute_program_source"] = &execute_program_source;*/
-
-	//NativeFunctions["console_read_line"] = &console_read_line;
-	//NativeFunctions["console_init_drawing"] = &console_init_drawing;
-	//NativeFunctions["console_write_pixel"] = &console_write_pixel;
-	//NativeFunctions["console_read_pixel"] = &console_read_pixel;
-	//NativeFunctions["console_fill"] = &console_fill;
-	//NativeFunctions["console_clear"] = &console_clear;
-	//NativeFunctions["console_update"] = &console_update;
-	//NativeFunctions["console_width"] = &console_width;
-	//NativeFunctions["console_height"] = &console_height;
-
-	//NativeFunctions["read_file"] = &read_file;
-	//NativeFunctions["write_file"] = &write_file;
-
-	///* Network */
-	//NativeFunctions["open_socket"] = &open_socket;
-	//NativeFunctions["send_socket"] = &send_socket;
-	//NativeFunctions["receive_socket"] = &receive_socket;
-
-	//NativeFunctions["get_key_down"] = &get_key_down;
-
-	srand((unsigned int)time(0));
-}
-
-CallableFunction BytecodeFunctions::GetFunctionByName(std::string name)
-{
-	CallableFunction func = (CallableFunction)NativeFunctions[name];
-
-	return func;
-}
-
-void BytecodeFunctions::ThrowException(std::string error)
-{
-
-}
 //
 //Value BytecodeFunctions::__print_stack(ValueArray* args)
 //{
@@ -145,23 +73,7 @@ void BytecodeFunctions::ThrowException(std::string error)
 //	return Value(Value::Null);
 //}
 
-Value BytecodeFunctions::print(ValueArray* args)
-{
-	std::string printed;
-	for (int i = 0; i < args->size(); i++)
-	{
-		printed += args->at(i).ToFormattedString(false);
-
-		if (i < args->size() - 1) printed += " ";
-	}
-
-	std::cout << printed << "\n";
-
-	return Value(ValueTypes::Void);
-}
-
-
-Value BytecodeFunctions::printf(ValueArray* args)
+Value Functions::printf(ARGS)
 {
 	Value formatted = format_string(args);
 	std::cout << formatted.ToString() << "\n";
@@ -172,17 +84,17 @@ Value BytecodeFunctions::printf(ValueArray* args)
 	return Value(ValueTypes::Void);
 }
 
-Value BytecodeFunctions::format_string(ValueArray* args)
+Value Functions::format_string(ARGS)
 {
 	//EnsureTypeOfArg(args, 0, ValueTypes::String);
 
-	std::string formatted = args->at(0).GetString();
+	std::string formatted = args.at(0).GetString();
 
-	if (args->size() == 1)
-		return args->at(0);
+	if (args.size() == 1)
+		return args.at(0);
 
 	// Iterate all args
-	for (int i = 1; i < args->size(); i++)
+	for (int i = 1; i < args.size(); i++)
 	{
 		std::size_t charPos = formatted.find('$');
 		if (charPos == std::string::npos) // Nothing to format
@@ -192,10 +104,8 @@ Value BytecodeFunctions::format_string(ValueArray* args)
 		formatted.erase(charPos, 1);
 
 		// Insert the thing at that position
-		formatted = formatted.insert(charPos, args->at(i).ToString());
+		formatted = formatted.insert(charPos, args.at(i).ToString());
 	}
 
 	return BytecodeInterpreter::Get().m_Heap.CreateString(formatted);
 }
-
-std::map<std::string, CallableFunction> BytecodeFunctions::NativeFunctions;

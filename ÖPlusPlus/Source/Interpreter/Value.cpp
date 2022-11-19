@@ -21,7 +21,9 @@ Value Value::MakeRuntimeError(std::string error)
 #ifdef BYTECODE_INTERPRETER
 	return BytecodeInterpreter::Get().ThrowExceptionValue(error);
 #endif // BYTECODE_INTERPRETER
-
+#ifdef ASM_COMPILER
+	return Value();
+#endif // ASM_COMPILER
 }
 
 bool Value::MakeRuntimeErrorBool(std::string error)
@@ -107,8 +109,8 @@ void Value::SetString(std::string value)
 	m_StringValue = value;
 
 #ifdef BYTECODE_INTERPRETER
-	if (m_HeapEntryPointer != nullptr)
-		return (char*)(m_HeapEntryPointer)->m_Data;
+	//if (m_HeapEntryPointer != nullptr)
+		//return (char*)(m_HeapEntryPointer)->m_Data;
 #endif // BYTECODE_INTERPRETER
 }
 

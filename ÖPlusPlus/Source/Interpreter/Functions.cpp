@@ -89,4 +89,9 @@ Value Functions::print(ARGS)
 	return Value(ValueTypes::Void);
 }
 
+// Stub the functions if in assembly mode
+#ifdef ASM_COMPILER
+Value Functions::printf(ARGS) { return Value(); };
+#endif
+
 std::map<std::string, CallableFunction> Functions::NativeFunctions;

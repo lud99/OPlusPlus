@@ -1,0 +1,148 @@
+int a = 10;
+
+a = 3;
+
+
+/*
+
+-- ASM --
+
+section .data
+    a DW 10 ; double word, 32 bit number
+
+section .text
+global CMAIN
+CMAIN:
+    mov dword [a], 3 ; store 3 into 32 bits of the variable
+    ; mov byte [a], 3 ; store 3 into the 8 least significant bits of the variable
+
+    ret
+
+*/
+
+int b;
+b = 1 + 2 + 3;
+
+/* -- ASM --
+
+section .data
+    b DW 0
+
+section .text
+global CMAIN
+CMAIN:
+    mov eax, 1 ; first number goes into eax
+    mov ebx, 2 ; rest into ebx
+    add eax, ebx 
+    ; eax now has the result
+    mov ebx, 3
+    add eax, ebx    
+    
+    ; reset registers
+    mov eax, 0
+    mov ebx, 0
+    
+    mov dword [b], eax ; store
+    
+    ret
+
+*/
+
+
+int b;
+b = (1 + 2) - (3 + 4);
+
+ // 2 + 3 -> sub 1, result
+
+/* -- ASM --
+
+section .data
+    b DW 0
+
+section .text
+global CMAIN
+CMAIN:
+    ; 1 + 2
+    mov eax, 1
+    mov ebx, 2
+    add eax, ebx 
+    push eax
+    
+    ; 3 + 4
+    mov eax, 3
+    mov ebx, 4
+    add eax, ebx 
+    push eax
+    
+    pop ebx
+    pop eax
+    sub eax, ebx
+   
+    mov dword [b], eax
+            
+    ; reset registers
+    mov eax, 0
+    mov ebx, 0
+    
+    ret
+
+*/
+
+// https://www.tutorialspoint.com/assembly_programming/assembly_arithmetic_instructions.htm
+int c;
+c = 2 * 3;
+
+/* -- ASM --
+
+    ; imul = eax * [reg], stores result in [edx][eax]. eax is the one that matters
+    
+    ; 2 * 3 -> eax
+    mov eax, 2
+    mov ebx, 3
+    imul ebx
+
+    mov dword [c], eax
+            
+    ; reset registers
+    mov eax, 0
+    mov ebx, 0
+
+*/
+
+(3 - 4) * (3 + 4)
+
+/* -- ASM --
+
+    ; rightmost operation first. push. left. push. pop. pop
+    ; 3 + 4
+    mov eax, 3
+    mov ebx, 4
+    add eax, ebx 
+    push eax
+    
+    ; 3 - 4
+    mov eax, 3
+    mov ebx, 4
+    sub eax, ebx 
+    push eax
+    
+    pop eax
+    pop ebx
+    ; imul = eax * [reg], stores result in [edx][eax]. eax is the one that matters
+    imul eax, ebx
+
+*/
+
+5 / 4
+
+ // https://www.tutorialspoint.com/assembly_programming/assembly_arithmetic_instructions.htm
+/* -- ASM --
+
+    mov edx, 0 ; must be 0
+    mov eax, 5 ; dividend
+
+    mov ebx, 4 ; divisor
+    
+    idiv ebx ; result = [eax], remainder = [edx]
+
+*/

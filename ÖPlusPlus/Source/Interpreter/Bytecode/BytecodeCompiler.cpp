@@ -4,7 +4,7 @@
 #include <iostream>
 
 #include "BytecodeCompiler.h"
-#include "BytecodeFunctions.h"
+#include "../Functions.h"
 
 #include "../../Utils.hpp"
 
@@ -871,7 +871,7 @@ void BytecodeCompiler::Compile(ASTNode* node, std::vector<Instruction>& instruct
 		}
 
 		// Calling native functions
-		if (BytecodeFunctions::GetFunctionByName(node->stringValue))
+		if (Functions::GetFunctionByName(node->stringValue))
 		{
 			instructions.push_back(Instruction(Opcodes::call_native, ResultCanBeDiscarded(node)).Arg(node->stringValue).Arg(node->arguments.size()));
 			break;
