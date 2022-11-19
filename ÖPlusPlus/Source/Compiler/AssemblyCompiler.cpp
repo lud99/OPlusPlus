@@ -128,63 +128,55 @@ void AssemblyCompiler::Compile(ASTNode* node)
 	case ASTTypes::ToThePower:
 	case ASTTypes::Modulus:
 	{
-		m_TextSection.AddLine("; " + ResolveCorrectMathInstruction(node));
+		//m_TextSection.AddLine("; " + ResolveCorrectMathInstruction(node));
 
 		// Recursivly perform the operations, do the inner ones first
 		if (right->IsMathOperator())
 		{
 			Compile(right);
+			m_TextSection.AddLine("; push lhs");
 			Compile(left);
 
-			m_TextSection.AddLine("; perfom math op");
-
-			// pop latest to the "left" reg
+			m_TextSection.AddLine("; pop values");
 			m_TextSection.AddLine("pop eax");
-			// pop to the "right" reg
 			m_TextSection.AddLine("pop ebx");
+			m_TextSection.AddLine("; math operation");
 			m_TextSection.AddLine(ResolveCorrectMathInstruction(node) + " eax, ebx");
 			m_TextSection.AddLine("push eax");
+			m_TextSection.AddLine("");
 
 			return;
 		}
 		if (left->IsMathOperator())
 		{
 			Compile(left);
+			m_TextSection.AddLine("; push rhs");
 			Compile(right);
 
-			m_TextSection.AddLine("; perfom math op");
-
-			// pop latest to the "left" reg
+			m_TextSection.AddLine("; pop values");
 			m_TextSection.AddLine("pop eax");
-			// pop to the "right" reg
 			m_TextSection.AddLine("pop ebx");
+			m_TextSection.AddLine("; math operation");
 			m_TextSection.AddLine(ResolveCorrectMathInstruction(node) + " eax, ebx");
 			m_TextSection.AddLine("push eax");
+			m_TextSection.AddLine("");
 
 			return;
 		}
 
+		m_TextSection.AddLine("; push rhs and lhs");
 		Compile(right);
-		
-		//m_TextSection.AddLine("mov eax, " + std::to_string((int)left->numberValue));
-		//m_TextSection.AddLine("mov ebx, " + std::to_string((int)right->numberValue));
-
-		//
-		
 		Compile(left);
 
 		// pop latest to the "left" reg
+		// pop the one after to the "right" reg
+
+		m_TextSection.AddLine("; pop values");
 		m_TextSection.AddLine("pop eax");
-		// pop to the "right" reg
 		m_TextSection.AddLine("pop ebx");
-
-		//m_TextSection.AddLine("add eax, ebx");
-
-		// The current node has to be a math node
-		assert(node->IsMathOperator());
+		m_TextSection.AddLine("; math operation");
 		m_TextSection.AddLine(ResolveCorrectMathInstruction(node) + " eax, ebx");
 		m_TextSection.AddLine("push eax");
-
 		m_TextSection.AddLine("");
 
 		break;
