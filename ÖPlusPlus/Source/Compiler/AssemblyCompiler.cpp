@@ -12,22 +12,22 @@ void Section::AddLine(std::string line, const std::string& comment)
 std::string ResolveCorrectMathInstruction(ASTNode* n)
 {
 	if (n->type == ASTTypes::Add)
-		return "add";
+		return "add eax, ebx";
 	else if (n->type == ASTTypes::Subtract)
 	{
 		//if (reverse)
 			//return Opcodes::sub_reverse;
 
-		return "sub";
+		return "sub eax, ebx";
 	}
 	else if (n->type == ASTTypes::Multiply)
-		return "imul";// Opcodes::mul;
+		return "imul eax, ebx";// Opcodes::mul;
 	else if (n->type == ASTTypes::Divide)
 	{
 		/*if (reverse)
 			return Opcodes::div_reverse;*/
 
-		return "idiv";
+		return "idiv ebx";
 	}
 
 	//if (n->type == ASTTypes::ToThePower)
@@ -46,6 +46,23 @@ void AssemblyCompiler::Compile(ASTNode* node)
 {
 	ASTNode* left = node->left;
 	ASTNode* right = node->right;
+
+	auto AddLinesForPerformingMath = [&]() {
+		// pop latest to the "left" reg
+		// pop the one after to the "right" reg
+
+		m_TextSection.AddLine("; pop values");
+		m_TextSection.AddLine("pop eax");
+		m_TextSection.AddLine("pop ebx");
+
+		m_TextSection.AddLine("; math operation");
+		if (node->type == ASTTypes::Divide)
+			m_TextSection.AddLine("mov edx, 0", "required to avoid error");
+		m_TextSection.AddLine(ResolveCorrectMathInstruction(node));
+
+		m_TextSection.AddLine("push eax");
+		m_TextSection.AddLine("");
+	};
 
 	switch (node->type)
 	{
@@ -94,8 +111,6 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		break;
 	case ASTTypes::IntLiteral:
 	{
-		/*     mov eax, 1 ; first number goes into eax
-    mov ebx, 2 ; rest into ebx*/
 		m_TextSection.AddLine("mov eax, " + std::to_string((int)node->numberValue));
 		m_TextSection.AddLine("push eax");
 		return;
@@ -128,8 +143,6 @@ void AssemblyCompiler::Compile(ASTNode* node)
 	case ASTTypes::ToThePower:
 	case ASTTypes::Modulus:
 	{
-		//m_TextSection.AddLine("; " + ResolveCorrectMathInstruction(node));
-
 		// Recursivly perform the operations, do the inner ones first
 		if (right->IsMathOperator())
 		{
@@ -137,13 +150,7 @@ void AssemblyCompiler::Compile(ASTNode* node)
 			m_TextSection.AddLine("; push lhs");
 			Compile(left);
 
-			m_TextSection.AddLine("; pop values");
-			m_TextSection.AddLine("pop eax");
-			m_TextSection.AddLine("pop ebx");
-			m_TextSection.AddLine("; math operation");
-			m_TextSection.AddLine(ResolveCorrectMathInstruction(node) + " eax, ebx");
-			m_TextSection.AddLine("push eax");
-			m_TextSection.AddLine("");
+			AddLinesForPerformingMath();
 
 			return;
 		}
@@ -152,14 +159,7 @@ void AssemblyCompiler::Compile(ASTNode* node)
 			Compile(left);
 			m_TextSection.AddLine("; push rhs");
 			Compile(right);
-
-			m_TextSection.AddLine("; pop values");
-			m_TextSection.AddLine("pop eax");
-			m_TextSection.AddLine("pop ebx");
-			m_TextSection.AddLine("; math operation");
-			m_TextSection.AddLine(ResolveCorrectMathInstruction(node) + " eax, ebx");
-			m_TextSection.AddLine("push eax");
-			m_TextSection.AddLine("");
+			AddLinesForPerformingMath();
 
 			return;
 		}
@@ -168,16 +168,7 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		Compile(right);
 		Compile(left);
 
-		// pop latest to the "left" reg
-		// pop the one after to the "right" reg
-
-		m_TextSection.AddLine("; pop values");
-		m_TextSection.AddLine("pop eax");
-		m_TextSection.AddLine("pop ebx");
-		m_TextSection.AddLine("; math operation");
-		m_TextSection.AddLine(ResolveCorrectMathInstruction(node) + " eax, ebx");
-		m_TextSection.AddLine("push eax");
-		m_TextSection.AddLine("");
+		AddLinesForPerformingMath();
 
 		break;
 	}
