@@ -146,3 +146,23 @@ c = 2 * 3;
     idiv ebx ; result = [eax], remainder = [edx]
 
 */
+
+/*
+ 
+-- stack setup -- 
+
+push ebp ; save old top of stack
+mov ebp, esp ; current top of stack is bottom of new stack frame
+
+; there is now nothing above ebp
+; free variable is always spot after, esp (esp - 4)
+    
+; store variables
+mov dword [esp - 4], 4
+mov dword [esp - 8], 5
+    
+mov esp, ebp ; restore esp, now points to old ebp (start of frame)
+pop ebp ; restore old ebp
+ret
+
+ */

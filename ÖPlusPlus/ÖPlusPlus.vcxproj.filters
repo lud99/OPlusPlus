@@ -63,5 +63,6 @@
     <None Include="Programs\ASTint.ö" />
     <None Include="Programs\asm_math_notes.ö" />
     <None Include="Programs\asm.ö" />
+    <None Include="Programs\variable.ö" />
   </ItemGroup>
 </Project>

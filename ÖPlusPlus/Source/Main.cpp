@@ -48,7 +48,7 @@ int main()
 	setlocale(LC_ALL, "");
 	Functions::InitializeDefaultFunctions();
 
-	std::string filepath = "Programs/asm.ö";
+	std::string filepath = "Programs/variable.ö";
 
 	std::string error;
 	Value v;
@@ -145,6 +145,8 @@ int main()
 	{
 		std::cout << compiler.m_TextSection.GetLines()[i] << "\n";
 	}
+
+	if (compiler.m_Error != "") std::cout << "\nASM Compiler error: " << compiler.m_Error << "\n";
 #endif
 
 	//BytecodeInterpreter::Get().CreateAndRunProgram("Programs/function.ö", error);

@@ -541,6 +541,7 @@ std::string Lexer::CreateTokens(const std::string& source)
 			}
 
 			// Number
+			// FIXME: 2-30 is parsed as a valid int literal, when it should be 2 minus 30 (not 2 and -30 either)
 			else if (IsValidNumberPart(source, m_Position, error))
 			{
 				while (IsValidNumberPart(source, m_Position, error))

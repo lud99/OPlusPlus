@@ -1,5 +1,19 @@
 #include "AssemblyCompiler.h"
 
+#include <iostream>
+
+ValueTypes NodeVariableTypeToValueType(ASTNode* n)
+{
+	assert(n->type == ASTTypes::VariableType);
+
+	if (n->stringValue == "int") return ValueTypes::Integer;
+	if (n->stringValue == "float") return ValueTypes::Float;
+	if (n->stringValue == "double") return ValueTypes::Float;
+	if (n->stringValue == "string") return ValueTypes::StringConstant;
+
+	return ValueTypes::Void;
+}
+
 void Section::AddLine(std::string line, const std::string& comment)
 {
 	std::string l = line;
@@ -9,33 +23,29 @@ void Section::AddLine(std::string line, const std::string& comment)
 	m_Lines.push_back(l);
 }
 
-std::string ResolveCorrectMathInstruction(ASTNode* n)
+std::string ResolveCorrectMathInstruction(ASTNode* n, bool reverse = false)
 {
 	if (n->type == ASTTypes::Add)
 		return "add eax, ebx";
 	else if (n->type == ASTTypes::Subtract)
 	{
-		//if (reverse)
-			//return Opcodes::sub_reverse;
+		// Because the result is stored in the first operand, and all code assumes eax has the result. Therefore the value of ebx has to be moved to eax.
+		if (reverse)
+			return "sub ebx, eax\nmov eax, ebx";
 
 		return "sub eax, ebx";
 	}
 	else if (n->type == ASTTypes::Multiply)
-		return "imul eax, ebx";// Opcodes::mul;
+		return "imul eax, ebx";
 	else if (n->type == ASTTypes::Divide)
 	{
 		/*if (reverse)
 			return Opcodes::div_reverse;*/
 
-		return "idiv ebx";
-	}
+		assert(!reverse);
 
-	//if (n->type == ASTTypes::ToThePower)
-	//	return (reverse ? Opcodes::pow_rev : Opcodes::pow);
-	//if (n->type == ASTTypes::Modulus)
-	//	return (reverse ? Opcodes::mod_rev : Opcodes::mod);
-	//if (n->type == ASTTypes::Xor)
-	//	return (reverse ? Opcodes::xr_rev : Opcodes::xr);
+		return "mov edx, 0\nidiv ebx";
+	}
 
 	abort();
 
@@ -47,7 +57,7 @@ void AssemblyCompiler::Compile(ASTNode* node)
 	ASTNode* left = node->left;
 	ASTNode* right = node->right;
 
-	auto AddLinesForPerformingMath = [&]() {
+	auto AddLinesForPerformingMath = [&](bool reverse = false) {
 		// pop latest to the "left" reg
 		// pop the one after to the "right" reg
 
@@ -56,9 +66,7 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		m_TextSection.AddLine("pop ebx");
 
 		m_TextSection.AddLine("; math operation");
-		if (node->type == ASTTypes::Divide)
-			m_TextSection.AddLine("mov edx, 0", "required to avoid error");
-		m_TextSection.AddLine(ResolveCorrectMathInstruction(node));
+		m_TextSection.AddLine(ResolveCorrectMathInstruction(node, reverse));
 
 		m_TextSection.AddLine("push eax");
 		m_TextSection.AddLine("");
@@ -72,21 +80,53 @@ void AssemblyCompiler::Compile(ASTNode* node)
 	}
 	case ASTTypes::Scope:
 	{
+		m_TextSection.AddLine("push ebp; save old top of stack");
+		m_TextSection.AddLine("mov ebp, esp; current top of stack is bottom of new stack frame");
+			
 		for (int i = 0; i < node->arguments.size(); i++)
 		{
 			ASTNode* n = node->arguments[i];
 
 			Compile(n);
 		}
+
+		m_TextSection.AddLine("mov esp, ebp; restore esp, now points to old ebp(start of frame)");
+		m_TextSection.AddLine("pop ebp; restore old ebp");
 	}
 	case ASTTypes::Empty:
 		break;
 	case ASTTypes::VariableDeclaration:
+	{
+		const std::string& variableName = node->right->stringValue;
+		if (m_Context.HasVariable(variableName))
+			return MakeError("Variable '" + variableName + "' has already been declared in this scope");
+
+		AssemblyCompilerContext::Variable variable = m_Context.CreateVariable(variableName, NodeVariableTypeToValueType(node->left));
+
+		m_TextSection.AddLine("mov dword [ebp - " + std::to_string(variable.m_Index) + "], 0");
+		m_TextSection.AddLine("sub esp, 4");
+
 		break;
+	}
 	case ASTTypes::VariableType:
 		break;
 	case ASTTypes::Assign:
+	{
+		const std::string& variableName = node->left->stringValue;
+		if (!m_Context.HasVariable(variableName))
+			return MakeError("Variable '" + variableName + "' has not been declared in this scope");
+
+		AssemblyCompilerContext::Variable variable = m_Context.GetVariable(variableName);
+
+		// Evaluate the assignment on the rhs
+		Compile(node->right);
+
+		m_TextSection.AddLine("pop eax");
+
+		m_TextSection.AddLine("mov dword [ebp - " + std::to_string(variable.m_Index) + "], eax");
+
 		break;
+	}
 	case ASTTypes::PropertyAssign:
 		break;
 	case ASTTypes::CompareEquals:
@@ -128,6 +168,16 @@ void AssemblyCompiler::Compile(ASTNode* node)
 	case ASTTypes::ObjectType:
 		break;
 	case ASTTypes::Variable:
+	{
+		const std::string& variableName = node->stringValue;
+		if (!m_Context.HasVariable(variableName))
+			return MakeError("Variable '" + variableName + "' has not been declared in this scope");
+
+		AssemblyCompilerContext::Variable variable = m_Context.GetVariable(variableName);
+
+		m_TextSection.AddLine("mov eax, [ebp - " + std::to_string(variable.m_Index) + "]");
+		m_TextSection.AddLine("push eax");
+	}
 		break;
 	case ASTTypes::PropertyAccess:
 		break;
@@ -159,7 +209,7 @@ void AssemblyCompiler::Compile(ASTNode* node)
 			Compile(left);
 			m_TextSection.AddLine("; push rhs");
 			Compile(right);
-			AddLinesForPerformingMath();
+			AddLinesForPerformingMath(true /* reverse the operand order */);
 
 			return;
 		}
@@ -205,4 +255,29 @@ void AssemblyCompiler::Compile(ASTNode* node)
 	default:
 		break;
 	}
+}
+
+bool AssemblyCompilerContext::HasVariable(const std::string& variableName)
+{
+	return m_Variables.count(variableName) == 1;
+}
+
+AssemblyCompilerContext::Variable& AssemblyCompilerContext::GetVariable(const std::string& variableName)
+{
+	assert(HasVariable(variableName));
+	return m_Variables[variableName];
+}
+
+AssemblyCompilerContext::Variable& AssemblyCompilerContext::CreateVariable(const std::string& variableName, ValueTypes type)
+{
+	assert(!HasVariable(variableName));
+
+	Variable var;
+	var.m_Name = variableName;
+	var.m_Index = m_NextFreeVariableIndex;
+	m_NextFreeVariableIndex += 4; // variable size in bytes, 4 for int
+	var.m_Type = type;
+
+	m_Variables[variableName] = var;
+	return m_Variables[variableName];
 }
