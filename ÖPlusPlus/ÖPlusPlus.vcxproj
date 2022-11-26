@@ -163,6 +163,7 @@
     <None Include="Programs\asm_math_notes.ö" />
     <None Include="Programs\ASTint.ö" />
     <None Include="Programs\function.ö" />
+    <None Include="Programs\if.ö" />
     <None Include="Programs\test.ö" />
     <None Include="Programs\variable.ö" />
   </ItemGroup>

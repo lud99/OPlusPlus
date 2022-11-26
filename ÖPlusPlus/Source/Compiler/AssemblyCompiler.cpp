@@ -2,6 +2,25 @@
 
 #include <iostream>
 
+std::string ComparisonTypeToJumpInstruction(ASTTypes& type)
+{
+	if (type == ASTTypes::CompareEquals)
+		return "jne";
+	if (type == ASTTypes::CompareNotEquals)
+		return "je";
+	if (type == ASTTypes::CompareGreaterThan)
+		return "jle";
+	if (type == ASTTypes::CompareGreaterThanEqual)
+		return "jl";
+	if (type == ASTTypes::CompareLessThan)
+		return "jge";
+	if (type == ASTTypes::CompareLessThanEqual)
+		return "jg";
+
+	abort();
+	return "";
+}
+
 ValueTypes NodeVariableTypeToValueType(ASTNode* n)
 {
 	assert(n->type == ASTTypes::VariableType);
@@ -76,12 +95,20 @@ void AssemblyCompiler::Compile(ASTNode* node)
 	{
 	case ASTTypes::ProgramBody:
 	{
+		m_TextSection.AddLine("push ebp; save old top of stack");
+		m_TextSection.AddLine("mov ebp, esp; current top of stack is bottom of new stack frame");
+		
 		return Compile(left);
+
+		m_TextSection.AddLine("mov esp, ebp; restore esp, now points to old ebp(start of frame)");
+		m_TextSection.AddLine("pop ebp; restore old ebp");
 	}
 	case ASTTypes::Scope:
 	{
-		m_TextSection.AddLine("push ebp; save old top of stack");
-		m_TextSection.AddLine("mov ebp, esp; current top of stack is bottom of new stack frame");
+		/*m_TextSection.AddLine("push ebp; save old top of stack");
+		m_TextSection.AddLine("mov ebp, esp; current top of stack is bottom of new stack frame");*/
+
+		
 			
 		for (int i = 0; i < node->arguments.size(); i++)
 		{
@@ -90,8 +117,8 @@ void AssemblyCompiler::Compile(ASTNode* node)
 			Compile(n);
 		}
 
-		m_TextSection.AddLine("mov esp, ebp; restore esp, now points to old ebp(start of frame)");
-		m_TextSection.AddLine("pop ebp; restore old ebp");
+		/*m_TextSection.AddLine("mov esp, ebp; restore esp, now points to old ebp(start of frame)");
+		m_TextSection.AddLine("pop ebp; restore old ebp");*/
 	}
 	case ASTTypes::Empty:
 		break;
@@ -112,7 +139,26 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		break;
 	case ASTTypes::Assign:
 	{
+		if (node->left->type == ASTTypes::VariableDeclaration)
+		{
+			const std::string& variableName = node->left->right->stringValue;
+			if (m_Context.HasVariable(variableName))
+				return MakeError("Variable '" + variableName + "' has already been declared in this scope");
+
+			// Evaluate the assignment on the rhs
+			Compile(node->right);
+
+			AssemblyCompilerContext::Variable variable = m_Context.CreateVariable(variableName, NodeVariableTypeToValueType(node->left->left));
+
+			m_TextSection.AddLine("pop eax");
+			m_TextSection.AddLine("mov dword [ebp - " + std::to_string(variable.m_Index) + "], eax");
+			m_TextSection.AddLine("sub esp, 4");
+
+			return;
+		}
+
 		const std::string& variableName = node->left->stringValue;
+
 		if (!m_Context.HasVariable(variableName))
 			return MakeError("Variable '" + variableName + "' has not been declared in this scope");
 
@@ -130,17 +176,32 @@ void AssemblyCompiler::Compile(ASTNode* node)
 	case ASTTypes::PropertyAssign:
 		break;
 	case ASTTypes::CompareEquals:
+	{
+		Compile(node->left);
+		Compile(node->right);
+
+		m_TextSection.AddLine("pop eax");
+		m_TextSection.AddLine("pop ebx");
+
+		m_TextSection.AddLine("cmp ebx, eax");
+	}
 		break;
 	case ASTTypes::CompareNotEquals:
-		break;
 	case ASTTypes::CompareLessThan:
-		break;
 	case ASTTypes::CompareGreaterThan:
-		break;
 	case ASTTypes::CompareLessThanEqual:
-		break;
 	case ASTTypes::CompareGreaterThanEqual:
+	{
+		Compile(node->left);
+		Compile(node->right);
+
+		m_TextSection.AddLine("pop eax");
+		m_TextSection.AddLine("pop ebx");
+
+		m_TextSection.AddLine("cmp ebx, eax");
+		
 		break;
+	}
 	case ASTTypes::And:
 		break;
 	case ASTTypes::Or:
@@ -237,6 +298,17 @@ void AssemblyCompiler::Compile(ASTNode* node)
 	case ASTTypes::Return:
 		break;
 	case ASTTypes::IfStatement:
+	{
+		Compile(node->left);
+
+		std::string jmpInstruction = ComparisonTypeToJumpInstruction(node->left->type);
+
+		m_TextSection.AddLine(jmpInstruction + " end");
+
+		Compile(node->right);
+
+		m_TextSection.AddLine("end:");
+	}
 		break;
 	case ASTTypes::Else:
 		break;

@@ -166,3 +166,30 @@ pop ebp ; restore old ebp
 ret
 
  */
+
+ /* -- code for printing a string -- 
+
+     mov ebp, esp; for correct debugging
+    push ebp; save old top of stack
+    mov ebp, esp; current top of stack is bottom of new stack frame
+
+    ; string is stored "backwards"
+    mov dword [ebp - 4], 0x0
+    sub esp, 4
+    mov dword [ebp - 8], 0x42424242
+    sub esp, 4
+    mov dword [ebp - 12], 0x41414141
+    sub esp, 4
+    
+    sub esp, 4 ; reserved space
+    lea eax, [ebp - 12] ; copy pointer of start of string and store in eax
+    mov [esp], eax ; move pointer to where esp points in memory (reserved space for argument)
+    call printf
+    
+    add esp, 4 ; remove space
+    
+    mov esp, ebp; restore esp, now points to old ebp(start of frame)
+    pop ebp; restore old ebp
+
+
+ */

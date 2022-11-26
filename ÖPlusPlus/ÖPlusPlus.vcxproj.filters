@@ -64,5 +64,6 @@
     <None Include="Programs\asm_math_notes.ö" />
     <None Include="Programs\asm.ö" />
     <None Include="Programs\variable.ö" />
+    <None Include="Programs\if.ö" />
   </ItemGroup>
 </Project>
