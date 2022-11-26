@@ -6,15 +6,34 @@
 
 #include <unordered_map>
 
+struct Instruction
+{
+	std::string m_Op;
+	std::string m_Dest;
+	std::string m_Src;
+
+	std::string m_Comment;
+
+	Instruction() {};
+	Instruction(std::string op, std::string dest, std::string src = "", std::string comment = "");
+
+	std::string ToString();
+};
+
 class Section
 {
 public:
-	void AddLine(std::string line, const std::string& comment = "");
+	void AddInstruction(Instruction inst);
+	void AddInstruction(std::string op, std::string dest, std::string src = "", std::string comment = "");
+	void AddComment(const std::string& comment);
+	void AddLabel(const std::string& label);
 
-	std::vector<std::string>& GetLines() { return m_Lines; }
+	void AddCorrectMathInstruction(ASTNode* n, bool reverse = false);
+
+	std::vector<Instruction>& GetLines() { return m_Lines; }
 
 private:
-	std::vector<std::string> m_Lines;
+	std::vector<Instruction> m_Lines;
 };
 
 
@@ -60,6 +79,7 @@ public:
 	AssemblyCompiler() {};
 
 	void Compile(ASTNode* node);
+	void Optimize();
 
 	void MakeError(std::string error) { m_Error = error; }
 

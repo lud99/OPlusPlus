@@ -133,17 +133,22 @@ int main()
 
 	AssemblyCompiler compiler;
 	compiler.Compile(tree.parent);
+	compiler.Optimize();
 
 	std::cout << "section .data\n";
 	for (int i = 0; i < compiler.m_DataSection.GetLines().size(); i++)
 	{
-		std::cout << compiler.m_DataSection.GetLines()[i] << "\n";
+		std::string s = compiler.m_DataSection.GetLines()[i].ToString();
+		//if (s != "")
+		std::cout << s << "\n";
 	}
 
 	std::cout << "\n\nsection .text\n";
 	for (int i = 0; i < compiler.m_TextSection.GetLines().size(); i++)
 	{
-		std::cout << compiler.m_TextSection.GetLines()[i] << "\n";
+		std::string s = compiler.m_TextSection.GetLines()[i].ToString();
+		//if (s != "")
+		std::cout << s << "\n";
 	}
 
 	if (compiler.m_Error != "") std::cout << "\nASM Compiler error: " << compiler.m_Error << "\n";

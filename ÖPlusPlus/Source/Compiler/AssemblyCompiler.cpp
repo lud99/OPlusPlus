@@ -33,29 +33,48 @@ ValueTypes NodeVariableTypeToValueType(ASTNode* n)
 	return ValueTypes::Void;
 }
 
-void Section::AddLine(std::string line, const std::string& comment)
+void Section::AddInstruction(Instruction inst)
 {
-	std::string l = line;
-	if (comment != "")
-		l += " ; " + comment;
-
-	m_Lines.push_back(l);
+	m_Lines.push_back(inst);
 }
 
-std::string ResolveCorrectMathInstruction(ASTNode* n, bool reverse = false)
+void Section::AddInstruction(std::string op, std::string dest, std::string src, std::string comment)
+{
+	Instruction inst(op, dest, src, comment);
+	AddInstruction(inst);
+}
+
+void Section::AddComment(const std::string& comment)
+{
+	Instruction inst("", "", "", comment);
+	m_Lines.push_back(inst);
+}
+
+void Section::AddLabel(const std::string& label)
+{
+	Instruction inst(label, "", "", "");
+	m_Lines.push_back(inst);
+}
+
+void Section::AddCorrectMathInstruction(ASTNode* n, bool reverse)
 {
 	if (n->type == ASTTypes::Add)
-		return "add eax, ebx";
+		AddInstruction("add", "eax", "ebx");
 	else if (n->type == ASTTypes::Subtract)
 	{
 		// Because the result is stored in the first operand, and all code assumes eax has the result. Therefore the value of ebx has to be moved to eax.
 		if (reverse)
-			return "sub ebx, eax\nmov eax, ebx";
-
-		return "sub eax, ebx";
+		{
+			AddInstruction("sub", "ebx", "eax");
+			AddInstruction("mov", "eax", "ebx");
+		}
+		else
+		{
+			AddInstruction("sub", "eax", "ebx");
+		}
 	}
 	else if (n->type == ASTTypes::Multiply)
-		return "imul eax, ebx";
+		AddInstruction("imul", "eax", "ebx");
 	else if (n->type == ASTTypes::Divide)
 	{
 		/*if (reverse)
@@ -63,13 +82,12 @@ std::string ResolveCorrectMathInstruction(ASTNode* n, bool reverse = false)
 
 		assert(!reverse);
 
-		return "mov edx, 0\nidiv ebx";
+		AddInstruction("mov", "edx", "0");
+		AddInstruction("idiv", "ebx");
 	}
 
 	abort();
-
-	return "";
-};
+}
 
 void AssemblyCompiler::Compile(ASTNode* node)
 {
@@ -80,28 +98,28 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		// pop latest to the "left" reg
 		// pop the one after to the "right" reg
 
-		m_TextSection.AddLine("; pop values");
-		m_TextSection.AddLine("pop eax");
-		m_TextSection.AddLine("pop ebx");
+		//m_TextSection.AddLine("; pop values");
+		m_TextSection.AddInstruction("pop", "eax");
+		m_TextSection.AddInstruction("pop", "ebx");
 
-		m_TextSection.AddLine("; math operation");
-		m_TextSection.AddLine(ResolveCorrectMathInstruction(node, reverse));
+		m_TextSection.AddComment("math operation");
+		m_TextSection.AddCorrectMathInstruction(node, reverse);
 
-		m_TextSection.AddLine("push eax");
-		m_TextSection.AddLine("");
+		m_TextSection.AddInstruction("push", "eax");
+		m_TextSection.AddComment("");
 	};
 
 	switch (node->type)
 	{
 	case ASTTypes::ProgramBody:
 	{
-		m_TextSection.AddLine("push ebp; save old top of stack");
-		m_TextSection.AddLine("mov ebp, esp; current top of stack is bottom of new stack frame");
+		m_TextSection.AddInstruction("push", "ebp", "", "save old top of stack");
+		m_TextSection.AddInstruction("mov", "ebp", "esp", "current top of stack is bottom of new stack frame");
 		
 		return Compile(left);
 
-		m_TextSection.AddLine("mov esp, ebp; restore esp, now points to old ebp(start of frame)");
-		m_TextSection.AddLine("pop ebp; restore old ebp");
+		m_TextSection.AddInstruction("mov", "esp", "ebp", "restore esp, now points to old ebp(start of frame)");
+		m_TextSection.AddInstruction("pop", "ebp", "", "restore old ebp");
 	}
 	case ASTTypes::Scope:
 	{
@@ -130,8 +148,8 @@ void AssemblyCompiler::Compile(ASTNode* node)
 
 		AssemblyCompilerContext::Variable variable = m_Context.CreateVariable(variableName, NodeVariableTypeToValueType(node->left));
 
-		m_TextSection.AddLine("mov dword [ebp - " + std::to_string(variable.m_Index) + "], 0");
-		m_TextSection.AddLine("sub esp, 4");
+		m_TextSection.AddInstruction("mov", "dword [ebp - " + std::to_string(variable.m_Index) + "]", "0");
+		m_TextSection.AddInstruction("sub", "esp", "4");
 
 		break;
 	}
@@ -150,9 +168,9 @@ void AssemblyCompiler::Compile(ASTNode* node)
 
 			AssemblyCompilerContext::Variable variable = m_Context.CreateVariable(variableName, NodeVariableTypeToValueType(node->left->left));
 
-			m_TextSection.AddLine("pop eax");
-			m_TextSection.AddLine("mov dword [ebp - " + std::to_string(variable.m_Index) + "], eax");
-			m_TextSection.AddLine("sub esp, 4");
+			m_TextSection.AddInstruction("pop", "eax");
+			m_TextSection.AddInstruction("mov", "dword [ebp - " + std::to_string(variable.m_Index) + "]", "eax");
+			m_TextSection.AddInstruction("sub", "esp", "4");
 
 			return;
 		}
@@ -167,25 +185,15 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		// Evaluate the assignment on the rhs
 		Compile(node->right);
 
-		m_TextSection.AddLine("pop eax");
+		m_TextSection.AddInstruction("pop", "eax");
 
-		m_TextSection.AddLine("mov dword [ebp - " + std::to_string(variable.m_Index) + "], eax");
+		m_TextSection.AddInstruction("mov", "dword [ebp - " + std::to_string(variable.m_Index) + "]", "eax");
 
 		break;
 	}
 	case ASTTypes::PropertyAssign:
 		break;
 	case ASTTypes::CompareEquals:
-	{
-		Compile(node->left);
-		Compile(node->right);
-
-		m_TextSection.AddLine("pop eax");
-		m_TextSection.AddLine("pop ebx");
-
-		m_TextSection.AddLine("cmp ebx, eax");
-	}
-		break;
 	case ASTTypes::CompareNotEquals:
 	case ASTTypes::CompareLessThan:
 	case ASTTypes::CompareGreaterThan:
@@ -195,10 +203,10 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		Compile(node->left);
 		Compile(node->right);
 
-		m_TextSection.AddLine("pop eax");
-		m_TextSection.AddLine("pop ebx");
+		m_TextSection.AddInstruction("pop", "eax");
+		m_TextSection.AddInstruction("pop", "ebx");
 
-		m_TextSection.AddLine("cmp ebx, eax");
+		m_TextSection.AddInstruction("cmp", "ebx", "eax");
 		
 		break;
 	}
@@ -212,8 +220,8 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		break;
 	case ASTTypes::IntLiteral:
 	{
-		m_TextSection.AddLine("mov eax, " + std::to_string((int)node->numberValue));
-		m_TextSection.AddLine("push eax");
+		m_TextSection.AddInstruction("mov", "eax", std::to_string((int)node->numberValue));
+		m_TextSection.AddInstruction("push", "eax");
 		return;
 	}
 	case ASTTypes::DoubleLiteral:
@@ -236,8 +244,8 @@ void AssemblyCompiler::Compile(ASTNode* node)
 
 		AssemblyCompilerContext::Variable variable = m_Context.GetVariable(variableName);
 
-		m_TextSection.AddLine("mov eax, [ebp - " + std::to_string(variable.m_Index) + "]");
-		m_TextSection.AddLine("push eax");
+		m_TextSection.AddInstruction("mov", "eax", "[ebp - " + std::to_string(variable.m_Index) + "]");
+		m_TextSection.AddInstruction("push", "eax");
 	}
 		break;
 	case ASTTypes::PropertyAccess:
@@ -258,7 +266,7 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		if (right->IsMathOperator())
 		{
 			Compile(right);
-			m_TextSection.AddLine("; push lhs");
+			m_TextSection.AddComment("push lhs");
 			Compile(left);
 
 			AddLinesForPerformingMath();
@@ -268,14 +276,14 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		if (left->IsMathOperator())
 		{
 			Compile(left);
-			m_TextSection.AddLine("; push rhs");
+			m_TextSection.AddComment("push rhs");
 			Compile(right);
 			AddLinesForPerformingMath(true /* reverse the operand order */);
 
 			return;
 		}
 
-		m_TextSection.AddLine("; push rhs and lhs");
+		m_TextSection.AddComment("push rhs and lhs");
 		Compile(right);
 		Compile(left);
 
@@ -303,15 +311,32 @@ void AssemblyCompiler::Compile(ASTNode* node)
 
 		std::string jmpInstruction = ComparisonTypeToJumpInstruction(node->left->type);
 
-		m_TextSection.AddLine(jmpInstruction + " end");
+		if (node->parent->type != ASTTypes::Else)
+			m_TextSection.AddInstruction(jmpInstruction, "end");
+		else
+			m_TextSection.AddInstruction(jmpInstruction, "else");
 
 		Compile(node->right);
 
-		m_TextSection.AddLine("end:");
+		if (node->parent->type != ASTTypes::Else)
+			m_TextSection.AddLabel("end:");
+	
+		break;
 	}
-		break;
 	case ASTTypes::Else:
+	{
+		Compile(node->left);
+
+		m_TextSection.AddInstruction("jmp", "end");
+
+		m_TextSection.AddLabel("else:");
+
+		Compile(node->right);
+
+		m_TextSection.AddLabel("end:");
+
 		break;
+	}
 	case ASTTypes::WhileStatement:
 		break;
 	case ASTTypes::ForStatement:
@@ -327,6 +352,51 @@ void AssemblyCompiler::Compile(ASTNode* node)
 	default:
 		break;
 	}
+}
+
+void AssemblyCompiler::Optimize()
+{
+	auto& lines = m_TextSection.GetLines();
+
+	std::vector<int> linesToRemove;
+
+	Instruction prevInst;
+	for (int i = 0; i < lines.size(); i++)
+	{
+		Instruction& inst = lines[i];
+
+		if (prevInst.m_Op == "push" && inst.m_Op == "pop")
+		{
+			if (inst.m_Dest == prevInst.m_Dest && inst.m_Src == prevInst.m_Src)
+			{
+				linesToRemove.push_back(i - 1);
+				linesToRemove.push_back(i);
+			}
+				
+		}
+
+		prevInst = inst;
+	}
+
+	std::vector<Instruction> newInstructions;
+
+	for (int i = 0; i < lines.size(); i++)
+	{
+		bool add = true;
+		for (int toRemove : linesToRemove)
+		{
+			if (i == toRemove)
+			{
+				add = false;
+				break;
+			}
+		}
+
+		if (add)
+			newInstructions.push_back(lines[i]);
+	}
+
+	lines = newInstructions;
 }
 
 bool AssemblyCompilerContext::HasVariable(const std::string& variableName)
@@ -352,4 +422,27 @@ AssemblyCompilerContext::Variable& AssemblyCompilerContext::CreateVariable(const
 
 	m_Variables[variableName] = var;
 	return m_Variables[variableName];
+}
+
+Instruction::Instruction(std::string op, std::string dest, std::string src, std::string comment)
+{
+	m_Op = op;
+	m_Dest = dest;
+	m_Src = src;
+	m_Comment = comment;
+}
+
+std::string Instruction::ToString()
+{
+	std::string s;
+	if (m_Op != "")
+		s += m_Op;
+	if (m_Dest != "")
+		s += " " + m_Dest;
+	if (m_Src != "")
+		s += ", " + m_Src;
+	if (m_Comment != "")
+		s += " ; " + m_Comment;
+
+	return s;
 }
