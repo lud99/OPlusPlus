@@ -329,14 +329,14 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		std::string jmpInstruction = ComparisonTypeToJumpInstruction(node->left->type);
 
 		if (node->parent->type != ASTTypes::Else)
-			m_TextSection.AddInstruction(jmpInstruction, "if_end" + std::to_string(m_Context.m_LoopInfo.labelIndex));
+			m_TextSection.AddInstruction(jmpInstruction, "end" + std::to_string(m_Context.m_LoopInfo.labelIndex));
 		else
-			m_TextSection.AddInstruction(jmpInstruction, "if_else" + std::to_string(m_Context.m_LoopInfo.labelIndex));
+			m_TextSection.AddInstruction(jmpInstruction, "else" + std::to_string(m_Context.m_LoopInfo.labelIndex));
 
 		Compile(node->right);
 
 		if (node->parent->type != ASTTypes::Else)
-			m_TextSection.AddLabel("if_end" + std::to_string(m_Context.m_LoopInfo.labelIndex) + ":");
+			m_TextSection.AddLabel("end" + std::to_string(m_Context.m_LoopInfo.labelIndex) + ":");
 	
 		break;
 	}
@@ -346,13 +346,13 @@ void AssemblyCompiler::Compile(ASTNode* node)
 
 		Compile(node->left);
 
-		m_TextSection.AddInstruction("jmp", "if_end" + std::to_string(m_Context.m_LoopInfo.labelIndex));
+		m_TextSection.AddInstruction("jmp", "end" + std::to_string(m_Context.m_LoopInfo.labelIndex));
 
-		m_TextSection.AddLabel("if_else" + std::to_string(m_Context.m_LoopInfo.labelIndex) + ":");
+		m_TextSection.AddLabel("else" + std::to_string(m_Context.m_LoopInfo.labelIndex) + ":");
 
 		Compile(node->right);
 
-		m_TextSection.AddLabel("if_end" + std::to_string(m_Context.m_LoopInfo.labelIndex) + ":");
+		m_TextSection.AddLabel("end" + std::to_string(m_Context.m_LoopInfo.labelIndex) + ":");
 
 		break;
 	}
@@ -366,13 +366,13 @@ void AssemblyCompiler::Compile(ASTNode* node)
 
 		std::string jmpInstruction = ComparisonTypeToJumpInstruction(node->left->type);
 
-		m_TextSection.AddInstruction(jmpInstruction, "while_end" + std::to_string(m_Context.m_LoopInfo.labelIndex));
+		m_TextSection.AddInstruction(jmpInstruction, "end" + std::to_string(m_Context.m_LoopInfo.labelIndex));
 
 		Compile(node->right);
 
 		m_TextSection.AddInstruction("jmp", "while_start" + std::to_string(m_Context.m_LoopInfo.labelIndex));
 		
-		m_TextSection.AddLabel("while_end" + std::to_string(m_Context.m_LoopInfo.labelIndex) + ":");
+		m_TextSection.AddLabel("end" + std::to_string(m_Context.m_LoopInfo.labelIndex) + ":");
 
 		break;
 	}
@@ -385,7 +385,7 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		m_Context.m_LoopInfo.labelIndex++;
 		m_TextSection.AddLabel("for_start" + std::to_string(m_Context.m_LoopInfo.labelIndex) + ":");
 
-		Compile(node->arguments[1]); 
+		Compile(node->arguments[1]);
 		
 		// Skip loop if condition is false
 		std::string jmpInstruction = ComparisonTypeToJumpInstruction(node->arguments[1]->type);

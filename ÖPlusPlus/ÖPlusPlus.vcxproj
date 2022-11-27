@@ -162,11 +162,13 @@
     <None Include="Programs\asm.ö" />
     <None Include="Programs\asm_math_notes.ö" />
     <None Include="Programs\ASTint.ö" />
+    <None Include="Programs\for.ö" />
     <None Include="Programs\function.ö" />
     <None Include="Programs\if.ö" />
     <None Include="Programs\scope.ö" />
     <None Include="Programs\test.ö" />
     <None Include="Programs\variable.ö" />
+    <None Include="Programs\while.ö" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />
