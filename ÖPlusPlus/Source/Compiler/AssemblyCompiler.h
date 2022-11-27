@@ -15,7 +15,7 @@ struct Instruction
 	std::string m_Comment;
 
 	Instruction() {};
-	Instruction(std::string op, std::string dest, std::string src = "", std::string comment = "");
+	Instruction(std::string op, std::string dest = "", std::string src = "", std::string comment = "");
 
 	std::string ToString();
 };
@@ -24,7 +24,7 @@ class Section
 {
 public:
 	void AddInstruction(Instruction inst);
-	void AddInstruction(std::string op, std::string dest, std::string src = "", std::string comment = "");
+	void AddInstruction(std::string op, std::string dest = "", std::string src = "", std::string comment = "");
 	void AddComment(const std::string& comment);
 	void AddLabel(const std::string& label);
 
@@ -58,6 +58,7 @@ public:
 		int m_Reset = -1;
 		int m_End = -1;
 		int m_BodyDepth = -1;
+		int labelIndex = 0;
 	};
 
 public:

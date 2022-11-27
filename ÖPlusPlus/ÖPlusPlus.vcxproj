@@ -164,6 +164,7 @@
     <None Include="Programs\ASTint.ö" />
     <None Include="Programs\function.ö" />
     <None Include="Programs\if.ö" />
+    <None Include="Programs\scope.ö" />
     <None Include="Programs\test.ö" />
     <None Include="Programs\variable.ö" />
   </ItemGroup>

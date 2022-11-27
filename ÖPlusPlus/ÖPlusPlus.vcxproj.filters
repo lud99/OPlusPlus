@@ -65,5 +65,6 @@
     <None Include="Programs\asm.ö" />
     <None Include="Programs\variable.ö" />
     <None Include="Programs\if.ö" />
+    <None Include="Programs\scope.ö" />
   </ItemGroup>
 </Project>

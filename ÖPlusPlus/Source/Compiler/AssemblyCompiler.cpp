@@ -116,17 +116,19 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		m_TextSection.AddInstruction("push", "ebp", "", "save old top of stack");
 		m_TextSection.AddInstruction("mov", "ebp", "esp", "current top of stack is bottom of new stack frame");
 		
-		return Compile(left);
+		Compile(left);
 
 		m_TextSection.AddInstruction("mov", "esp", "ebp", "restore esp, now points to old ebp(start of frame)");
 		m_TextSection.AddInstruction("pop", "ebp", "", "restore old ebp");
+		m_TextSection.AddInstruction("ret");
+		break;
 	}
 	case ASTTypes::Scope:
 	{
 		/*m_TextSection.AddLine("push ebp; save old top of stack");
 		m_TextSection.AddLine("mov ebp, esp; current top of stack is bottom of new stack frame");*/
 
-		
+		AssemblyCompilerContext prevContext = m_Context;
 			
 		for (int i = 0; i < node->arguments.size(); i++)
 		{
@@ -134,6 +136,8 @@ void AssemblyCompiler::Compile(ASTNode* node)
 
 			Compile(n);
 		}
+
+		m_Context = prevContext;
 
 		/*m_TextSection.AddLine("mov esp, ebp; restore esp, now points to old ebp(start of frame)");
 		m_TextSection.AddLine("pop ebp; restore old ebp");*/
@@ -307,33 +311,38 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		break;
 	case ASTTypes::IfStatement:
 	{
+		if (node->parent->type != ASTTypes::Else)
+			m_Context.m_LoopInfo.labelIndex++;
+
 		Compile(node->left);
 
 		std::string jmpInstruction = ComparisonTypeToJumpInstruction(node->left->type);
 
 		if (node->parent->type != ASTTypes::Else)
-			m_TextSection.AddInstruction(jmpInstruction, "end");
+			m_TextSection.AddInstruction(jmpInstruction, "end" + std::to_string(m_Context.m_LoopInfo.labelIndex));
 		else
-			m_TextSection.AddInstruction(jmpInstruction, "else");
+			m_TextSection.AddInstruction(jmpInstruction, "else" + std::to_string(m_Context.m_LoopInfo.labelIndex));
 
 		Compile(node->right);
 
 		if (node->parent->type != ASTTypes::Else)
-			m_TextSection.AddLabel("end:");
+			m_TextSection.AddLabel("end" + std::to_string(m_Context.m_LoopInfo.labelIndex) + ":");
 	
 		break;
 	}
 	case ASTTypes::Else:
 	{
+		m_Context.m_LoopInfo.labelIndex++;
+
 		Compile(node->left);
 
-		m_TextSection.AddInstruction("jmp", "end");
+		m_TextSection.AddInstruction("jmp", "end" + std::to_string(m_Context.m_LoopInfo.labelIndex));
 
-		m_TextSection.AddLabel("else:");
+		m_TextSection.AddLabel("else" + std::to_string(m_Context.m_LoopInfo.labelIndex) + ":");
 
 		Compile(node->right);
 
-		m_TextSection.AddLabel("end:");
+		m_TextSection.AddLabel("end" + std::to_string(m_Context.m_LoopInfo.labelIndex) + ":");
 
 		break;
 	}
