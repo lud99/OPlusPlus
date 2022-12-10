@@ -166,6 +166,7 @@
     <None Include="Programs\function.ö" />
     <None Include="Programs\if.ö" />
     <None Include="Programs\scope.ö" />
+    <None Include="Programs\string.ö" />
     <None Include="Programs\test.ö" />
     <None Include="Programs\variable.ö" />
     <None Include="Programs\while.ö" />

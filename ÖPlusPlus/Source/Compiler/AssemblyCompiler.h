@@ -64,12 +64,14 @@ public:
 public:
 	bool HasVariable(const std::string& variableName);
 	Variable& GetVariable(const std::string& variableName);
-	Variable& CreateVariable(const std::string& variableName, ValueTypes type);
+	Variable& CreateVariable(const std::string& variableName, ValueTypes type, int size = 4);
+
+	int Allocate(int size);
 
 public:
 	std::unordered_map<std::string, Variable> m_Variables;
 
-	uint32_t m_NextFreeVariableIndex = 4;
+	uint32_t m_CurrentVariableIndex = 0;
 
 	LoopInfo m_LoopInfo;
 };

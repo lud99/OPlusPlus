@@ -2,6 +2,17 @@
 
 #include <iostream>
 
+void CreateNewCallFrame(Section& section)
+{
+	section.AddInstruction("push", "ebp", "", "save old top of stack");
+	section.AddInstruction("mov", "ebp", "esp", "current top of stack is bottom of new stack frame");
+}
+void RestoreOldCallFrame(Section& section)
+{
+	section.AddInstruction("mov", "esp", "ebp", "restore esp, now points to old ebp(start of frame)");
+	section.AddInstruction("pop", "ebp", "", "restore old ebp");
+}
+
 std::string ComparisonTypeToJumpInstruction(ASTTypes& type)
 {
 	if (type == ASTTypes::CompareEquals)
@@ -113,13 +124,12 @@ void AssemblyCompiler::Compile(ASTNode* node)
 	{
 	case ASTTypes::ProgramBody:
 	{
-		m_TextSection.AddInstruction("push", "ebp", "", "save old top of stack");
-		m_TextSection.AddInstruction("mov", "ebp", "esp", "current top of stack is bottom of new stack frame");
-		
+		CreateNewCallFrame(m_TextSection);
+
 		Compile(left);
 
-		m_TextSection.AddInstruction("mov", "esp", "ebp", "restore esp, now points to old ebp(start of frame)");
-		m_TextSection.AddInstruction("pop", "ebp", "", "restore old ebp");
+		RestoreOldCallFrame(m_TextSection);
+
 		m_TextSection.AddInstruction("ret");
 		break;
 	}
@@ -231,7 +241,28 @@ void AssemblyCompiler::Compile(ASTNode* node)
 	case ASTTypes::DoubleLiteral:
 		break;
 	case ASTTypes::StringLiteral:
+	{
+		// Allocate space for string
+		const std::string& str = node->stringValue;
+
+		int strSize = str.size() + 1;
+
+		m_TextSection.AddInstruction("sub", "esp", std::to_string(strSize));
+
+		m_TextSection.AddInstruction("mov", "byte [ebp - " + std::to_string(m_Context.Allocate(1)) + "]", "0x00");
+
+		for (int i = str.length() - 1; i >= 0; i--)
+		{
+			m_TextSection.AddInstruction("mov", "byte [ebp - " + std::to_string(m_Context.Allocate(1)) + "]", "\"" + std::string(1, str[i]) + "\"");
+		}
+
+		int indexOfFirstCharacter = m_Context.m_CurrentVariableIndex;
+
+		m_TextSection.AddInstruction("lea", "eax", "[ebp - " + std::to_string(indexOfFirstCharacter) + "]", "copy pointer of start of string");
+		m_TextSection.AddInstruction("push", "eax");
+
 		break;
+	}
 	case ASTTypes::Bool:
 		break;
 	case ASTTypes::ArrayType:
@@ -316,6 +347,51 @@ void AssemblyCompiler::Compile(ASTNode* node)
 	case ASTTypes::Line:
 		break;
 	case ASTTypes::FunctionCall:
+	{
+		const int maxArgumentCount = 4;
+		const char* argumentRegisters[maxArgumentCount] = {
+			"eax",
+			"ecx",
+			"edx",
+			"ebx"
+		};
+
+		if (node->arguments.size() > maxArgumentCount)
+			return MakeError("Too many arguments for function. A maximum of 4 is supported");
+
+		// Evaluate the arguments. The results are stored as variables on the stack
+		for (int i = node->arguments.size() - 1; i >= 0; i--)
+		{
+			Compile(node->arguments[i]);
+
+			int variableIndex = m_Context.CreateVariable("arg" + std::to_string(i), ValueTypes::Integer /* todo */, 4).m_Index;
+
+			m_TextSection.AddInstruction("mov", "dword [ebp - " + std::to_string(variableIndex) + "]", "eax", "store argument");
+			m_TextSection.AddInstruction("sub", "esp", "4");
+		}
+
+		// The value of the evaluated arguments are stored in registers
+		for (int i = node->arguments.size() - 1; i >= 0; i--)
+		{
+			int variableIndex = m_Context.GetVariable("arg" + std::to_string(i)).m_Index;
+			m_TextSection.AddInstruction("mov", argumentRegisters[i], "dword [ebp - " + std::to_string(variableIndex) + "]", "evaluated argument");
+		}
+
+		CreateNewCallFrame(m_TextSection);
+
+		// The registers are pushed on to the new call stack
+		for (int i = node->arguments.size() - 1; i >= 0; i--)
+		{
+			m_TextSection.AddInstruction("push", argumentRegisters[i]);
+		}
+
+		m_TextSection.AddInstruction("call", node->stringValue);
+
+		// Remove the arguments from the stack
+		m_TextSection.AddInstruction("add", "esp", std::to_string(node->arguments.size() * 4), "Assume all arguments are 4 bytes each");
+
+		RestoreOldCallFrame(m_TextSection);
+	}
 		break;
 	case ASTTypes::Return:
 		break;
@@ -473,18 +549,23 @@ AssemblyCompilerContext::Variable& AssemblyCompilerContext::GetVariable(const st
 	return m_Variables[variableName];
 }
 
-AssemblyCompilerContext::Variable& AssemblyCompilerContext::CreateVariable(const std::string& variableName, ValueTypes type)
+AssemblyCompilerContext::Variable& AssemblyCompilerContext::CreateVariable(const std::string& variableName, ValueTypes type, int size)
 {
 	assert(!HasVariable(variableName));
 
 	Variable var;
 	var.m_Name = variableName;
-	var.m_Index = m_NextFreeVariableIndex;
-	m_NextFreeVariableIndex += 4; // variable size in bytes, 4 for int
+	var.m_Index = Allocate(size); // variable size in bytes, 4 for int
 	var.m_Type = type;
 
 	m_Variables[variableName] = var;
 	return m_Variables[variableName];
+}
+
+int AssemblyCompilerContext::Allocate(int size)
+{
+	m_CurrentVariableIndex += size;
+	return m_CurrentVariableIndex;
 }
 
 Instruction::Instruction(std::string op, std::string dest, std::string src, std::string comment)

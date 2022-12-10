@@ -68,5 +68,6 @@
     <None Include="Programs\scope.ö" />
     <None Include="Programs\while.ö" />
     <None Include="Programs\for.ö" />
+    <None Include="Programs\string.ö" />
   </ItemGroup>
 </Project>

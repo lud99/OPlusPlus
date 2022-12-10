@@ -48,7 +48,7 @@ int main()
 	setlocale(LC_ALL, "");
 	Functions::InitializeDefaultFunctions();
 
-	std::string filepath = "Programs/for.ö";
+	std::string filepath = "Programs/string.ö";
 
 	std::string error;
 	Value v;
