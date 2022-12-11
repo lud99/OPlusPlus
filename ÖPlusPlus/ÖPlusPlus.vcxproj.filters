@@ -33,6 +33,9 @@
     <ClCompile Include="Source\Compiler\AssemblyCompiler.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Compiler\AssemblyRunner.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\Lexer.h">
@@ -56,6 +59,9 @@
     <ClInclude Include="Source\Compiler\AssemblyCompiler.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Source\Compiler\AssemblyRunner.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Programs\test.ö" />
@@ -69,5 +75,9 @@
     <None Include="Programs\while.ö" />
     <None Include="Programs\for.ö" />
     <None Include="Programs\string.ö" />
+    <None Include="Build\build.bat">
+      <Filter>Source Files</Filter>
+    </None>
+    <None Include="Programs\simple_function.ö" />
   </ItemGroup>
 </Project>

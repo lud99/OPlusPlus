@@ -14,6 +14,8 @@ struct Instruction
 
 	std::string m_Comment;
 
+	bool m_IsLabel = false;
+
 	Instruction() {};
 	Instruction(std::string op, std::string dest = "", std::string src = "", std::string comment = "");
 
@@ -52,6 +54,14 @@ public:
 		//Variable(int index = 0, std::string name = "", ValueTypes type = ValueTypes::Void, bool isGlobal = false) : m_Name(name), m_Index(index), m_Type(type), m_IsGlobal(isGlobal) {};
 	};
 
+	struct Function
+	{
+		std::string m_Name = "";
+		ValueTypes m_ReturnType = ValueTypes::Void;
+
+		//std::vector<Variable> m_Arguments;
+	};
+
 	struct LoopInfo
 	{
 		bool m_InLoop = false;
@@ -66,10 +76,15 @@ public:
 	Variable& GetVariable(const std::string& variableName);
 	Variable& CreateVariable(const std::string& variableName, ValueTypes type, int size = 4);
 
+	bool HasFunction(const std::string& functionName);
+	Function& GetFunction(const std::string& functionName);
+	Function& CreateFunction(const std::string& functionName, ValueTypes returnType /* todo args*/);
+
 	int Allocate(int size);
 
 public:
 	std::unordered_map<std::string, Variable> m_Variables;
+	std::unordered_map<std::string, Function> m_Functions;
 
 	uint32_t m_CurrentVariableIndex = 0;
 

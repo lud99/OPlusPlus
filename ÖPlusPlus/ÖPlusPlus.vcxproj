@@ -143,6 +143,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Source\Compiler\AssemblyCompiler.cpp" />
+    <ClCompile Include="Source\Compiler\AssemblyRunner.cpp" />
     <ClCompile Include="Source\Interpreter\Functions.cpp" />
     <ClCompile Include="Source\Interpreter\Value.cpp" />
     <ClCompile Include="Source\Lexer.cpp" />
@@ -151,6 +152,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\Compiler\AssemblyCompiler.h" />
+    <ClInclude Include="Source\Compiler\AssemblyRunner.h" />
     <ClInclude Include="Source\Interpreter\Functions.h" />
     <ClInclude Include="Source\Interpreter\Value.h" />
     <ClInclude Include="Source\Interpreter\ValueTypes.h" />
@@ -159,6 +161,7 @@
     <ClInclude Include="Source\Utils.hpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="Build\build.bat" />
     <None Include="Programs\asm.ö" />
     <None Include="Programs\asm_math_notes.ö" />
     <None Include="Programs\ASTint.ö" />
@@ -166,6 +169,7 @@
     <None Include="Programs\function.ö" />
     <None Include="Programs\if.ö" />
     <None Include="Programs\scope.ö" />
+    <None Include="Programs\simple_function.ö" />
     <None Include="Programs\string.ö" />
     <None Include="Programs\test.ö" />
     <None Include="Programs\variable.ö" />

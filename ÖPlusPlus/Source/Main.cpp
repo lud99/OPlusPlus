@@ -24,7 +24,7 @@
 #include "Interpreter/AST/ASTInterpreter.h"
 #endif
 #ifdef ASM_COMPILER
-#include "Compiler/AssemblyCompiler.h"
+#include "Compiler/AssemblyRunner.h"
 #endif
 
 std::string stringRaw(std::string s)
@@ -48,7 +48,7 @@ int main()
 	setlocale(LC_ALL, "");
 	Functions::InitializeDefaultFunctions();
 
-	std::string filepath = "Programs/string.ö";
+	std::string filepath = "Programs/simple_function.ö";
 
 	std::string error;
 	Value v;
@@ -99,59 +99,12 @@ int main()
 #endif // AST_INTERPRETER
 
 #ifdef ASM_COMPILER
-	std::ifstream file(filepath);
-	if (!file.good())
-		std::cout << "Couldn't open file " << filepath << "\n\n";
+	AssemblyRunner runner(filepath);
+	runner.Compile();
 
-	std::string fileContent = "";
-	for (std::string line; std::getline(file, line);)
-	{
-		fileContent += line + "\n";
-	}
+	std::cout << "Code: " << runner.GetCompiledCode() << "\n";
 
-	Lexer lexer;
-	error = lexer.CreateTokens(fileContent);
-	if (error != "")
-		std::cout << error << "\n\n";
-
-	for (int i = 0; i < lexer.m_Tokens.size(); i++)
-		std::cout << lexer.m_Tokens[i].ToString() << ": " << lexer.m_Tokens[i].m_Value << " [" << lexer.m_Tokens[i].m_Depth << "]\n";
-	std::cout << "\n";
-
-	Parser parser;
-
-	ASTNode tree;
-	tree.parent = new ASTNode(ASTTypes::ProgramBody);
-	tree.parent->left = &tree;
-
-	parser.CreateAST(lexer.m_Tokens, &tree, tree.parent);
-
-	if (parser.m_Error != "")
-		std::cout << "AST Error: " << parser.m_Error << "\n";
-
-	parser.PrintASTTree(tree.parent, 0);
-
-	AssemblyCompiler compiler;
-	compiler.Compile(tree.parent);
-	compiler.Optimize();
-
-	std::cout << "section .data\n";
-	for (int i = 0; i < compiler.m_DataSection.GetLines().size(); i++)
-	{
-		std::string s = compiler.m_DataSection.GetLines()[i].ToString();
-		//if (s != "")
-		std::cout << s << "\n";
-	}
-
-	std::cout << "\n\nsection .text\n";
-	for (int i = 0; i < compiler.m_TextSection.GetLines().size(); i++)
-	{
-		std::string s = compiler.m_TextSection.GetLines()[i].ToString();
-		//if (s != "")
-		std::cout << s << "\n";
-	}
-
-	if (compiler.m_Error != "") std::cout << "\nASM Compiler error: " << compiler.m_Error << "\n";
+	std::cout << "Program output: " << runner.Execute() << "\n";
 #endif
 
 	//BytecodeInterpreter::Get().CreateAndRunProgram("Programs/function.ö", error);

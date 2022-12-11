@@ -13,6 +13,15 @@ void RestoreOldCallFrame(Section& section)
 	section.AddInstruction("pop", "ebp", "", "restore old ebp");
 }
 
+bool ResultCanBeDiscarded(ASTNode* node)
+{
+	assert(node->parent != nullptr);
+
+	return (node->parent->type == ASTTypes::Scope ||
+		node->parent->type == ASTTypes::ProgramBody ||
+		node->parent->type == ASTTypes::ForStatement);
+}
+
 std::string ComparisonTypeToJumpInstruction(ASTTypes& type)
 {
 	if (type == ASTTypes::CompareEquals)
@@ -64,6 +73,7 @@ void Section::AddComment(const std::string& comment)
 void Section::AddLabel(const std::string& label)
 {
 	Instruction inst(label, "", "", "");
+	inst.m_IsLabel = true;
 	m_Lines.push_back(inst);
 }
 
@@ -95,9 +105,8 @@ void Section::AddCorrectMathInstruction(ASTNode* n, bool reverse)
 
 		AddInstruction("mov", "edx", "0");
 		AddInstruction("idiv", "ebx");
-	}
-
-	abort();
+	} else
+		abort();
 }
 
 void AssemblyCompiler::Compile(ASTNode* node)
@@ -124,6 +133,16 @@ void AssemblyCompiler::Compile(ASTNode* node)
 	{
 	case ASTTypes::ProgramBody:
 	{
+		// Look for functions and compile them before the main program
+		// TODO: global variable constants
+		for (int i = 0; i < node->left->arguments.size(); i++)
+		{
+			if (node->left->arguments[i]->type == ASTTypes::FunctionDefinition)
+				Compile(node->left->arguments[i]);
+		}
+
+		m_TextSection.AddLabel("global CMAIN");
+		m_TextSection.AddLabel("CMAIN:");
 		CreateNewCallFrame(m_TextSection);
 
 		Compile(left);
@@ -144,7 +163,8 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		{
 			ASTNode* n = node->arguments[i];
 
-			Compile(n);
+			if (n->type != ASTTypes::FunctionDefinition)
+				Compile(n);
 		}
 
 		m_Context = prevContext;
@@ -391,9 +411,18 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		m_TextSection.AddInstruction("add", "esp", std::to_string(node->arguments.size() * 4), "Assume all arguments are 4 bytes each");
 
 		RestoreOldCallFrame(m_TextSection);
+
+		if (!ResultCanBeDiscarded(node))
+			m_TextSection.AddInstruction("push", "eax");
 	}
 		break;
 	case ASTTypes::Return:
+	{
+		Compile(node->left);
+
+		m_TextSection.AddInstruction("pop", "eax");
+		m_TextSection.AddInstruction("ret");
+	}
 		break;
 	case ASTTypes::IfStatement:
 	{
@@ -481,6 +510,19 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		break;
 	}
 	case ASTTypes::FunctionDefinition:
+	{
+		ValueTypes returnType = NodeVariableTypeToValueType(node->left->arguments[0]);
+		const std::string& name = node->left->arguments[1]->stringValue;
+
+		if (m_Context.HasFunction(name))
+			return MakeError("Function '" + name + "' has already been defined");
+
+		AssemblyCompilerContext::Function& function = m_Context.CreateFunction(name, returnType);
+
+		m_TextSection.AddLabel(name + ":");
+
+		Compile(node->right);
+	}
 		break;
 	case ASTTypes::FunctionPrototype:
 		break;
@@ -511,7 +553,11 @@ void AssemblyCompiler::Optimize()
 				linesToRemove.push_back(i - 1);
 				linesToRemove.push_back(i);
 			}
-				
+		}
+
+		if (prevInst.m_Op == "push" && inst.m_Op == "ret")
+		{
+			linesToRemove.push_back(i - 1);
 		}
 
 		prevInst = inst;
@@ -560,6 +606,29 @@ AssemblyCompilerContext::Variable& AssemblyCompilerContext::CreateVariable(const
 
 	m_Variables[variableName] = var;
 	return m_Variables[variableName];
+}
+
+bool AssemblyCompilerContext::HasFunction(const std::string& functionName)
+{
+	return m_Functions.count(functionName) == 1;
+}
+
+AssemblyCompilerContext::Function& AssemblyCompilerContext::GetFunction(const std::string& functionName)
+{
+	assert(HasFunction(functionName));
+	return m_Functions[functionName];
+}
+
+AssemblyCompilerContext::Function& AssemblyCompilerContext::CreateFunction(const std::string& functionName, ValueTypes returnType)
+{
+	assert(!HasFunction(functionName));
+
+	Function var;
+	var.m_Name = functionName;
+	var.m_ReturnType = returnType;
+
+	m_Functions[functionName] = var;
+	return m_Functions[functionName];
 }
 
 int AssemblyCompilerContext::Allocate(int size)

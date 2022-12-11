@@ -1,0 +1,8 @@
+int f() => {
+	return 2 + 3 * 9;
+};
+
+f();
+int r = f();
+
+printf("hej %x", r);
