@@ -15,6 +15,7 @@ struct Instruction
 	std::string m_Comment;
 
 	bool m_IsLabel = false;
+	bool m_IsOnlyComment = false;
 
 	Instruction() {};
 	Instruction(std::string op, std::string dest = "", std::string src = "", std::string comment = "");

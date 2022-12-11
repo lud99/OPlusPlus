@@ -67,6 +67,7 @@ void Section::AddInstruction(std::string op, std::string dest, std::string src, 
 void Section::AddComment(const std::string& comment)
 {
 	Instruction inst("", "", "", comment);
+	inst.m_IsOnlyComment = true;
 	m_Lines.push_back(inst);
 }
 
@@ -541,26 +542,40 @@ void AssemblyCompiler::Optimize()
 
 	std::vector<int> linesToRemove;
 
+	/*lines.clear();
+	m_TextSection.AddInstruction("push", "eax");
+	m_TextSection.AddComment("hi");
+	m_TextSection.AddInstruction("pop", "eax");*/
+
 	Instruction prevInst;
 	for (int i = 0; i < lines.size(); i++)
 	{
 		Instruction& inst = lines[i];
 
+		Instruction prevInst;
+
+		// Bad code for getting the previous line that isn't a blank or comment
+		int j = i - 1;
+		while (j >= 0 && lines[j].m_Op == "")
+		{
+			if (j > 0) j--;
+		}
+
+		if (j >= 0) prevInst = lines[j];
+
 		if (prevInst.m_Op == "push" && inst.m_Op == "pop")
 		{
 			if (inst.m_Dest == prevInst.m_Dest && inst.m_Src == prevInst.m_Src)
 			{
-				linesToRemove.push_back(i - 1);
+				linesToRemove.push_back(j);
 				linesToRemove.push_back(i);
 			}
 		}
 
 		if (prevInst.m_Op == "push" && inst.m_Op == "ret")
 		{
-			linesToRemove.push_back(i - 1);
+			linesToRemove.push_back(j);
 		}
-
-		prevInst = inst;
 	}
 
 	std::vector<Instruction> newInstructions;
@@ -654,8 +669,10 @@ std::string Instruction::ToString()
 		s += " " + m_Dest;
 	if (m_Src != "")
 		s += ", " + m_Src;
-	if (m_Comment != "")
+	if (m_Comment != "" && !m_IsOnlyComment)
 		s += " ; " + m_Comment;
+	if (m_Comment != "" && m_IsOnlyComment)
+		s += "; " + m_Comment;
 
 	return s;
 }
