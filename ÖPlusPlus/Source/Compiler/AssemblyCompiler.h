@@ -30,6 +30,7 @@ public:
 	void AddInstruction(std::string op, std::string dest = "", std::string src = "", std::string comment = "");
 	void AddComment(const std::string& comment);
 	void AddLabel(const std::string& label);
+	void AddLine(const std::string& line);
 
 	void AddCorrectMathInstruction(ASTNode* n, bool reverse = false);
 
@@ -39,6 +40,11 @@ private:
 	std::vector<Instruction> m_Lines;
 };
 
+enum class Publicity
+{
+	Local,
+	Global
+};
 
 class AssemblyCompilerContext
 {
@@ -46,9 +52,10 @@ public:
 	struct Variable
 	{
 		std::string m_Name = "";
+		std::string m_MangledName = "";
 		uint32_t m_Index = 0;
 
-		bool m_IsGlobal = false;
+		Publicity m_Publicity;
 
 		ValueTypes m_Type = ValueTypes::Void;
 
@@ -58,6 +65,7 @@ public:
 	struct Function
 	{
 		std::string m_Name = "";
+		std::string m_MangledName = "";
 		ValueTypes m_ReturnType = ValueTypes::Void;
 
 		//std::vector<Variable> m_Arguments;
@@ -75,7 +83,7 @@ public:
 public:
 	bool HasVariable(const std::string& variableName);
 	Variable& GetVariable(const std::string& variableName);
-	Variable& CreateVariable(const std::string& variableName, ValueTypes type, int size = 4);
+	Variable& CreateVariable(const std::string& variableName, ValueTypes type, int size = 4, Publicity publicity = Publicity::Local);
 	bool DeleteVariable(const std::string& variableName);
 
 	bool HasFunction(const std::string& functionName);

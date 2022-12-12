@@ -24,6 +24,25 @@ bool ResultCanBeDiscarded(ASTNode* node)
 		node->parent->type == ASTTypes::ForStatement);
 }
 
+std::string MangleName(std::string str)
+{
+	return str + std::to_string(rand() % 100);
+}
+
+//
+//bool IsReservedWord(const std::string& str)
+//{
+//	const char* reservedWords = {
+//		"global",
+//		"extern",
+//		"CMAIN",
+//		"pop",
+//		"push",
+//		"call",
+//
+//	}
+//}
+
 std::string ComparisonTypeToJumpInstruction(ASTTypes& type)
 {
 	if (type == ASTTypes::CompareEquals)
@@ -77,6 +96,12 @@ void Section::AddLabel(const std::string& label)
 {
 	Instruction inst(label, "", "", "");
 	inst.m_IsLabel = true;
+	m_Lines.push_back(inst);
+}
+
+void Section::AddLine(const std::string& line)
+{
+	Instruction inst(line, "", "", "");
 	m_Lines.push_back(inst);
 }
 
@@ -173,14 +198,29 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		break;
 	case ASTTypes::VariableDeclaration:
 	{
-		const std::string& variableName = node->right->stringValue;
-		if (m_Context.HasVariable(variableName))
-			return MakeError("Variable '" + variableName + "' has already been declared in this scope");
+		const std::string& name = node->right->stringValue;
+		if (m_Context.HasVariable(name))
+			return MakeError("Variable '" + name + "' has already been declared in this scope");
 
-		AssemblyCompilerContext::Variable variable = m_Context.CreateVariable(variableName, NodeVariableTypeToValueType(node->left));
+		ValueTypes type = NodeVariableTypeToValueType(node->left);
+		int size = 4;
 
-		m_TextSection.AddInstruction("mov", "dword [ebp - " + std::to_string(variable.m_Index) + "]", "0");
-		m_TextSection.AddInstruction("sub", "esp", "4");
+		// Check if this declaration is at the highest scope
+		Publicity publicity = Publicity::Local;
+		if (node->parent != nullptr && node->parent->parent->type == ASTTypes::ProgramBody)
+			publicity = Publicity::Global;
+
+		AssemblyCompilerContext::Variable variable = m_Context.CreateVariable(name, type, size, publicity);
+
+		if (publicity == Publicity::Global)
+		{
+			m_DataSection.AddLine(variable.m_MangledName + " " + "DD 0");
+		}
+		else 
+		{
+			m_TextSection.AddInstruction("mov", "dword [ebp - " + std::to_string(variable.m_Index) + "]", "0");
+			m_TextSection.AddInstruction("sub", "esp", "4");
+		}
 
 		break;
 	}
@@ -218,7 +258,10 @@ void AssemblyCompiler::Compile(ASTNode* node)
 
 		m_TextSection.AddInstruction("pop", "eax");
 
-		m_TextSection.AddInstruction("mov", "dword [ebp - " + std::to_string(variable.m_Index) + "]", "eax");
+		if (variable.m_Publicity == Publicity::Global)
+			m_TextSection.AddInstruction("mov", "dword [" + variable.m_MangledName + "]", "eax");
+		else
+			m_TextSection.AddInstruction("mov", "dword [ebp - " + std::to_string(variable.m_Index) + "]", "eax");
 
 		break;
 	}
@@ -296,7 +339,11 @@ void AssemblyCompiler::Compile(ASTNode* node)
 
 		AssemblyCompilerContext::Variable variable = m_Context.GetVariable(variableName);
 
-		m_TextSection.AddInstruction("mov", "eax", "[ebp - " + std::to_string(variable.m_Index) + "]");
+		if (variable.m_Publicity == Publicity::Global)
+			m_TextSection.AddInstruction("mov", "eax", "[" + variable.m_MangledName + "]");
+		else
+			m_TextSection.AddInstruction("mov", "eax", "[ebp - " + std::to_string(variable.m_Index) + "]");
+
 		m_TextSection.AddInstruction("push", "eax");
 	}
 		break;
@@ -683,14 +730,21 @@ AssemblyCompilerContext::Variable& AssemblyCompilerContext::GetVariable(const st
 	return m_Variables[variableName];
 }
 
-AssemblyCompilerContext::Variable& AssemblyCompilerContext::CreateVariable(const std::string& variableName, ValueTypes type, int size)
+AssemblyCompilerContext::Variable& AssemblyCompilerContext::CreateVariable(const std::string& variableName, ValueTypes type, int size, Publicity publicity)
 {
+	//std::string editedVariableName = variableName;
+	//editedVariableName += std::to_string(rand() % 100);
 	assert(!HasVariable(variableName));
 
 	Variable var;
 	var.m_Name = variableName;
-	var.m_Index = Allocate(size); // variable size in bytes, 4 for int
+	var.m_MangledName = MangleName(variableName);
+
+	if (publicity == Publicity::Local)
+		var.m_Index = Allocate(size);
+
 	var.m_Type = type;
+	var.m_Publicity = publicity;
 
 	m_Variables[variableName] = var;
 	return m_Variables[variableName];
@@ -720,6 +774,7 @@ AssemblyCompilerContext::Function& AssemblyCompilerContext::CreateFunction(const
 
 	Function var;
 	var.m_Name = functionName;
+	var.m_MangledName = MangleName(functionName);
 	var.m_ReturnType = returnType;
 
 	m_Functions[functionName] = var;

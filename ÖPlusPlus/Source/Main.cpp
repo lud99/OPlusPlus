@@ -48,7 +48,7 @@ int main()
 	setlocale(LC_ALL, "");
 	Functions::InitializeDefaultFunctions();
 
-	std::string filepath = "Programs/factorial.ö";
+	std::string filepath = "Programs/global_variable.ö";
 
 	std::string error;
 	Value v;

@@ -167,6 +167,7 @@
     <None Include="Programs\ASTint.ö" />
     <None Include="Programs\for.ö" />
     <None Include="Programs\factorial.ö" />
+    <None Include="Programs\global_variable.ö" />
     <None Include="Programs\if.ö" />
     <None Include="Programs\scope.ö" />
     <None Include="Programs\simple_function.ö" />

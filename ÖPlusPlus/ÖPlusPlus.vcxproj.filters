@@ -79,5 +79,6 @@
       <Filter>Source Files</Filter>
     </None>
     <None Include="Programs\simple_function.ö" />
+    <None Include="Programs\global_variable.ö" />
   </ItemGroup>
 </Project>

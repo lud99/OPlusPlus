@@ -1,0 +1,8 @@
+int global;
+global = 99;
+
+int f() => {
+	int global;
+};
+
+printf("%i", global);
