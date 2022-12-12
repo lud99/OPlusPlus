@@ -403,7 +403,7 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		// the caller must push the values in these registers onto the stack (so they can be restore after the subroutine returns.
 
 		//m_TextSection.AddInstruction("push", "eax");
-		m_TextSection.AddInstruction("push", "ecx");
+		//m_TextSection.AddInstruction("push", "ecx");
 		m_TextSection.AddInstruction("push", "edx");
 
 		CreateNewCallFrame(m_TextSection);
@@ -424,7 +424,7 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		// Restore the contents of caller-saved registers (EAX, ECX, EDX) by popping them off of the stack. 
 		// The caller can assume that no other registers were modified by the subroutine.
 		m_TextSection.AddInstruction("pop", "edx");
-		m_TextSection.AddInstruction("pop", "ecx");
+		//m_TextSection.AddInstruction("pop", "ecx");
 		//m_TextSection.AddInstruction("pop", "eax"); // Should be required, but we don't care about the old eax (most likely)
 
 		if (!ResultCanBeDiscarded(node))
@@ -442,8 +442,8 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		// Before returning, we need to restore the old values of callee-saved registers (EDI, ESI and EBX)
 		m_TextSection.AddComment("Restore calle-saved registers");
 		m_TextSection.AddInstruction("pop", "ebx");
-		m_TextSection.AddInstruction("pop", "edi");
-		m_TextSection.AddInstruction("pop", "esi");
+		//m_TextSection.AddInstruction("pop", "edi");
+		//m_TextSection.AddInstruction("pop", "esi");
 
 		// Deallocate local variables. Restores the stack pointer to the base where the first variable is
 		m_TextSection.AddInstruction("mov", "esp", "ebp", "deallocate local varibales");
@@ -558,8 +558,8 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		// Next, save the values of the callee-saved registers that will be used by the function. To save registers, push them onto the stack. 
 		// The callee-saved registers are EBX, EDI, and ESI (ESP and EBP will also be preserved by the calling convention, but need not be pushed on the stack during this step).
 		m_TextSection.AddInstruction("push", "ebx");
-		m_TextSection.AddInstruction("push", "edi");
-		m_TextSection.AddInstruction("push", "esi");
+		//m_TextSection.AddInstruction("push", "edi");
+		//m_TextSection.AddInstruction("push", "esi");
 
 		// New context for function
 		AssemblyCompilerContext ctx = m_Context;
