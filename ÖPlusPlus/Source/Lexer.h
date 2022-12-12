@@ -70,6 +70,7 @@ struct Token
 		Break,
 		Continue,
 		Return,
+		Global
 	};
 
 	Token() {};

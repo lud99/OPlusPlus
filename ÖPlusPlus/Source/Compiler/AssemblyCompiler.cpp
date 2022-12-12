@@ -163,6 +163,19 @@ void AssemblyCompiler::Compile(ASTNode* node)
 	{
 		// Look for functions and compile them before the main program
 		// TODO: global variable constants
+
+		// Compile global constant declarations as the first thing
+		for (int i = 0; i < node->left->arguments.size(); i++)
+		{
+			ASTNode* n = node->left->arguments[i];
+
+			if (n->type == ASTTypes::GlobalVariableDeclaration ||
+				(n->type == ASTTypes::Assign && n->left->type == ASTTypes::GlobalVariableDeclaration))
+			{
+				Compile(n);
+			}
+		}
+
 		for (int i = 0; i < node->left->arguments.size(); i++)
 		{
 			if (node->left->arguments[i]->type == ASTTypes::FunctionDefinition)
@@ -183,12 +196,29 @@ void AssemblyCompiler::Compile(ASTNode* node)
 	case ASTTypes::Scope:
 	{
 		AssemblyCompilerContext prevContext = m_Context;
+
+		// First compile global variables
+		/*std::vector<ASTNode*> linesToCompile;
+		for (int i = 0; i < node->arguments.size(); i++)
+		{
+			ASTNode* n = node->arguments[i];
+
+			if (n->type == ASTTypes::GlobalVariableDeclaration ||
+				(n->type == ASTTypes::Assign && n->left->type == ASTTypes::GlobalVariableDeclaration))
+			{
+				Compile(n);
+			}
+			else 
+			{
+				linesToCompile.push_back(n);
+			}
+		}*/
 			
 		for (int i = 0; i < node->arguments.size(); i++)
 		{
 			ASTNode* n = node->arguments[i];
 
-			if (n->type != ASTTypes::FunctionDefinition)
+			if (n->type != ASTTypes::FunctionDefinition && n->type != ASTTypes::GlobalVariableDeclaration)
 				Compile(n);
 		}
 
@@ -197,6 +227,7 @@ void AssemblyCompiler::Compile(ASTNode* node)
 	case ASTTypes::Empty:
 		break;
 	case ASTTypes::VariableDeclaration:
+	case ASTTypes::GlobalVariableDeclaration:
 	{
 		const std::string& name = node->right->stringValue;
 		if (m_Context.HasVariable(name))
@@ -205,10 +236,15 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		ValueTypes type = NodeVariableTypeToValueType(node->left);
 		int size = 4;
 
-		// Check if this declaration is at the highest scope
 		Publicity publicity = Publicity::Local;
-		if (node->parent != nullptr && node->parent->parent->type == ASTTypes::ProgramBody)
+		if (node->type == ASTTypes::GlobalVariableDeclaration)
+		{
+			// If not in the global scope
+			if (node->parent == nullptr || node->parent->parent->type != ASTTypes::ProgramBody)
+				return MakeError("Global variable declaration has to be at the global scope in the file");
+
 			publicity = Publicity::Global;
+		}
 
 		AssemblyCompilerContext::Variable variable = m_Context.CreateVariable(name, type, size, publicity);
 
@@ -228,20 +264,41 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		break;
 	case ASTTypes::Assign:
 	{
-		if (node->left->type == ASTTypes::VariableDeclaration)
+		if (node->left->type == ASTTypes::VariableDeclaration || node->left->type == ASTTypes::GlobalVariableDeclaration)
 		{
-			const std::string& variableName = node->left->right->stringValue;
-			if (m_Context.HasVariable(variableName))
-				return MakeError("Variable '" + variableName + "' has already been declared in this scope");
+			const std::string& name = node->left->right->stringValue;
+			if (m_Context.HasVariable(name))
+				return MakeError("Variable '" + name + "' has already been declared in this scope");
 
 			// Evaluate the assignment on the rhs
 			Compile(node->right);
-
-			AssemblyCompilerContext::Variable variable = m_Context.CreateVariable(variableName, NodeVariableTypeToValueType(node->left->left));
-
 			m_TextSection.AddInstruction("pop", "eax");
-			m_TextSection.AddInstruction("mov", "dword [ebp - " + std::to_string(variable.m_Index) + "]", "eax");
-			m_TextSection.AddInstruction("sub", "esp", "4");
+
+			ValueTypes type = NodeVariableTypeToValueType(node->left->left);
+			int size = 4;
+
+			Publicity publicity = Publicity::Local;
+			if (node->left->type == ASTTypes::GlobalVariableDeclaration)
+			{
+				// If not in the global scope
+				if (node->parent == nullptr || node->parent->parent->type != ASTTypes::ProgramBody)
+					return MakeError("Global variable declaration has to be at the global scope in the file");
+
+				publicity = Publicity::Global;
+			}
+
+			AssemblyCompilerContext::Variable variable = m_Context.CreateVariable(name, type, size, publicity);
+
+			if (variable.m_Publicity == Publicity::Global)
+			{
+				m_DataSection.AddLine(variable.m_MangledName + " " + "DD 0");
+				m_TextSection.AddInstruction("mov", "dword [" + variable.m_MangledName + "]", "eax");
+			}
+			else
+			{
+				m_TextSection.AddInstruction("mov", "dword [ebp - " + std::to_string(variable.m_Index) + "]", "eax");
+				m_TextSection.AddInstruction("sub", "esp", "4");
+			}
 
 			return;
 		}
@@ -620,8 +677,7 @@ void AssemblyCompiler::Compile(ASTNode* node)
 			// Pop the arguments and store in a register
 			// The index for the argument is the base pointer + 8 + 4n
 			// The first arg would be at +4, but because we have to push ebp as the first thing in the function, it is +8
-			
-			int indexOfArg;
+
 			m_TextSection.AddInstruction("mov", "eax", "[ebp + " + std::to_string(8 + 4 * (i - 2)) + "]");
 			Compile(variableDeclaration);
 

@@ -14,6 +14,7 @@ std::string ASTNode::ToString(bool includeData)
 	std::string names[] = {
 		"Empty",
 		"VariableDeclaration",
+		"GlobalVariableDeclaration",
 		"VariableType",
 		"Assign",
 		"PropertyAssign",
@@ -776,14 +777,26 @@ bool Parser::IsValidFunctionCallExpression(Tokens tokens)
 	return true;
 }
 
-// {type} {variable}
+// {type} {variable} or global {type} {variable}
 bool Parser::IsValidVariableDeclarationExpression(Tokens tokens)
 {
-	if (!tokens[0].IsVariableType())
-		return false;
+	if (tokens[0].m_Type == Token::Global)
+	{
+		if (!tokens[1].IsVariableType())
+			return MakeError("Expected a type after 'global' keyword in variable declaration");
 
-	if (!ElementExists(tokens, 1) || tokens[1].m_Type != Token::Variable)
-		return MakeError("Expected a variable after variable type");
+		if (!ElementExists(tokens, 2) || tokens[2].m_Type != Token::Variable)
+			return MakeError("Expected a variable after variable type");
+	}
+	else
+	{
+		if (!tokens[0].IsVariableType())
+			return false;
+
+		if (!ElementExists(tokens, 1) || tokens[1].m_Type != Token::Variable)
+			return MakeError("Expected a variable after variable type");
+	}
+
 	return true;
 }
 
@@ -1077,7 +1090,7 @@ bool Parser::ParseFunctionDeclaration(Tokens& tokens, ASTNode* node)
 		if (tokens[i].m_Type == Token::RightArrow)
 		{
 			if (tokens[i].m_Depth != 0)
-				MakeError("Function declaration has to be at the global scope");
+				return MakeError("Function declaration has to be at the global scope");
 				
 			//if (!IsValidAssignmentExpression(tokens, i))
 				//return false;
@@ -1100,6 +1113,10 @@ bool Parser::ParseFunctionDeclaration(Tokens& tokens, ASTNode* node)
 
 			CreateAST(functionBody, node->right, node);
 			if (HasError()) return false;
+
+			auto& bodyLines = node->right->arguments;
+			if (bodyLines.empty() || bodyLines[bodyLines.size() - 1]->type != ASTTypes::Return)
+				return MakeError("Missing return at end of function");
 
 			return true;
 		}
@@ -1314,15 +1331,28 @@ bool Parser::ParseVariableDeclaration(Tokens& tokens, ASTNode* node)
 {
 	if (!IsValidVariableDeclarationExpression(tokens))
 		return false;
-
-	node->type = ASTTypes::VariableDeclaration;
+	
+	// Variable type
 	node->left = new ASTNode;
 	node->left->type = ASTTypes::VariableType;
-	node->left->stringValue = tokens[0].m_Value;
 
+	// Variabe name
 	node->right = new ASTNode;
 	node->right->type = ASTTypes::Variable;
-	node->right->stringValue = tokens[1].m_Value;
+
+	// Global variable
+	if (tokens[0].m_Type == Token::Global)
+	{
+		node->type = ASTTypes::GlobalVariableDeclaration;
+		node->left->stringValue = tokens[1].m_Value;
+		node->right->stringValue = tokens[2].m_Value;
+	}
+	else
+	{
+		node->type = ASTTypes::VariableDeclaration;
+		node->left->stringValue = tokens[0].m_Value;
+		node->right->stringValue = tokens[1].m_Value;
+	}
 
 	return true;
 }

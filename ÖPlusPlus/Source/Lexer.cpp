@@ -70,6 +70,7 @@ std::string Token::ToString()
 		"Break",
 		"Continue",
 		"Return",
+		"Global"
 	};
 
 	return names[(int)m_Type];
@@ -312,6 +313,8 @@ Token ResolveTokenKeyword(Token tok)
 		token.m_Type = Token::Continue;
 	else if (token.m_Value == "break")
 		token.m_Type = Token::Break;
+	else if (token.m_Value == "global")
+		token.m_Type = Token::Global;
 	else if (token.m_Value == "and")
 		token.m_Type = Token::And;
 	else if (token.m_Value == "or")

@@ -1,8 +1,11 @@
-int global;
-global = 99;
-
 int f() => {
-	int global;
+	return pi * 2;
 };
 
-printf("%i", global);
+global int pi;
+global int its;
+
+pi = 3;
+its = 0;
+
+printf("%i", f());

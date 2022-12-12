@@ -11,6 +11,7 @@ enum class ASTTypes
 {
 	Empty,
 	VariableDeclaration,
+	GlobalVariableDeclaration,
 	VariableType,
 	Assign,
 	PropertyAssign,

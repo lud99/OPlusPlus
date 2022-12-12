@@ -46,6 +46,7 @@ enum class Publicity
 	Global
 };
 
+class AssemblyCompilerContext;
 class AssemblyCompilerContext
 {
 public:
@@ -99,6 +100,8 @@ public:
 	uint32_t m_CurrentVariableIndex = 0;
 
 	LoopInfo m_LoopInfo;
+
+	AssemblyCompilerContext* m_GlobalContext = nullptr;
 };
 
 class AssemblyCompiler
@@ -116,6 +119,7 @@ public:
 	Section m_TextSection;
 
 	AssemblyCompilerContext m_Context;
+	AssemblyCompilerContext m_GlobalContext;
 
 	std::string m_Error;
 };
