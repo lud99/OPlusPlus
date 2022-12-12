@@ -1,8 +1,5 @@
-int f() => {
-	return 9 / 3;
+int f(int arg) => {
+	return arg - 10;
 };
 
-f();
-int r = f();
-
-printf("hej %x", r);
+printf("hej %i", f(2));

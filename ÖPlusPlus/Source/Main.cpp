@@ -102,7 +102,7 @@ int main()
 	AssemblyRunner runner(filepath);
 	runner.Compile();
 
-	std::cout << "Code: " << runner.GetCompiledCode() << "\n";
+	std::cout << "Code:\n" << runner.GetCompiledCode() << "\n";
 
 	std::cout << "Program output: " << runner.Execute() << "\n";
 #endif

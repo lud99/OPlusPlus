@@ -4,13 +4,15 @@
 
 void CreateNewCallFrame(Section& section)
 {
-	section.AddInstruction("push", "ebp", "", "save old top of stack");
-	section.AddInstruction("mov", "ebp", "esp", "current top of stack is bottom of new stack frame");
+	section.AddComment("Create call frame");
+	section.AddInstruction("push", "ebp");
+	section.AddInstruction("mov", "ebp", "esp");
 }
 void RestoreOldCallFrame(Section& section)
 {
-	section.AddInstruction("mov", "esp", "ebp", "restore esp, now points to old ebp(start of frame)");
-	section.AddInstruction("pop", "ebp", "", "restore old ebp");
+	section.AddComment("Restore call frame");
+	section.AddInstruction("mov", "esp", "ebp");
+	section.AddInstruction("pop", "ebp");
 }
 
 bool ResultCanBeDiscarded(ASTNode* node)
@@ -155,9 +157,6 @@ void AssemblyCompiler::Compile(ASTNode* node)
 	}
 	case ASTTypes::Scope:
 	{
-		/*m_TextSection.AddLine("push ebp; save old top of stack");
-		m_TextSection.AddLine("mov ebp, esp; current top of stack is bottom of new stack frame");*/
-
 		AssemblyCompilerContext prevContext = m_Context;
 			
 		for (int i = 0; i < node->arguments.size(); i++)
@@ -169,9 +168,6 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		}
 
 		m_Context = prevContext;
-
-		/*m_TextSection.AddLine("mov esp, ebp; restore esp, now points to old ebp(start of frame)");
-		m_TextSection.AddLine("pop ebp; restore old ebp");*/
 	}
 	case ASTTypes::Empty:
 		break;
@@ -396,7 +392,19 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		{
 			int variableIndex = m_Context.GetVariable("arg" + std::to_string(i)).m_Index;
 			m_TextSection.AddInstruction("mov", argumentRegisters[i], "dword [ebp - " + std::to_string(variableIndex) + "]", "evaluated argument");
+
+			// Delete the temporary argument variable. The index will still be occupied, but the name will be free
+			m_Context.DeleteVariable("arg" + std::to_string(i));
 		}
+
+		// Push caller-saved registers
+		// Before calling a subroutine, the caller should save the contents of certain registers that are designated caller-saved. 
+		// The caller-saved registers are EAX, ECX, EDX. Since the called subroutine is allowed to modify these registers, if the caller relies on their values after the subroutine returns, 
+		// the caller must push the values in these registers onto the stack (so they can be restore after the subroutine returns.
+
+		//m_TextSection.AddInstruction("push", "eax");
+		m_TextSection.AddInstruction("push", "ecx");
+		m_TextSection.AddInstruction("push", "edx");
 
 		CreateNewCallFrame(m_TextSection);
 
@@ -413,6 +421,12 @@ void AssemblyCompiler::Compile(ASTNode* node)
 
 		RestoreOldCallFrame(m_TextSection);
 
+		// Restore the contents of caller-saved registers (EAX, ECX, EDX) by popping them off of the stack. 
+		// The caller can assume that no other registers were modified by the subroutine.
+		m_TextSection.AddInstruction("pop", "edx");
+		m_TextSection.AddInstruction("pop", "ecx");
+		//m_TextSection.AddInstruction("pop", "eax"); // Should be required, but we don't care about the old eax (most likely)
+
 		if (!ResultCanBeDiscarded(node))
 			m_TextSection.AddInstruction("push", "eax");
 	}
@@ -422,6 +436,20 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		Compile(node->left);
 
 		m_TextSection.AddInstruction("pop", "eax");
+
+		m_TextSection.AddComment("Subroutine Epilogue");
+
+		// Before returning, we need to restore the old values of callee-saved registers (EDI, ESI and EBX)
+		m_TextSection.AddComment("Restore calle-saved registers");
+		m_TextSection.AddInstruction("pop", "ebx");
+		m_TextSection.AddInstruction("pop", "edi");
+		m_TextSection.AddInstruction("pop", "esi");
+
+		// Deallocate local variables. Restores the stack pointer to the base where the first variable is
+		m_TextSection.AddInstruction("mov", "esp", "ebp", "deallocate local varibales");
+
+		m_TextSection.AddInstruction("pop", "ebp", "", "restore old base pointer");
+
 		m_TextSection.AddInstruction("ret");
 	}
 		break;
@@ -512,8 +540,9 @@ void AssemblyCompiler::Compile(ASTNode* node)
 	}
 	case ASTTypes::FunctionDefinition:
 	{
-		ValueTypes returnType = NodeVariableTypeToValueType(node->left->arguments[0]);
-		const std::string& name = node->left->arguments[1]->stringValue;
+		ASTNode* functionPrototype = node->left;
+		ValueTypes returnType = NodeVariableTypeToValueType(functionPrototype->arguments[0]);
+		const std::string& name = functionPrototype->arguments[1]->stringValue;
 
 		if (m_Context.HasFunction(name))
 			return MakeError("Function '" + name + "' has already been defined");
@@ -522,7 +551,42 @@ void AssemblyCompiler::Compile(ASTNode* node)
 
 		m_TextSection.AddLabel(name + ":");
 
+		m_TextSection.AddComment("Subroutine Prologue");
+
+		CreateNewCallFrame(m_TextSection);
+
+		// Next, save the values of the callee-saved registers that will be used by the function. To save registers, push them onto the stack. 
+		// The callee-saved registers are EBX, EDI, and ESI (ESP and EBP will also be preserved by the calling convention, but need not be pushed on the stack during this step).
+		m_TextSection.AddInstruction("push", "ebx");
+		m_TextSection.AddInstruction("push", "edi");
+		m_TextSection.AddInstruction("push", "esi");
+
+		// New context for function
+		AssemblyCompilerContext ctx = m_Context;
+
+		m_TextSection.AddComment("Get arguments");
+		// Compile arguments
+		for (int i = 2; i < functionPrototype->arguments.size(); i++)
+		{
+			ASTNode* variableDeclaration = functionPrototype->arguments[i];
+
+			// Pop the arguments and store in a register
+			// The index for the argument is the base pointer + 8 + 4n
+			// The first arg would be at +4, but because we have to push ebp as the first thing in the function, it is +8
+			
+			int indexOfArg;
+			m_TextSection.AddInstruction("mov", "eax", "[ebp + " + std::to_string(8 + 4 * (i - 2)) + "]");
+			Compile(variableDeclaration);
+
+			// Change the instruction that stores 0 into the variable to use the eax register instead
+			m_TextSection.GetLines()[m_TextSection.GetLines().size() - 2].m_Src = "eax";
+		}
+
+		m_TextSection.AddComment("");
+		m_TextSection.AddComment("Body");
 		Compile(node->right);
+
+		m_Context = ctx;
 	}
 		break;
 	case ASTTypes::FunctionPrototype:
@@ -555,27 +619,36 @@ void AssemblyCompiler::Optimize()
 		Instruction prevInst;
 
 		// Bad code for getting the previous line that isn't a blank or comment
-		int j = i - 1;
-		while (j >= 0 && lines[j].m_Op == "")
+		int prevInstIndex = i - 1;
+		while (prevInstIndex >= 0 && lines[prevInstIndex].m_Op == "")
 		{
-			if (j > 0) j--;
+			if (prevInstIndex > 0) prevInstIndex--;
 		}
 
-		if (j >= 0) prevInst = lines[j];
+		if (prevInstIndex >= 0) prevInst = lines[prevInstIndex];
 
+		// Unneeded stack operations
 		if (prevInst.m_Op == "push" && inst.m_Op == "pop")
 		{
 			if (inst.m_Dest == prevInst.m_Dest && inst.m_Src == prevInst.m_Src)
 			{
-				linesToRemove.push_back(j);
+				linesToRemove.push_back(prevInstIndex);
 				linesToRemove.push_back(i);
 			}
 		}
 
+		// Remove push op that segfaults when returning
 		if (prevInst.m_Op == "push" && inst.m_Op == "ret")
 		{
-			linesToRemove.push_back(j);
+			linesToRemove.push_back(prevInstIndex);
 		}
+
+		// Adding 0
+		if (inst.m_Op == "add" && inst.m_Src == "0")
+			linesToRemove.push_back(i);
+		// Subtracting 0
+		if (inst.m_Op == "sub" && inst.m_Src == "0")
+			linesToRemove.push_back(i);
 	}
 
 	std::vector<Instruction> newInstructions;
@@ -621,6 +694,13 @@ AssemblyCompilerContext::Variable& AssemblyCompilerContext::CreateVariable(const
 
 	m_Variables[variableName] = var;
 	return m_Variables[variableName];
+}
+
+bool AssemblyCompilerContext::DeleteVariable(const std::string& variableName)
+{
+	assert(HasVariable(variableName));
+	m_Variables.erase(variableName);
+	return true;
 }
 
 bool AssemblyCompilerContext::HasFunction(const std::string& functionName)

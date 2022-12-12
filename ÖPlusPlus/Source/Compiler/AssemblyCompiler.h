@@ -76,6 +76,7 @@ public:
 	bool HasVariable(const std::string& variableName);
 	Variable& GetVariable(const std::string& variableName);
 	Variable& CreateVariable(const std::string& variableName, ValueTypes type, int size = 4);
+	bool DeleteVariable(const std::string& variableName);
 
 	bool HasFunction(const std::string& functionName);
 	Function& GetFunction(const std::string& functionName);
