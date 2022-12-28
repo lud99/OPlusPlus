@@ -1,0 +1,3 @@
+CEXTERN rand
+CEXTERN time
+CEXTERN srand

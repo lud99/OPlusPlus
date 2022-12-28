@@ -1,0 +1,75 @@
+
+rand_range:
+	; Subroutine Prologue
+	; Create call frame
+	push ebp
+	mov ebp, esp
+	push ebx
+	; Get arguments
+	mov eax, [ebp + 8]
+	mov dword [ebp - 4], eax
+	sub esp, 4
+	mov eax, [ebp + 12]
+	mov dword [ebp - 8], eax
+	sub esp, 4
+	
+	; Body
+	; push rhs and lhs
+	mov eax, [ebp - 4]
+	push eax
+	mov eax, [ebp - 8]
+	pop ebx
+	; math operation
+	sub eax, ebx
+	push eax
+	
+	; push rhs
+	mov eax, 1
+	pop ebx
+	; math operation
+	add eax, ebx
+	push eax
+	
+	; push lhs
+	mov eax, 32767
+	pop ebx
+	; math operation
+	mov edx, 0
+	idiv ebx
+	push eax
+	
+	; push rhs
+	mov eax, 1
+	pop ebx
+	; math operation
+	add eax, ebx
+	push eax
+	
+	; push lhs
+	push edx
+	; Create call frame
+	push ebp
+	mov ebp, esp
+	call rand
+	; Restore call frame
+	mov esp, ebp
+	pop ebp
+	pop edx
+	pop ebx
+	; math operation
+	mov edx, 0
+	idiv ebx
+	push eax
+	
+	; push lhs
+	mov eax, [ebp - 4]
+	pop ebx
+	; math operation
+	add eax, ebx
+	
+	; Subroutine Epilogue
+	; Restore calle-saved registers
+	pop ebx
+	mov esp, ebp ; deallocate local varibales
+	pop ebp ; restore old base pointer
+	ret

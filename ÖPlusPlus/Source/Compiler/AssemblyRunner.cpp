@@ -21,11 +21,11 @@ AssemblyRunner::AssemblyRunner(const std::string& filepath)
 	m_Filepath = filepath;
 }
 
-void AssemblyRunner::Compile()
+std::string AssemblyRunner::Compile()
 {
 	std::ifstream file(m_Filepath);
 	if (!file.good())
-		std::cout << "Couldn't open file " << m_Filepath << "\n\n";
+		return "File Error: Couldn't open file " + m_Filepath;
 
 	std::string fileContent = "";
 	for (std::string line; std::getline(file, line);)
@@ -36,7 +36,7 @@ void AssemblyRunner::Compile()
 	Lexer lexer;
 	std::string error = lexer.CreateTokens(fileContent);
 	if (error != "")
-		std::cout << error << "\n\n";
+		return "Lexer Error: " + error;
 
 	for (int i = 0; i < lexer.m_Tokens.size(); i++)
 		std::cout << lexer.m_Tokens[i].ToString() << ": " << lexer.m_Tokens[i].m_Value << " [" << lexer.m_Tokens[i].m_Depth << "]\n";
@@ -51,16 +51,19 @@ void AssemblyRunner::Compile()
 	parser.CreateAST(lexer.m_Tokens, &tree, tree.parent);
 
 	if (parser.m_Error != "")
-		std::cout << "AST Error: " << parser.m_Error << "\n";
+		return "AST Error: " + parser.m_Error;
 
 	parser.PrintASTTree(tree.parent, 0);
 
 	m_Compiler.Compile(tree.parent);
 	m_Compiler.Optimize();
 
-	if (m_Compiler.m_Error != "") std::cout << "\nASM Compiler error: " << m_Compiler.m_Error << "\n";
+	if (m_Compiler.m_Error != "") 
+		return "ASM Compiler Error: " + m_Compiler.m_Error;
 
-	m_Code += "%include \"io.inc\"\n\n";
+	m_Code += "%include \"io.inc\"\n";
+	m_Code += "%include \"stdlib.inc\"\n";
+	m_Code += "%include \"functions.inc\"\n\n";
 
 	m_Code += "section .data\n";
 	for (int i = 0; i < m_Compiler.m_DataSection.GetLines().size(); i++)
@@ -83,6 +86,8 @@ void AssemblyRunner::Compile()
 		else
 			m_Code += inst.ToString() + "\n";
 	}
+
+	return m_Compiler.m_Error;
 }
 
 std::string AssemblyRunner::Execute()

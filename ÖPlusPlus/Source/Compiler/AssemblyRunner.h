@@ -11,11 +11,13 @@ public:
 
 	AssemblyRunner(const std::string& filepath);
 
-	void Compile();
+	std::string Compile();
 
 	std::string Execute();
 
 	const std::string& GetCompiledCode() { return m_Code; }
+
+	AssemblyCompiler& GetCompiler() { return m_Compiler; }
 private:
 	AssemblyCompiler m_Compiler;
 
