@@ -74,6 +74,26 @@ ValueTypes NodeVariableTypeToValueType(ASTNode* n)
 	return ValueTypes::Void;
 }
 
+bool IsGlobalVariableDeclaration(ASTNode* n)
+{
+	return (n->type == ASTTypes::GlobalVariableDeclaration ||
+		(n->type == ASTTypes::Assign && n->left->type == ASTTypes::GlobalVariableDeclaration));
+}
+
+bool HasPriorityCompilation(ASTNode* n)
+{
+	if (n->type == ASTTypes::GlobalVariableDeclaration ||
+		(n->type == ASTTypes::Assign && n->left->type == ASTTypes::GlobalVariableDeclaration))
+	{
+		return true;
+	}
+
+	if (n->type == ASTTypes::FunctionDefinition)
+		return true;
+
+	return false;
+}
+
 void Section::AddInstruction(Instruction inst)
 {
 	m_Lines.push_back(inst);
@@ -157,34 +177,52 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		m_TextSection.AddComment("");
 	};
 
+	if (m_Error != "")
+		return;
+
 	switch (node->type)
 	{
 	case ASTTypes::ProgramBody:
 	{
+		m_TextSection.AddLabel("global CMAIN");
+		m_TextSection.AddLabel("CMAIN:");
+		CreateNewCallFrame(m_TextSection);
+
 		// Look for functions and compile them before the main program
-		// TODO: global variable constants
 
 		// Compile global constant declarations as the first thing
 		for (int i = 0; i < node->left->arguments.size(); i++)
 		{
+			// Prioritize compiling global variable declarations and declaration + assignment
+			// Functions compile in the next pass
 			ASTNode* n = node->left->arguments[i];
-
-			if (n->type == ASTTypes::GlobalVariableDeclaration ||
-				(n->type == ASTTypes::Assign && n->left->type == ASTTypes::GlobalVariableDeclaration))
+			if (IsGlobalVariableDeclaration(n))
 			{
+				m_TextSection.AddComment("Set value of global variable");
 				Compile(n);
 			}
+				
 		}
 
+		// Weird hack to compile the function definitions after the variables, but place the generated code before them
+		Section mainTextSection = m_TextSection;
+		auto& functionText = m_TextSection.GetLines();
+		functionText.clear(); // Reset the compiled code
+
+		// Compile function definitions
 		for (int i = 0; i < node->left->arguments.size(); i++)
 		{
-			if (node->left->arguments[i]->type == ASTTypes::FunctionDefinition)
-				Compile(node->left->arguments[i]);
+			ASTNode* n = node->left->arguments[i];
+			if (n->type == ASTTypes::FunctionDefinition)
+				Compile(n);
 		}
 
-		m_TextSection.AddLabel("global CMAIN");
-		m_TextSection.AddLabel("CMAIN:");
-		CreateNewCallFrame(m_TextSection);
+		auto& mainText = mainTextSection.GetLines();
+
+		// Insert function code before the main code, in the main code vector
+		mainText.insert(std::begin(mainText), std::begin(functionText), std::end(functionText));
+
+		m_TextSection = mainTextSection;
 
 		Compile(left);
 
@@ -197,32 +235,18 @@ void AssemblyCompiler::Compile(ASTNode* node)
 	{
 		AssemblyCompilerContext prevContext = m_Context;
 
-		// First compile global variables
-		/*std::vector<ASTNode*> linesToCompile;
 		for (int i = 0; i < node->arguments.size(); i++)
 		{
 			ASTNode* n = node->arguments[i];
 
-			if (n->type == ASTTypes::GlobalVariableDeclaration ||
-				(n->type == ASTTypes::Assign && n->left->type == ASTTypes::GlobalVariableDeclaration))
-			{
-				Compile(n);
-			}
-			else 
-			{
-				linesToCompile.push_back(n);
-			}
-		}*/
-			
-		for (int i = 0; i < node->arguments.size(); i++)
-		{
-			ASTNode* n = node->arguments[i];
-
-			if (n->type != ASTTypes::FunctionDefinition && n->type != ASTTypes::GlobalVariableDeclaration)
+			if (n->type != ASTTypes::FunctionDefinition && !IsGlobalVariableDeclaration(n))
 				Compile(n);
 		}
 
+		int labelIndex = m_Context.m_LoopInfo.labelIndex;
+
 		m_Context = prevContext;
+		m_Context.m_LoopInfo.labelIndex = labelIndex;
 	}
 	case ASTTypes::Empty:
 		break;
@@ -254,7 +278,7 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		}
 		else 
 		{
-			m_TextSection.AddInstruction("mov", "dword [ebp - " + std::to_string(variable.m_Index) + "]", "0");
+			m_TextSection.AddInstruction("mov", variable.GetASMLocation("dword"), "0");
 			m_TextSection.AddInstruction("sub", "esp", "4");
 		}
 
@@ -292,11 +316,11 @@ void AssemblyCompiler::Compile(ASTNode* node)
 			if (variable.m_Publicity == Publicity::Global)
 			{
 				m_DataSection.AddLine(variable.m_MangledName + " " + "DD 0");
-				m_TextSection.AddInstruction("mov", "dword [" + variable.m_MangledName + "]", "eax");
+				m_TextSection.AddInstruction("mov", variable.GetASMLocation("dword"), "eax");
 			}
 			else
 			{
-				m_TextSection.AddInstruction("mov", "dword [ebp - " + std::to_string(variable.m_Index) + "]", "eax");
+				m_TextSection.AddInstruction("mov", variable.GetASMLocation("dword"), "eax");
 				m_TextSection.AddInstruction("sub", "esp", "4");
 			}
 
@@ -359,6 +383,8 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		break;
 	case ASTTypes::StringLiteral:
 	{
+		// TODO: Store string in global variable
+		// 
 		// Allocate space for string
 		const std::string& str = node->stringValue;
 
@@ -370,7 +396,8 @@ void AssemblyCompiler::Compile(ASTNode* node)
 
 		for (int i = str.length() - 1; i >= 0; i--)
 		{
-			m_TextSection.AddInstruction("mov", "byte [ebp - " + std::to_string(m_Context.Allocate(1)) + "]", "\"" + std::string(1, str[i]) + "\"");
+			// (`) are required instead of (") for escape codes to work, like newlines
+			m_TextSection.AddInstruction("mov", "byte [ebp - " + std::to_string(m_Context.Allocate(1)) + "]", "\`" + std::string(1, str[i]) + "\`");
 		}
 
 		int indexOfFirstCharacter = m_Context.m_CurrentVariableIndex;
@@ -396,10 +423,7 @@ void AssemblyCompiler::Compile(ASTNode* node)
 
 		AssemblyCompilerContext::Variable variable = m_Context.GetVariable(variableName);
 
-		if (variable.m_Publicity == Publicity::Global)
-			m_TextSection.AddInstruction("mov", "eax", "[" + variable.m_MangledName + "]");
-		else
-			m_TextSection.AddInstruction("mov", "eax", "[ebp - " + std::to_string(variable.m_Index) + "]");
+		m_TextSection.AddInstruction("mov", "eax", variable.GetASMLocation());
 
 		m_TextSection.AddInstruction("push", "eax");
 	}
@@ -458,7 +482,7 @@ void AssemblyCompiler::Compile(ASTNode* node)
 
 		std::string opcode = node->type == ASTTypes::PostIncrement ? "inc" : "dec";
 
-		m_TextSection.AddInstruction(opcode, "dword [ebp - " + std::to_string(variable.m_Index) + "]");
+		m_TextSection.AddInstruction(opcode, variable.GetASMLocation("dword"));
 		break;
 	}
 	case ASTTypes::PreIncrement:
@@ -485,17 +509,17 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		{
 			Compile(node->arguments[i]);
 
-			int variableIndex = m_Context.CreateVariable("arg" + std::to_string(i), ValueTypes::Integer /* todo */, 4).m_Index;
+			auto& variable = m_Context.CreateVariable("arg" + std::to_string(i), ValueTypes::Integer /* todo */, 4);
 
-			m_TextSection.AddInstruction("mov", "dword [ebp - " + std::to_string(variableIndex) + "]", "eax", "store argument");
+			m_TextSection.AddInstruction("mov", variable.GetASMLocation("dword"), "eax", "store argument");
 			m_TextSection.AddInstruction("sub", "esp", "4");
 		}
 
 		// The value of the evaluated arguments are stored in registers
 		for (int i = node->arguments.size() - 1; i >= 0; i--)
 		{
-			int variableIndex = m_Context.GetVariable("arg" + std::to_string(i)).m_Index;
-			m_TextSection.AddInstruction("mov", argumentRegisters[i], "dword [ebp - " + std::to_string(variableIndex) + "]", "evaluated argument");
+			auto& variable = m_Context.GetVariable("arg" + std::to_string(i));
+			m_TextSection.AddInstruction("mov", argumentRegisters[i], variable.GetASMLocation("dword"), "evaluated argument");
 
 			// Delete the temporary argument variable. The index will still be occupied, but the name will be free
 			m_Context.DeleteVariable("arg" + std::to_string(i));
@@ -518,6 +542,12 @@ void AssemblyCompiler::Compile(ASTNode* node)
 			m_TextSection.AddInstruction("push", argumentRegisters[i]);
 		}
 
+		std::string functionName = node->stringValue;
+
+		// printf -> print
+		if (functionName == "printf")
+			functionName = "print";
+
 		m_TextSection.AddInstruction("call", node->stringValue);
 
 		// Remove the arguments from the stack
@@ -528,7 +558,7 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		// Restore the contents of caller-saved registers (EAX, ECX, EDX) by popping them off of the stack. 
 		// The caller can assume that no other registers were modified by the subroutine.
 		m_TextSection.AddInstruction("pop", "edx");
-		//m_TextSection.AddInstruction("pop", "ecx");
+		//m_TextSection.AddInstruction("pop", "ecx"); // TODO: The ecx register is never used by this compiler 
 		//m_TextSection.AddInstruction("pop", "eax"); // Should be required, but we don't care about the old eax (most likely)
 
 		if (!ResultCanBeDiscarded(node))
@@ -562,35 +592,38 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		if (node->parent->type != ASTTypes::Else)
 			m_Context.m_LoopInfo.labelIndex++;
 
+		int labelIndex = m_Context.m_LoopInfo.labelIndex;
+
 		Compile(node->left);
 
 		std::string jmpInstruction = ComparisonTypeToJumpInstruction(node->left->type);
 
 		if (node->parent->type != ASTTypes::Else)
-			m_TextSection.AddInstruction(jmpInstruction, "if_end" + std::to_string(m_Context.m_LoopInfo.labelIndex));
+			m_TextSection.AddInstruction(jmpInstruction, "if_end" + std::to_string(labelIndex));
 		else
-			m_TextSection.AddInstruction(jmpInstruction, "if_else" + std::to_string(m_Context.m_LoopInfo.labelIndex));
+			m_TextSection.AddInstruction(jmpInstruction, "if_else" + std::to_string(labelIndex));
 
 		Compile(node->right);
 
 		if (node->parent->type != ASTTypes::Else)
-			m_TextSection.AddLabel("if_end" + std::to_string(m_Context.m_LoopInfo.labelIndex) + ":");
+			m_TextSection.AddLabel("if_end" + std::to_string(labelIndex) + ":");
 	
 		break;
 	}
 	case ASTTypes::Else:
 	{
 		m_Context.m_LoopInfo.labelIndex++;
+		int labelIndex = m_Context.m_LoopInfo.labelIndex;
 
 		Compile(node->left);
 
-		m_TextSection.AddInstruction("jmp", "if_end" + std::to_string(m_Context.m_LoopInfo.labelIndex));
+		m_TextSection.AddInstruction("jmp", "if_end" + std::to_string(labelIndex));
 
-		m_TextSection.AddLabel("if_else" + std::to_string(m_Context.m_LoopInfo.labelIndex) + ":");
+		m_TextSection.AddLabel("if_else" + std::to_string(labelIndex) + ":");
 
 		Compile(node->right);
 
-		m_TextSection.AddLabel("if_end" + std::to_string(m_Context.m_LoopInfo.labelIndex) + ":");
+		m_TextSection.AddLabel("if_end" + std::to_string(labelIndex) + ":");
 
 		break;
 	}
@@ -598,19 +631,21 @@ void AssemblyCompiler::Compile(ASTNode* node)
 	{
 		m_Context.m_LoopInfo.labelIndex++;
 
-		m_TextSection.AddLabel("while_start" + std::to_string(m_Context.m_LoopInfo.labelIndex) + ":");
+		int labelIndex = m_Context.m_LoopInfo.labelIndex;
+
+		m_TextSection.AddLabel("while_start" + std::to_string(labelIndex) + ":");
 
 		Compile(node->left);
 
 		std::string jmpInstruction = ComparisonTypeToJumpInstruction(node->left->type);
 
-		m_TextSection.AddInstruction(jmpInstruction, "while_end" + std::to_string(m_Context.m_LoopInfo.labelIndex));
+		m_TextSection.AddInstruction(jmpInstruction, "while_end" + std::to_string(labelIndex));
 
 		Compile(node->right);
 
-		m_TextSection.AddInstruction("jmp", "while_start" + std::to_string(m_Context.m_LoopInfo.labelIndex));
-		
-		m_TextSection.AddLabel("while_end" + std::to_string(m_Context.m_LoopInfo.labelIndex) + ":");
+		m_TextSection.AddInstruction("jmp", "while_start" + std::to_string(labelIndex));
+
+		m_TextSection.AddLabel("while_end" + std::to_string(labelIndex) + ":");
 
 		break;
 	}
@@ -621,14 +656,17 @@ void AssemblyCompiler::Compile(ASTNode* node)
 
 		// 2. Condition
 		m_Context.m_LoopInfo.labelIndex++;
-		m_TextSection.AddLabel("for_start" + std::to_string(m_Context.m_LoopInfo.labelIndex) + ":");
 
-		Compile(node->arguments[1]); 
-		
+		int labelIndex = m_Context.m_LoopInfo.labelIndex;
+
+		m_TextSection.AddLabel("for_start" + std::to_string(labelIndex) + ":");
+
+		Compile(node->arguments[1]);
+
 		// Skip loop if condition is false
 		std::string jmpInstruction = ComparisonTypeToJumpInstruction(node->arguments[1]->type);
-		m_TextSection.AddInstruction(jmpInstruction, "for_end" + std::to_string(m_Context.m_LoopInfo.labelIndex));
-		
+		m_TextSection.AddInstruction(jmpInstruction, "for_end" + std::to_string(labelIndex));
+
 		// Body
 		Compile(node->right);
 
@@ -636,9 +674,9 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		Compile(node->arguments[2]);
 
 		// Jump back to condition
-		m_TextSection.AddInstruction("jmp", "for_start" + std::to_string(m_Context.m_LoopInfo.labelIndex));
+		m_TextSection.AddInstruction("jmp", "for_start" + std::to_string(labelIndex));
 
-		m_TextSection.AddLabel("for_end" + std::to_string(m_Context.m_LoopInfo.labelIndex) + ":");
+		m_TextSection.AddLabel("for_end" + std::to_string(labelIndex) + ":");
 
 		break;
 	}
@@ -675,7 +713,7 @@ void AssemblyCompiler::Compile(ASTNode* node)
 			ASTNode* variableDeclaration = functionPrototype->arguments[i];
 
 			// Pop the arguments and store in a register
-			// The index for the argument is the base pointer + 8 + 4n
+			// The index for the argument is the base pointer + 8 + 4n (n = 0,1,2,3...)
 			// The first arg would be at +4, but because we have to push ebp as the first thing in the function, it is +8
 
 			m_TextSection.AddInstruction("mov", "eax", "[ebp + " + std::to_string(8 + 4 * (i - 2)) + "]");
@@ -865,5 +903,31 @@ std::string Instruction::ToString()
 	if (m_Comment != "" && m_IsOnlyComment)
 		s += "; " + m_Comment;
 
-	return s;
+	std::string newS = "";
+	for (int i = 0; i < s.length(); i++)
+	{
+		if (s[i] == '\n')
+		{
+			newS += "\\n";
+		}
+		else
+		{
+			newS += s[i];
+		}
+	}
+
+	return newS;
+}
+
+std::string AssemblyCompilerContext::Variable::GetASMLocation(const std::string& datatype)
+{
+	std::string prefix = datatype == "" ? "" : (datatype + " ");
+
+	if (m_Publicity == Publicity::Global)
+		return prefix + "[" + m_MangledName + "]";
+	else
+		return prefix + "[ebp - " + std::to_string(m_Index) + "]";
+	
+	abort();
+	return "";
 }
