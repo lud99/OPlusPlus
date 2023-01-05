@@ -6,7 +6,7 @@
 #include "ValueTypes.h"
 #include "../Parser.h"
 
-#ifdef BYTECODE_INTERPRETER
+#ifdef BYTECODE
 #include "Bytecode/Heap.h"
 #endif
 
@@ -19,7 +19,7 @@ public:
 	Value(int value, ValueTypes type);
 	Value(double value, ValueTypes type);
 	Value(std::string value, ValueTypes type);
-#ifdef BYTECODE_INTERPRETER
+#ifdef BYTECODE
 	Value(HeapEntry& value);
 	Value(HeapEntry& value, ValueTypes type) : m_HeapEntryPointer(&value), m_Type(type) {};
 #endif
@@ -81,10 +81,10 @@ public:
 
 	Flags m_Flag = Flags::None;
 
-#ifdef BYTECODE_INTERPRETER
+#ifdef BYTECODE
 	HeapEntry* m_HeapEntryPointer = nullptr;
 #endif
-#ifdef AST_INTERPRETER
+#ifdef AST
 	std::string m_Name = "";
 #endif
 

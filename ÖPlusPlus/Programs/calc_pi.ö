@@ -1,0 +1,19 @@
+/*int pi() => {
+    int inside = 0;
+    int its = 1000;
+
+    for (int i = 0, i < its, i++) {
+        int x = rand_range(-3000, 3000);
+        int y = rand_range(-3000, 3000);
+
+        if (x * x + y * y <= 3000 * 3000) {
+            inside++;
+        };
+    };
+
+    return 4 * inside / its;
+};
+
+//srand(time(0));
+
+print("%i\n", pi());*/

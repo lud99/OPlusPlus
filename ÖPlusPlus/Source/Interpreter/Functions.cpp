@@ -8,6 +8,8 @@ void Functions::InitializeDefaultFunctions()
 	//NativeFunctions["__print_stack"] = &__print_stack;
 	NativeFunctions["print"] = &print;
 	NativeFunctions["printf"] = &printf;
+	NativeFunctions["rand_range"] = &rand_range;
+	
 	/*NativeFunctions["to_string"] = &to_string;
 	NativeFunctions["to_string_raw"] = &to_string_raw;
 	NativeFunctions["to_number"] = &to_number;
@@ -61,7 +63,7 @@ void Functions::InitializeDefaultFunctions()
 
 	//NativeFunctions["get_key_down"] = &get_key_down;
 
-	srand((unsigned int)time(0));
+	srand(time(0));
 }
 
 CallableFunction Functions::GetFunctionByName(std::string name)
@@ -89,8 +91,18 @@ Value Functions::print(ARGS)
 	return Value(ValueTypes::Void);
 }
 
+Value Functions::rand_range(ARGS)
+{
+	int min = args[0].GetInt();
+	int max = args[1].GetInt();
+
+	int value = min + rand() / (RAND_MAX / (max - min + 1) + 1);
+	return Value(value, ValueTypes::Integer);
+}
+
+
 // Stub the functions if in assembly mode
-#ifdef ASM_COMPILER
+#ifdef ASM
 Value Functions::printf(ARGS) { return Value(); };
 #endif
 

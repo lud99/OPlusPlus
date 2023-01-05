@@ -548,6 +548,8 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		if (functionName == "printf")
 			functionName = "print";
 
+		// TODO: check function exists
+
 		m_TextSection.AddInstruction("call", node->stringValue);
 
 		// Remove the arguments from the stack

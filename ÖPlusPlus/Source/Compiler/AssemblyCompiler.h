@@ -6,6 +6,8 @@
 
 #include <unordered_map>
 
+#ifdef ASM
+
 struct Instruction
 {
 	std::string m_Op;
@@ -59,6 +61,8 @@ public:
 		Publicity m_Publicity;
 
 		ValueTypes m_Type = ValueTypes::Void;
+
+		std::string GetASMLocation(const std::string& datatype = "");
 
 		//Variable(int index = 0, std::string name = "", ValueTypes type = ValueTypes::Void, bool isGlobal = false) : m_Name(name), m_Index(index), m_Type(type), m_IsGlobal(isGlobal) {};
 	};
@@ -123,3 +127,5 @@ public:
 
 	std::string m_Error;
 };
+
+#endif

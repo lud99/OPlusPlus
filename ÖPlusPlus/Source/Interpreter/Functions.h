@@ -26,6 +26,9 @@ namespace Functions
 
 	Value print(ARGS);
 	Value printf(ARGS);
+	Value rand_range(ARGS);
+	//Value srand(ARGS);
+	//Value time(ARGS);
 	/*StackValue to_string(ARGS);
 	StackValue to_string_raw(ARGS);
 	StackValue to_number(ARGS);

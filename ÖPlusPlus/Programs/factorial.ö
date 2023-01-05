@@ -1,7 +1,4 @@
-int its = 0;
-
 int fact(int n) => {
-	its++;
 	if (n <= 1) {
 		return 1;
 	};
@@ -9,5 +6,4 @@ int fact(int n) => {
 	return n * fact(n - 1);
 };
 
-printf("fact(2): %i\n", fact(9));
-printf("its: %i\n", its);
+printf("9! = %i\n", fact(9));

@@ -4,4 +4,7 @@ int b = 3;
 while (a < 10) {
 	b++;
 	a++;
-}
+};
+
+printf("%i\n", a);
+printf("%i\n", b);

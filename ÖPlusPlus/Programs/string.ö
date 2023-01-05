@@ -1,3 +1,0 @@
-string s = "dinosaur %x";
-
-printf(s, 4);

@@ -4,6 +4,8 @@
 
 #include <string>
 
+#ifdef ASM
+
 class AssemblyRunner
 {
 public:
@@ -25,3 +27,5 @@ private:
 
 	std::string m_Code;
 };
+
+#endif

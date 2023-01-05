@@ -3,10 +3,10 @@
 #include <iostream>
 #include <assert.h>
 
-#ifdef AST_INTERPRETER
+#ifdef AST
 #include "AST/ASTInterpreter.h"
 #endif
-#ifdef BYTECODE_INTERPRETER
+#ifdef BYTECODE
 #include "Bytecode/BytecodeInterpreter.h"
 #endif
 
@@ -15,25 +15,25 @@
 
 Value Value::MakeRuntimeError(std::string error)
 {
-#ifdef AST_INTERPRETER
+#ifdef AST
 	return ASTint::ASTInterpreter::Get().MakeErrorValueReturn(error);
-#endif // AST_INTERPRETER
-#ifdef BYTECODE_INTERPRETER
+#endif // AST
+#ifdef BYTECODE
 	return BytecodeInterpreter::Get().ThrowExceptionValue(error);
-#endif // BYTECODE_INTERPRETER
-#ifdef ASM_COMPILER
+#endif // BYTECODE
+#ifdef ASM
 	return Value();
-#endif // ASM_COMPILER
+#endif // ASM
 }
 
 bool Value::MakeRuntimeErrorBool(std::string error)
 {
-#ifdef AST_INTERPRETER
+#ifdef AST
 	ASTint::ASTInterpreter::Get().MakeErrorValueReturn(error);
-#endif // AST_INTERPRETER
-#ifdef BYTECODE_INTERPRETER
+#endif // AST
+#ifdef BYTECODE
 	BytecodeInterpreter::Get().ThrowExceptionValue(error);
-#endif // BYTECODE_INTERPRETER
+#endif // BYTECODE
 	return false;
 }
 
@@ -62,7 +62,7 @@ Value::Value(std::string value, ValueTypes type)
 
 	m_StringValue = value;
 }
-#ifdef BYTECODE_INTERPRETER
+#ifdef BYTECODE
 Value::Value(HeapEntry& value)
 {
 	m_HeapEntryPointer = &value;
@@ -79,10 +79,10 @@ std::string Value::GetString()
 {
 	assert(IsString());
 
-#ifdef BYTECODE_INTERPRETER
+#ifdef BYTECODE
 	if (m_HeapEntryPointer != nullptr)
 		return (char*)(m_HeapEntryPointer)->m_Data;
-#endif // BYTECODE_INTERPRETER
+#endif // BYTECODE
 
 	return m_StringValue;
 }
@@ -108,10 +108,10 @@ void Value::SetString(std::string value)
 	// TODO: might cause problems
 	m_StringValue = value;
 
-#ifdef BYTECODE_INTERPRETER
+#ifdef BYTECODE
 	//if (m_HeapEntryPointer != nullptr)
 		//return (char*)(m_HeapEntryPointer)->m_Data;
-#endif // BYTECODE_INTERPRETER
+#endif // BYTECODE
 }
 
 void Value::SetInt(int value)
@@ -231,7 +231,7 @@ std::string Value::ToFormattedString(bool extraQuotes, int currentDepth)
 
 void Value::Delete()
 {
-#ifdef BYTECODE_INTERPRETER
+#ifdef BYTECODE
 	if (IsString())
 	{
 		// Delete the string, because strings aren't stored as a reference to each other. Don't delete constants!!!
@@ -452,7 +452,7 @@ Value Value::Increment(Value& value)
 	{
 		return Value(value.GetFloat() + 1.0, ValueTypes::Float);
 	}
-#ifdef AST_INTERPRETER
+#ifdef AST
 	else if (value.IsString())
 	{
 		char lastChar = value.GetString()[value.GetString().length() - 1];
@@ -479,7 +479,7 @@ Value Value::Decrement(Value& value)
 	{
 		return Value(value.GetFloat() - 1.0, ValueTypes::Float);
 	}
-#ifdef AST_INTERPRETER
+#ifdef AST
 	else if (value.IsString())
 	{
 		std::string removed = value.GetString().substr(0, value.GetString().length() - 1);
@@ -557,7 +557,8 @@ Value Value::Divide(Value& lhs, Value& rhs)
 	{
 		if (rhs.GetInt() == 0) return MakeRuntimeError("Division by 0");
 
-		return Value(lhs.GetInt() / rhs.GetInt(), ValueTypes::Integer);
+		// Integer division results in a float (maybe it shouldn't be like this)
+		return Value((float)lhs.GetInt() / (float)rhs.GetInt(), ValueTypes::Float);
 	}
 	else if (lhs.m_Type == ValueTypes::Float)
 	{

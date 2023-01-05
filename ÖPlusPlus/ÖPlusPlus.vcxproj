@@ -85,8 +85,9 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>ASM_COMPILER;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>BYTECODE;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -142,8 +143,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Source\Compiler\AssemblyCompiler.cpp" />
-    <ClCompile Include="Source\Compiler\AssemblyRunner.cpp" />
+    <ClCompile Include="Source\Interpreter\Bytecode\BytecodeCompiler.cpp" />
+    <ClCompile Include="Source\Interpreter\Bytecode\BytecodeFunctions.cpp" />
+    <ClCompile Include="Source\Interpreter\Bytecode\BytecodeInterpreter.cpp" />
+    <ClCompile Include="Source\Interpreter\Bytecode\Debugger.cpp" />
+    <ClCompile Include="Source\Interpreter\Bytecode\Heap.cpp" />
     <ClCompile Include="Source\Interpreter\Functions.cpp" />
     <ClCompile Include="Source\Interpreter\Value.cpp" />
     <ClCompile Include="Source\Lexer.cpp" />
@@ -151,30 +155,45 @@
     <ClCompile Include="Source\Parser.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Source\Compiler\AssemblyCompiler.h" />
-    <ClInclude Include="Source\Compiler\AssemblyRunner.h" />
+    <ClInclude Include="Source\Interpreter\Bytecode\BytecodeCompiler.h" />
+    <ClInclude Include="Source\Interpreter\Bytecode\BytecodeInterpreter.h" />
+    <ClInclude Include="Source\Interpreter\Bytecode\Debugger.h" />
+    <ClInclude Include="Source\Interpreter\Bytecode\Heap.h" />
     <ClInclude Include="Source\Interpreter\Functions.h" />
     <ClInclude Include="Source\Interpreter\Value.h" />
     <ClInclude Include="Source\Interpreter\ValueTypes.h" />
     <ClInclude Include="Source\Lexer.h" />
     <ClInclude Include="Source\Parser.h" />
+    <ClInclude Include="Source\Tester.h" />
     <ClInclude Include="Source\Utils.hpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Build\build.bat" />
-    <None Include="Programs\asm.ö" />
+    <None Include="Build\functions.inc" />
     <None Include="Programs\asm_math_notes.ö" />
-    <None Include="Programs\ASTint.ö" />
-    <None Include="Programs\for.ö" />
+    <None Include="Programs\calc_pi.ö" />
+    <None Include="Programs\float.ö" />
+    <None Include="Programs\string_format_bytecode.ö" />
+    <None Include="Programs\Tests\for.ö" />
     <None Include="Programs\factorial.ö" />
-    <None Include="Programs\global_variable.ö" />
-    <None Include="Programs\if.ö" />
+    <None Include="Programs\Tests\global_variable.ö" />
+    <None Include="Programs\Tests\factorial.ö" />
+    <None Include="Programs\Tests\factorial.ö.result" />
+    <None Include="Programs\Tests\for.ö.result" />
+    <None Include="Programs\Tests\global_variable.ö.result" />
+    <None Include="Programs\Tests\if.ö" />
     <None Include="Programs\scope.ö" />
     <None Include="Programs\simple_function.ö" />
-    <None Include="Programs\string.ö" />
+    <None Include="Programs\Tests\string.ö" />
     <None Include="Programs\test.ö" />
-    <None Include="Programs\variable.ö" />
-    <None Include="Programs\while.ö" />
+    <None Include="Programs\Tests\if.ö.result" />
+    <None Include="Programs\Tests\math.ö" />
+    <None Include="Programs\Tests\math.ö.result" />
+    <None Include="Programs\Tests\string.ö.result" />
+    <None Include="Programs\Tests\variable.ö" />
+    <None Include="Programs\Tests\variable.ö.result" />
+    <None Include="Programs\Tests\while.ö" />
+    <None Include="Programs\Tests\while.ö.result" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />

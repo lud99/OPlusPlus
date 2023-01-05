@@ -30,10 +30,19 @@
     <ClCompile Include="Source\Interpreter\Functions.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Compiler\AssemblyCompiler.cpp">
+    <ClCompile Include="Source\Interpreter\Bytecode\BytecodeCompiler.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Compiler\AssemblyRunner.cpp">
+    <ClCompile Include="Source\Interpreter\Bytecode\BytecodeFunctions.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Interpreter\Bytecode\BytecodeInterpreter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Interpreter\Bytecode\Debugger.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Interpreter\Bytecode\Heap.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -56,29 +65,52 @@
     <ClInclude Include="Source\Interpreter\Functions.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Compiler\AssemblyCompiler.h">
+    <ClInclude Include="Source\Tester.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Compiler\AssemblyRunner.h">
+    <ClInclude Include="Source\Interpreter\Bytecode\BytecodeCompiler.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Interpreter\Bytecode\BytecodeInterpreter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Interpreter\Bytecode\Debugger.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Interpreter\Bytecode\Heap.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Programs\test.ö" />
     <None Include="Programs\factorial.ö" />
-    <None Include="Programs\ASTint.ö" />
+    <None Include="Programs\string_format_bytecode.ö" />
     <None Include="Programs\asm_math_notes.ö" />
-    <None Include="Programs\asm.ö" />
-    <None Include="Programs\variable.ö" />
-    <None Include="Programs\if.ö" />
+    <None Include="Programs\Tests\variable.ö" />
+    <None Include="Programs\Tests\if.ö" />
     <None Include="Programs\scope.ö" />
-    <None Include="Programs\while.ö" />
-    <None Include="Programs\for.ö" />
-    <None Include="Programs\string.ö" />
+    <None Include="Programs\Tests\while.ö" />
+    <None Include="Programs\Tests\for.ö" />
+    <None Include="Programs\Tests\string.ö" />
     <None Include="Build\build.bat">
       <Filter>Source Files</Filter>
     </None>
     <None Include="Programs\simple_function.ö" />
-    <None Include="Programs\global_variable.ö" />
+    <None Include="Programs\Tests\global_variable.ö" />
+    <None Include="Programs\Tests\math.ö" />
+    <None Include="Programs\Tests\math.ö.result" />
+    <None Include="Programs\Tests\if.ö.result" />
+    <None Include="Programs\Tests\factorial.ö" />
+    <None Include="Programs\Tests\factorial.ö.result" />
+    <None Include="Programs\Tests\for.ö.result" />
+    <None Include="Programs\Tests\global_variable.ö.result" />
+    <None Include="Programs\Tests\string.ö.result" />
+    <None Include="Programs\Tests\variable.ö.result" />
+    <None Include="Programs\Tests\while.ö.result" />
+    <None Include="Programs\calc_pi.ö" />
+    <None Include="Build\functions.inc">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="Programs\float.ö" />
   </ItemGroup>
 </Project>

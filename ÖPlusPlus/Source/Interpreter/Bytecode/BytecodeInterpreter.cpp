@@ -96,10 +96,10 @@ Value BytecodeInterpreter::CreateAndRunProgram(std::string filepath, std::string
 	std::cout << "Console output:\n";
 
 	m_Instructions = instructions;
-	std::string exception = InterpretBytecode();
+	InterpretBytecode();
 
-	if (exception != "")
-		std::cout << "Bytecode execution error: (" << GetContext(0)->m_ProgramCounter - 1 << ") " << exception << "\n";
+	if (ExceptionError != "")
+		std::cout << "Bytecode execution error: (" << GetContext(0)->m_ProgramCounter - 1 << ") " << ExceptionError << "\n";
 
 	auto stop = std::chrono::high_resolution_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);

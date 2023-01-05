@@ -46,6 +46,19 @@ static std::vector<T> SliceVector(std::vector<T>& vector, int start = -1, int en
 	return sliced;
 }
 
+template <typename T>
+static std::vector<T> SliceVectorC(std::vector<T> vector, int start = -1, int end = -1)
+{
+	std::vector<T> sliced;
+	// Slice a portion of the vector tokens (if wanted)
+	if (start == -1) start = 0;
+	if (end == -1) end = vector.size();
+	for (int i = start; i < end; i++)
+		sliced.push_back(vector[i]);
+
+	return sliced;
+}
+
 static bool BeginsWith(std::string string, std::string find) { return string.rfind(find, 0) == 0; }
 
 static std::string RemoveTabs(std::string line)
