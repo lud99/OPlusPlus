@@ -7,6 +7,7 @@ struct Token
 {
 	enum Types {
 		Empty,
+		VoidType,
 		IntType,
 		IntLiteral,
 		FloatType,
@@ -83,7 +84,7 @@ struct Token
 	*/
 	inline bool IsVariableType()
 	{
-		return m_Type == Token::IntType || m_Type == Token::StringType || m_Type == Token::DoubleType || m_Type == Token::FloatType;
+		return m_Type == Token::VoidType || m_Type == Token::IntType || m_Type == Token::StringType || m_Type == Token::DoubleType || m_Type == Token::FloatType;
 	}
 
 	inline bool IsMathOperator()

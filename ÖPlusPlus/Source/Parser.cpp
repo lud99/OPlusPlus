@@ -1116,7 +1116,10 @@ bool Parser::ParseFunctionDeclaration(Tokens& tokens, ASTNode* node)
 
 			auto& bodyLines = node->right->arguments;
 			if (bodyLines.empty() || bodyLines[bodyLines.size() - 1]->type != ASTTypes::Return)
+			{
+				// TODO: A void-function should require to have a return
 				return MakeError("Missing return at end of function");
+			}
 
 			return true;
 		}

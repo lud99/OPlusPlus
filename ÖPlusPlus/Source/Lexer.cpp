@@ -7,6 +7,7 @@ std::string Token::ToString()
 {
 	std::string names[] = {
 		"Empty",
+		"VoidType",
 		"IntType",
 		"IntLiteral",
 		"FloatType",
@@ -288,6 +289,8 @@ std::vector<std::string> split(const std::string& txt, char ch)
 Token ResolveTokenKeyword(Token tok)
 {
 	Token token = tok;
+	if (token.m_Value == "void")
+		token.m_Type = Token::VoidType;
 	if (token.m_Value == "int")
 		token.m_Type = Token::IntType;
 	else if (token.m_Value == "float")

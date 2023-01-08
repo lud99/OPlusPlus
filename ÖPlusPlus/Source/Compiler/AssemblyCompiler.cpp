@@ -757,15 +757,31 @@ continue;
 	{
 		Compile(node->left);
 
+		// Ensure correct types
 		ValueTypes rhsType = GetValueTypeOfNode(node->left);
 		if (rhsType == ValueTypes::Integer || rhsType == ValueTypes::String)
-		{
 			m_TextSection.AddInstruction("pop", "eax");
-		}
-		else if (rhsType == ValueTypes::Float)
-		{
 
+		const std::string& functionName = m_Context.m_CurrentParsingFunctionName;
+
+		if (functionName == "")
+			return MakeError("Return has to be inside a function body");
+
+		auto& function = m_Context.GetFunction(functionName);
+		if (function.m_ReturnType == ValueTypes::Void)
+		{
+			// Ensure that void functions cannot return a value
+			if (node->left != nullptr && node->left->type != ASTTypes::Empty)
+				return MakeError("A void function cannot return a value. An empty return statement should be used instead");
 		}
+
+		if (function.m_ReturnType != rhsType)
+			return MakeError("Return value '" + ValueTypeToString(rhsType) + "' does not match function prototype return value '" + ValueTypeToString(function.m_ReturnType) + "'");
+
+		// Ensure that void functions cannot return a value
+		if (node->left != nullptr && node->left->type != ASTTypes::Empty)
+			return MakeError("A void function cannot return a value. An empty return statement should be used instead");
+
 
 		m_TextSection.AddComment("Subroutine Epilogue");
 
@@ -779,15 +795,6 @@ continue;
 		m_TextSection.AddInstruction("mov", "esp", "ebp", "deallocate local variables");
 
 		m_TextSection.AddInstruction("pop", "ebp", "", "restore old base pointer");
-
-		const std::string& functionName = m_Context.m_CurrentParsingFunctionName;
-
-		if (functionName == "")
-			return MakeError("Return has to be inside a function body");
-
-		auto& function = m_Context.GetFunction(functionName);
-		if (function.m_ReturnType != rhsType)
-			return MakeError("Return value '" + ValueTypeToString(rhsType) + "' does not match function prototype return value '" + ValueTypeToString(function.m_ReturnType) + "'");
 
 		m_TextSection.AddInstruction("ret");
 	}
@@ -1213,6 +1220,8 @@ ValueTypes AssemblyCompiler::GetValueTypeOfNode(ASTNode* node)
 		return function.m_ReturnType;
 	}
 
+	case ASTTypes::Empty:
+		return ValueTypes::Void;
 	
 	default:
 	{
