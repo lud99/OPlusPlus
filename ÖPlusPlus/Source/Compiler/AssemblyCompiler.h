@@ -133,6 +133,9 @@ public:
 
 	void MakeError(std::string error) { m_Error = error; }
 
+private:
+	ValueTypes GetValueTypeOfNode(ASTNode* node);
+
 public:
 	Section m_DataSection;
 	Section m_TextSection;

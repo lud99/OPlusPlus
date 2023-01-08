@@ -617,20 +617,18 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		{
 			Compile(node->arguments[i]);
 
-			if (i == 1)
+			ValueTypes typeOfArgument = GetValueTypeOfNode(node->arguments[i]);
+
+			if (m_Error != "")
+				return;
+
+			if (typeOfArgument == ValueTypes::Float)
+				m_Context.CreateVariable("arg" + std::to_string(i), ValueTypes::Float, 8);
+
+			if (typeOfArgument == ValueTypes::Integer || typeOfArgument == ValueTypes::String)
 			{
-				auto& variable = m_Context.CreateVariable("arg" + std::to_string(i), ValueTypes::Float /* todo */, 8);
-				//m_TextSection.AddInstruction("sub", "esp", "8");
-				//m_TextSection.AddInstruction("fstp", variable.GetASMLocation("qword"), "", "push float argument to stack");
-				}
-			//else
-			//{
-				//m_TextSection.AddInstruction("push", "eax");
-			//}
-			else 
-			{
-				auto& variable = m_Context.CreateVariable("arg" + std::to_string(i), ValueTypes::Integer /* todo */, 4);
-				m_TextSection.AddInstruction("mov", variable.GetASMLocation("dword"), "eax", "store argument");
+				auto& variable = m_Context.CreateVariable("arg" + std::to_string(i), typeOfArgument, 4);
+				m_TextSection.AddInstruction("mov", variable.GetASMLocation("dword"), "eax", "store argument " + ValueTypeToString(typeOfArgument));
 				m_TextSection.AddInstruction("sub", "esp", "4");
 			}
 		}
@@ -640,17 +638,8 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		{
 			auto& variable = m_Context.GetVariable("arg" + std::to_string(i));
 
-			if (variable.m_Type == ValueTypes::Float)
-			{
-				//m_TextSection.AddInstruction("fld", variable.GetASMLocation("qword"), "", "evaluated float argument");
-			}
-			else if (variable.m_Type == ValueTypes::Integer || variable.m_Type == ValueTypes::String)
-			{
+			if (variable.m_Type == ValueTypes::Integer || variable.m_Type == ValueTypes::String)
 				m_TextSection.AddInstruction("mov", argumentRegisters[i], variable.GetASMLocation("dword"), "evaluated argument");
-			}
-
-			// Delete the temporary argument variable. The index will still be occupied, but the name will be free
-			//m_Context.DeleteVariable("arg" + std::to_string(i));
 		}
 
 		// Push caller-saved registers
@@ -675,9 +664,7 @@ void AssemblyCompiler::Compile(ASTNode* node)
 				m_TextSection.AddInstruction("fstp", "qword [esp]");
 			}
 			else if (variable.m_Type == ValueTypes::Integer || variable.m_Type == ValueTypes::String)
-			{
 				m_TextSection.AddInstruction("push", argumentRegisters[i]);
-			}
 
 			// Delete the temporary argument variable.The index will still be occupied, but the name will be free
 			m_Context.DeleteVariable("arg" + std::to_string(i));
@@ -954,6 +941,162 @@ void AssemblyCompiler::Optimize()
 	}
 
 	lines = newInstructions;
+}
+
+ValueTypes AssemblyCompiler::GetValueTypeOfNode(ASTNode* node)
+{
+	switch (node->type)
+	{
+	case ASTTypes::ProgramBody:
+	case ASTTypes::Scope:
+	{
+		abort();
+		break;
+	}
+	case ASTTypes::VariableDeclaration:
+	case ASTTypes::GlobalVariableDeclaration:
+		return GetValueTypeOfNode(node->left);
+	case ASTTypes::VariableType:
+		return NodeVariableTypeToValueType(node);
+	case ASTTypes::Assign:
+	{
+		abort();
+		break;
+	}
+
+	case ASTTypes::CompareEquals:
+	case ASTTypes::CompareNotEquals:
+	case ASTTypes::CompareLessThan:
+	case ASTTypes::CompareGreaterThan:
+	case ASTTypes::CompareLessThanEqual:
+	case ASTTypes::CompareGreaterThanEqual:
+	{
+		abort();
+		// Should be a boolean (or int), but right now comparisions don't store a value. 
+		// They are only used for the conditional jump instruction
+
+		break;
+	}
+	case ASTTypes::And:
+	case ASTTypes::Or:
+	case ASTTypes::Not:
+	{
+		abort();
+		// Should be a boolean (or int), but right now comparisions don't store a value. 
+		// They are only used for the conditional jump instruction
+	}
+
+	case ASTTypes::IntLiteral:
+		return ValueTypes::Integer;
+	case ASTTypes::DoubleLiteral:
+		return ValueTypes::Float;
+	case ASTTypes::StringLiteral:
+		return ValueTypes::String;
+
+	case ASTTypes::Bool:
+	case ASTTypes::ArrayType:
+	case ASTTypes::FunctionType:
+	case ASTTypes::ObjectType:
+	{
+		abort();
+		break;
+	}
+	case ASTTypes::Variable:
+	{
+		const std::string& variableName = node->stringValue;
+		if (!m_Context.HasVariable(variableName))
+		{
+			MakeError("Variable '" + variableName + "' has not been declared in this scope");
+			return ValueTypes::Void;
+		}
+
+		AssemblyCompilerContext::Variable variable = m_Context.GetVariable(variableName);
+
+		return variable.m_Type;
+	}
+	break;
+	case ASTTypes::Add:
+	case ASTTypes::Subtract:
+	case ASTTypes::Multiply:
+	case ASTTypes::Divide:
+	{
+		// Recursivly perform the operations, do the inner ones first
+		if (node->right->IsMathOperator())
+		{
+			ValueTypes right = GetValueTypeOfNode(node->right);
+			ValueTypes left = GetValueTypeOfNode(node->left);
+
+			if (left != right)
+			{
+				MakeError("Non-match matching types for " + node->right->ToString(false));
+				return ValueTypes::Void;
+			}
+			// right is the same as left
+			return right;
+		}
+		if (node->left->IsMathOperator())
+		{
+			ValueTypes left = GetValueTypeOfNode(node->left);
+			ValueTypes right = GetValueTypeOfNode(node->right);
+
+			if (left != right)
+			{
+				MakeError("Non-match matching types for " + node->right->ToString(false));
+				return ValueTypes::Void;
+			}
+			// right is the same as left
+			return right;
+		}
+
+		ValueTypes left = GetValueTypeOfNode(node->left);
+		ValueTypes right = GetValueTypeOfNode(node->right);
+
+		if (left != right)
+		{
+			MakeError("Non-match matching types for " + node->right->ToString(false));
+			return ValueTypes::Void;
+		}
+		// right is the same as left
+		return right;
+
+	}
+	case ASTTypes::PostIncrement:
+	case ASTTypes::PostDecrement:
+	{
+		// Ensure that the increment is alone on the line. In the case of a for-statement, it is only allowed at the "action" spot
+		if (node->parent->type == ASTTypes::ForStatement)
+			assert(node->parent->arguments[2] == node);
+		else
+			assert(node->parent->type == ASTTypes::Scope);
+
+		const std::string& variableName = node->left->stringValue;
+		if (!m_Context.HasVariable(variableName))
+		{
+			MakeError("Variable '" + variableName + "' has not been declared in this scope");
+			return ValueTypes::Void;
+		}
+
+		AssemblyCompilerContext::Variable variable = m_Context.GetVariable(variableName);
+		return variable.m_Type;
+	}
+	case ASTTypes::PreIncrement:
+	case ASTTypes::PreDecrement:
+		abort();
+	case ASTTypes::FunctionCall:
+	{
+		const std::string& functionName = node->stringValue;
+		abort();
+
+		//if (m_Context.HasFunction(functionName
+	}
+
+	
+	default:
+	{
+		std::cout << "Unhandled node type " << node->ToString(false) << "\n";
+		abort();
+	}
+	}
 }
 
 bool AssemblyCompilerContext::HasVariable(const std::string& variableName)
