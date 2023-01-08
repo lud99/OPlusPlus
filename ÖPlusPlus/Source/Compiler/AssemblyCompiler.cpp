@@ -354,16 +354,21 @@ void AssemblyCompiler::Compile(ASTNode* node)
 
 			// Evaluate the assignment on the rhs
 			Compile(node->right);
-		
-			ValueTypes type = NodeVariableTypeToValueType(node->left->left);
+
+			// Typecheck rhs and variable type
+			ValueTypes rhsType = GetValueTypeOfNode(node->right);
+			ValueTypes variableType = NodeVariableTypeToValueType(node->left->left);
+			if (variableType != rhsType)
+				return MakeError("Right hand side with value '" + ValueTypeToString(rhsType) + "' cannot be assigned to an '" + ValueTypeToString(variableType) + "'");
+
 			int size = 4;
 
-			if (type == ValueTypes::Integer || type == ValueTypes::String)
+			if (variableType == ValueTypes::Integer || variableType == ValueTypes::String)
 			{
 				size = 4;
 				m_TextSection.AddInstruction("pop", "eax");
 			}
-			else if (type == ValueTypes::Float)
+			else if (variableType == ValueTypes::Float)
 			{
 				size = 8;
 			}
@@ -378,7 +383,7 @@ void AssemblyCompiler::Compile(ASTNode* node)
 				publicity = Publicity::Global;
 			}
 
-			AssemblyCompilerContext::Variable variable = m_Context.CreateVariable(name, type, size, publicity);
+			AssemblyCompilerContext::Variable variable = m_Context.CreateVariable(name, variableType, size, publicity);
 
 			if (variable.m_Publicity == Publicity::Global)
 			{
@@ -387,12 +392,12 @@ void AssemblyCompiler::Compile(ASTNode* node)
 			}
 			else
 			{
-				if (type == ValueTypes::Integer || type == ValueTypes::String)
+				if (variableType == ValueTypes::Integer || variableType == ValueTypes::String)
 				{
 					m_TextSection.AddInstruction("mov", variable.GetASMLocation("dword"), "eax");
 					m_TextSection.AddInstruction("sub", "esp", "4");
-				} 
-				else if (type == ValueTypes::Float)
+				}
+				else if (variableType == ValueTypes::Float)
 				{
 					// Convert the float into a float
 					//m_TextSection.AddInstruction("fld", "dword [eax]");
@@ -682,8 +687,8 @@ void AssemblyCompiler::Compile(ASTNode* node)
 			if (!m_Context.HasVariable("arg" + std::to_string(i)))
 			{
 				m_TextSection.AddInstruction("sub", "esp", "8");
-				m_TextSection.AddInstruction("fstp", "qword [esp]");
-				continue;
+m_TextSection.AddInstruction("fstp", "qword [esp]");
+continue;
 			}
 
 			auto& variable = m_Context.GetVariable("arg" + std::to_string(i));
@@ -745,19 +750,19 @@ void AssemblyCompiler::Compile(ASTNode* node)
 				m_TextSection.AddInstruction("push", "eax");
 			}
 		}
-			
+
 	}
-		break;
+	break;
 	case ASTTypes::Return:
 	{
 		Compile(node->left);
 
-		ValueTypes type = GetValueTypeOfNode(node->left);
-		if (type == ValueTypes::Integer || type == ValueTypes::String)
+		ValueTypes rhsType = GetValueTypeOfNode(node->left);
+		if (rhsType == ValueTypes::Integer || rhsType == ValueTypes::String)
 		{
 			m_TextSection.AddInstruction("pop", "eax");
 		}
-		else if (type == ValueTypes::Float)
+		else if (rhsType == ValueTypes::Float)
 		{
 
 		}
@@ -774,6 +779,15 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		m_TextSection.AddInstruction("mov", "esp", "ebp", "deallocate local variables");
 
 		m_TextSection.AddInstruction("pop", "ebp", "", "restore old base pointer");
+
+		const std::string& functionName = m_Context.m_CurrentParsingFunctionName;
+
+		if (functionName == "")
+			return MakeError("Return has to be inside a function body");
+
+		auto& function = m_Context.GetFunction(functionName);
+		if (function.m_ReturnType != rhsType)
+			return MakeError("Return value '" + ValueTypeToString(rhsType) + "' does not match function prototype return value '" + ValueTypeToString(function.m_ReturnType) + "'");
 
 		m_TextSection.AddInstruction("ret");
 	}
@@ -897,8 +911,11 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		// New context for function
 		AssemblyCompilerContext ctx = m_Context;
 
+		m_Context.m_CurrentParsingFunctionName = name;
+
 		m_TextSection.AddComment("Get arguments");
 		// Compile arguments
+		int byteOffsetThisArgument = 8;
 		for (int i = 2; i < functionPrototype->arguments.size(); i++)
 		{
 			ASTNode* variableDeclaration = functionPrototype->arguments[i];
@@ -912,7 +929,8 @@ void AssemblyCompiler::Compile(ASTNode* node)
 			// Ints and strings are stored as usual
 			if (typeOfArgument == ValueTypes::Integer || typeOfArgument == ValueTypes::String)
 			{
-				m_TextSection.AddInstruction("mov", "eax", "[ebp + " + std::to_string(8 + 4 * (i - 2)) + "]");
+				m_TextSection.AddInstruction("mov", "eax", "[ebp + " + std::to_string(byteOffsetThisArgument) + "]");
+				byteOffsetThisArgument += 4;
 				Compile(variableDeclaration);
 
 				// Change the instruction that stores 0 into the variable to use the eax register instead
@@ -921,8 +939,6 @@ void AssemblyCompiler::Compile(ASTNode* node)
 			// Floats are 8-bytes and need to be handled differently
 			else if (typeOfArgument == ValueTypes::Float)
 			{
-				m_TextSection.AddInstruction("mov", "eax", "[ebp + " + std::to_string(8 + 4 * (i - 2)) + "]");
-
 				// Create the variable
 				const std::string& name = variableDeclaration->right->stringValue;
 				if (m_Context.HasVariable(name))
@@ -931,9 +947,12 @@ void AssemblyCompiler::Compile(ASTNode* node)
 				AssemblyCompilerContext::Variable& variable = m_Context.CreateVariable(name, typeOfArgument, 8, Publicity::Local);
 
 				m_TextSection.AddComment(name);
+				m_TextSection.AddInstruction("mov", "eax", "[ebp + " + std::to_string(byteOffsetThisArgument) + "]");
+				byteOffsetThisArgument += 4;
 				m_TextSection.AddInstruction("mov", variable.GetASMLocation("dword"), "eax");
 
-				m_TextSection.AddInstruction("mov", "eax", "[ebp + " + std::to_string(8 + 4 * (i - 1)) + "]");
+				m_TextSection.AddInstruction("mov", "eax", "[ebp + " + std::to_string(byteOffsetThisArgument) + "]");
+				byteOffsetThisArgument += 4;
 				m_TextSection.AddInstruction("mov", variable.GetASMLocation("dword", 4), "eax");
 
 				m_TextSection.AddInstruction("sub", "esp", "8");

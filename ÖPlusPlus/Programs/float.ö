@@ -1,9 +1,9 @@
 //printf("%f\n", (1.2 * 2.0) / (1.0 * 1.4));
 
-float add (float x) => {
-	return x;
+float add (float x, float y, int z) => {
+	return x + y;
 };
 
-float b = add(1.0);
+float b = add(1.0, 2.0, 99);
 
 printf("%f\n", b);

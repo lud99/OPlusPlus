@@ -118,6 +118,8 @@ public:
 
 	uint32_t m_CurrentVariableIndex = 0;
 
+	std::string m_CurrentParsingFunctionName = "";
+
 	LoopInfo m_LoopInfo;
 
 	AssemblyCompilerContext* m_GlobalContext = nullptr;
