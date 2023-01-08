@@ -9,6 +9,10 @@ void Functions::InitializeDefaultFunctions()
 	NativeFunctions["print"] = &print;
 	NativeFunctions["printf"] = &printf;
 	NativeFunctions["rand_range"] = &rand_range;
+	NativeFunctions["rand_range_float"] = &rand_range_float;
+
+	NativeFunctions["to_int"] = &to_int;
+	NativeFunctions["to_float"] = &to_float;
 	
 	/*NativeFunctions["to_string"] = &to_string;
 	NativeFunctions["to_string_raw"] = &to_string_raw;
@@ -98,6 +102,29 @@ Value Functions::rand_range(ARGS)
 
 	int value = min + rand() / (RAND_MAX / (max - min + 1) + 1);
 	return Value(value, ValueTypes::Integer);
+}
+
+Value Functions::rand_range_float(ARGS)
+{
+	float min = args[0].GetFloat();
+	float max = args[1].GetFloat();
+
+	float value = min + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (max - min)));
+	return Value(value, ValueTypes::Float);
+}
+
+Value Functions::to_int(ARGS)
+{
+	assert(args[0].GetType() == ValueTypes::Float);
+
+	return Value((int)args[0].GetFloat(), ValueTypes::Integer);
+}
+
+Value Functions::to_float(ARGS)
+{
+	assert(args[0].GetType() == ValueTypes::Integer);
+
+	return Value((float)args[0].GetInt(), ValueTypes::Float);
 }
 
 

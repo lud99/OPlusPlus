@@ -27,6 +27,11 @@ namespace Functions
 	Value print(ARGS);
 	Value printf(ARGS);
 	Value rand_range(ARGS);
+	Value rand_range_float(ARGS);
+
+	Value to_int(ARGS);
+	Value to_float(ARGS);
+
 	//Value srand(ARGS);
 	//Value time(ARGS);
 	/*StackValue to_string(ARGS);

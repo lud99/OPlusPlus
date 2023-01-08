@@ -30,19 +30,13 @@
     <ClCompile Include="Source\Interpreter\Functions.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Interpreter\Bytecode\BytecodeCompiler.cpp">
+    <ClCompile Include="Source\Compiler\AssemblyCompiler.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Interpreter\Bytecode\BytecodeFunctions.cpp">
+    <ClCompile Include="Source\Compiler\AssemblyRunner.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Interpreter\Bytecode\BytecodeInterpreter.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Interpreter\Bytecode\Debugger.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Interpreter\Bytecode\Heap.cpp">
+    <ClCompile Include="Source\Tester.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -68,16 +62,10 @@
     <ClInclude Include="Source\Tester.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Interpreter\Bytecode\BytecodeCompiler.h">
+    <ClInclude Include="Source\Compiler\AssemblyCompiler.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Interpreter\Bytecode\BytecodeInterpreter.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Interpreter\Bytecode\Debugger.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Interpreter\Bytecode\Heap.h">
+    <ClInclude Include="Source\Compiler\AssemblyRunner.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -550,6 +550,23 @@ Value Value::Subtract(Value& lhs, Value& rhs)
 
 Value Value::Divide(Value& lhs, Value& rhs)
 {
+	// int / float -> float
+	if (lhs.m_Type == ValueTypes::Integer && rhs.m_Type == ValueTypes::Float)
+	{
+		if (rhs.GetFloat() == 0) return MakeRuntimeError("Division by 0");
+
+		return Value(lhs.GetInt() / rhs.GetFloat(), ValueTypes::Float);
+	}
+		
+	// float / int -> float
+	if (lhs.m_Type == ValueTypes::Float && rhs.m_Type == ValueTypes::Integer)
+	{
+		if (rhs.GetInt() == 0) return MakeRuntimeError("Division by 0");
+
+		return Value(lhs.GetFloat() / rhs.GetInt(), ValueTypes::Float);
+	}
+		
+
 	if (!Value::IsSamePrimitiveType(lhs, rhs))
 		return MakeRuntimeError("Cannot divide types " + ValueTypeToString(lhs.m_Type) + " and " + ValueTypeToString(rhs.m_Type));
 
@@ -557,7 +574,7 @@ Value Value::Divide(Value& lhs, Value& rhs)
 	{
 		if (rhs.GetInt() == 0) return MakeRuntimeError("Division by 0");
 
-		// Integer division results in a float (maybe it shouldn't be like this)
+		// Ints perform float division
 		return Value((float)lhs.GetInt() / (float)rhs.GetInt(), ValueTypes::Float);
 	}
 	else if (lhs.m_Type == ValueTypes::Float)
@@ -575,11 +592,20 @@ Value Value::Divide(Value& lhs, Value& rhs)
 
 Value Value::Multiply(Value& lhs, Value& rhs)
 {
+	// int * float -> float
+	if (lhs.m_Type == ValueTypes::Integer && rhs.m_Type == ValueTypes::Float)
+		return Value(lhs.GetInt() * rhs.GetFloat(), ValueTypes::Float);
+	// float * int -> float
+	if (lhs.m_Type == ValueTypes::Float && rhs.m_Type == ValueTypes::Integer)
+		return Value(lhs.GetFloat() * rhs.GetInt(), ValueTypes::Float);
+
 	if (!Value::IsSamePrimitiveType(lhs, rhs))
 		return MakeRuntimeError("Cannot multiply types " + ValueTypeToString(lhs.m_Type) + " and " + ValueTypeToString(rhs.m_Type));
 
+	// int * int -> int
 	if (lhs.m_Type == ValueTypes::Integer)
 		return Value(lhs.GetInt() * rhs.GetInt(), ValueTypes::Integer);
+	// float * float -> float
 	else if (lhs.m_Type == ValueTypes::Float)
 		return Value(lhs.GetFloat() * rhs.GetFloat(), ValueTypes::Float);
 	else if (lhs.IsString())

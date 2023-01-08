@@ -83,7 +83,7 @@ struct Token
 	*/
 	inline bool IsVariableType()
 	{
-		return m_Type == Token::IntType || m_Type == Token::StringType || m_Type == Token::DoubleType;
+		return m_Type == Token::IntType || m_Type == Token::StringType || m_Type == Token::DoubleType || m_Type == Token::FloatType;
 	}
 
 	inline bool IsMathOperator()

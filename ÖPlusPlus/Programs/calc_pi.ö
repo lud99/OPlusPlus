@@ -1,12 +1,12 @@
-/*int pi() => {
+float pi() => {
     int inside = 0;
     int its = 1000;
 
     for (int i = 0, i < its, i++) {
-        int x = rand_range(-3000, 3000);
-        int y = rand_range(-3000, 3000);
+        float x = rand_range_float(-1.0, 1.0);
+        float y = rand_range_float(-1.0, 1.0);
 
-        if (x * x + y * y <= 3000 * 3000) {
+        if (x * x + y * y <= 1.0) {
             inside++;
         };
     };
@@ -16,4 +16,4 @@
 
 //srand(time(0));
 
-print("%i\n", pi());*/
+print("%i\n", pi());

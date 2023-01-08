@@ -85,7 +85,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>BYTECODE;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>ASM;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
@@ -143,22 +143,18 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Source\Interpreter\Bytecode\BytecodeCompiler.cpp" />
-    <ClCompile Include="Source\Interpreter\Bytecode\BytecodeFunctions.cpp" />
-    <ClCompile Include="Source\Interpreter\Bytecode\BytecodeInterpreter.cpp" />
-    <ClCompile Include="Source\Interpreter\Bytecode\Debugger.cpp" />
-    <ClCompile Include="Source\Interpreter\Bytecode\Heap.cpp" />
+    <ClCompile Include="Source\Compiler\AssemblyCompiler.cpp" />
+    <ClCompile Include="Source\Compiler\AssemblyRunner.cpp" />
     <ClCompile Include="Source\Interpreter\Functions.cpp" />
     <ClCompile Include="Source\Interpreter\Value.cpp" />
     <ClCompile Include="Source\Lexer.cpp" />
     <ClCompile Include="Source\Main.cpp" />
     <ClCompile Include="Source\Parser.cpp" />
+    <ClCompile Include="Source\Tester.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Source\Interpreter\Bytecode\BytecodeCompiler.h" />
-    <ClInclude Include="Source\Interpreter\Bytecode\BytecodeInterpreter.h" />
-    <ClInclude Include="Source\Interpreter\Bytecode\Debugger.h" />
-    <ClInclude Include="Source\Interpreter\Bytecode\Heap.h" />
+    <ClInclude Include="Source\Compiler\AssemblyCompiler.h" />
+    <ClInclude Include="Source\Compiler\AssemblyRunner.h" />
     <ClInclude Include="Source\Interpreter\Functions.h" />
     <ClInclude Include="Source\Interpreter\Value.h" />
     <ClInclude Include="Source\Interpreter\ValueTypes.h" />

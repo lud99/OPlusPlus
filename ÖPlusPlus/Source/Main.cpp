@@ -133,7 +133,7 @@ int main(int argc, const char* argv[])
 #endif // AST
 
 	bool runTests = false;
-	//std::string filepath = "";
+	std::string filepath = "";
 
 	for (int i = 1; i < argc; i++)
 	{
@@ -157,7 +157,7 @@ int main(int argc, const char* argv[])
 		}
 	}
 
-	filepath = "Programs/factorial.ö";
+	filepath = "Programs/float.ö";
 	
 
 	if (runTests)

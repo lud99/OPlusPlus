@@ -8,6 +8,21 @@
 
 #ifdef ASM
 
+class ConstantsPool
+{
+public:
+
+	int GetFloatIndex(float value);
+	int StoreFloat(float value);
+	bool HasFloat(float value);
+
+private:
+	std::unordered_map<std::string, int> m_FloatConstants;
+
+	int m_FloatIndex = 0;
+};
+
+
 struct Instruction
 {
 	std::string m_Op;
@@ -124,6 +139,8 @@ public:
 
 	AssemblyCompilerContext m_Context;
 	AssemblyCompilerContext m_GlobalContext;
+
+	ConstantsPool m_Constants;
 
 	std::string m_Error;
 };

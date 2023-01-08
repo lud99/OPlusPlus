@@ -2,17 +2,31 @@
 
 #include <iostream>
 
+#define USE_FLOATS 1
+
+std::string FloatToString(float value)
+{
+	std::string str = std::to_string(value);
+	str.replace(str.find(","), 1, ".");
+
+	return str;
+}
+
 void CreateNewCallFrame(Section& section)
 {
+	section.AddLine("");
 	section.AddComment("Create call frame");
 	section.AddInstruction("push", "ebp");
 	section.AddInstruction("mov", "ebp", "esp");
+	section.AddLine("");
 }
 void RestoreOldCallFrame(Section& section)
 {
+	section.AddLine("");
 	section.AddComment("Restore call frame");
 	section.AddInstruction("mov", "esp", "ebp");
 	section.AddInstruction("pop", "ebp");
+	section.AddLine("");
 }
 
 bool ResultCanBeDiscarded(ASTNode* node)
@@ -69,7 +83,7 @@ ValueTypes NodeVariableTypeToValueType(ASTNode* n)
 	if (n->stringValue == "int") return ValueTypes::Integer;
 	if (n->stringValue == "float") return ValueTypes::Float;
 	if (n->stringValue == "double") return ValueTypes::Float;
-	if (n->stringValue == "string") return ValueTypes::StringConstant;
+	if (n->stringValue == "string") return ValueTypes::String;
 
 	return ValueTypes::Void;
 }
@@ -128,22 +142,44 @@ void Section::AddLine(const std::string& line)
 void Section::AddCorrectMathInstruction(ASTNode* n, bool reverse)
 {
 	if (n->type == ASTTypes::Add)
+	{
+#ifdef USE_FLOATS
+		// multiply and pop, leaving st0 = old_st0 * old_st1. (st1 is freed / empty now)
+		AddInstruction("faddp");
+#else
 		AddInstruction("add", "eax", "ebx");
+#endif
+	}
 	else if (n->type == ASTTypes::Subtract)
 	{
 		// Because the result is stored in the first operand, and all code assumes eax has the result. Therefore the value of ebx has to be moved to eax.
 		if (reverse)
 		{
+#ifdef USE_FLOATS
+			abort();
+
+#endif
 			AddInstruction("sub", "ebx", "eax");
 			AddInstruction("mov", "eax", "ebx");
 		}
 		else
 		{
+#ifdef USE_FLOATS
+			AddInstruction("fsubrp");
+#else
 			AddInstruction("sub", "eax", "ebx");
+#endif
 		}
 	}
 	else if (n->type == ASTTypes::Multiply)
+	{
+#ifdef USE_FLOATS
+		AddInstruction("fmulp");
+#else
 		AddInstruction("imul", "eax", "ebx");
+#endif
+	}
+		
 	else if (n->type == ASTTypes::Divide)
 	{
 		/*if (reverse)
@@ -151,8 +187,14 @@ void Section::AddCorrectMathInstruction(ASTNode* n, bool reverse)
 
 		assert(!reverse);
 
+#ifdef USE_FLOATS
+		AddInstruction("fdivrp");
+#else
 		AddInstruction("mov", "edx", "0");
 		AddInstruction("idiv", "ebx");
+#endif
+
+
 	} else
 		abort();
 }
@@ -167,13 +209,17 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		// pop the one after to the "right" reg
 
 		//m_TextSection.AddLine("; pop values");
+#ifndef USE_FLOATS
 		m_TextSection.AddInstruction("pop", "eax");
 		m_TextSection.AddInstruction("pop", "ebx");
+#endif
 
 		m_TextSection.AddComment("math operation");
 		m_TextSection.AddCorrectMathInstruction(node, reverse);
 
+#ifndef USE_FLOATS
 		m_TextSection.AddInstruction("push", "eax");
+#endif
 		m_TextSection.AddComment("");
 	};
 
@@ -201,8 +247,7 @@ void AssemblyCompiler::Compile(ASTNode* node)
 				m_TextSection.AddComment("Set value of global variable");
 				Compile(n);
 			}
-				
-		}
+			}
 
 		// Weird hack to compile the function definitions after the variables, but place the generated code before them
 		Section mainTextSection = m_TextSection;
@@ -296,10 +341,19 @@ void AssemblyCompiler::Compile(ASTNode* node)
 
 			// Evaluate the assignment on the rhs
 			Compile(node->right);
-			m_TextSection.AddInstruction("pop", "eax");
-
+		
 			ValueTypes type = NodeVariableTypeToValueType(node->left->left);
 			int size = 4;
+
+			if (type == ValueTypes::Integer || type == ValueTypes::String)
+			{
+				size = 4;
+				m_TextSection.AddInstruction("pop", "eax");
+			}
+			else if (type == ValueTypes::Float)
+			{
+				size = 8;
+			}
 
 			Publicity publicity = Publicity::Local;
 			if (node->left->type == ASTTypes::GlobalVariableDeclaration)
@@ -320,8 +374,18 @@ void AssemblyCompiler::Compile(ASTNode* node)
 			}
 			else
 			{
-				m_TextSection.AddInstruction("mov", variable.GetASMLocation("dword"), "eax");
-				m_TextSection.AddInstruction("sub", "esp", "4");
+				if (type == ValueTypes::Integer || type == ValueTypes::String)
+				{
+					m_TextSection.AddInstruction("mov", variable.GetASMLocation("dword"), "eax");
+					m_TextSection.AddInstruction("sub", "esp", "4");
+				} 
+				else if (type == ValueTypes::Float)
+				{
+					// Convert the float into a float
+					//m_TextSection.AddInstruction("fld", "dword [eax]");
+					m_TextSection.AddInstruction("fstp", variable.GetASMLocation("qword"));
+					m_TextSection.AddInstruction("sub", "esp", "8");
+				}
 			}
 
 			return;
@@ -378,9 +442,44 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		m_TextSection.AddInstruction("mov", "eax", std::to_string((int)node->numberValue));
 		m_TextSection.AddInstruction("push", "eax");
 		return;
+
 	}
 	case ASTTypes::DoubleLiteral:
+	{		
+		// Store the float literal in the data section as a constant.
+		// Whole numbers can be used like "mov eax, 2", but it doesn't work with "2.0"
+		std::string index = "";
+		std::string variableName = "";
+
+		if (!m_Constants.HasFloat(node->numberValue))
+		{
+			index = std::to_string(m_Constants.StoreFloat(node->numberValue));
+			variableName = "float_" + index;
+
+			/*auto& variable = m_Context.CreateVariable(variableName, ValueTypes::Float, 4, Publicity::Global);*/
+
+			m_DataSection.AddLine(variableName + " " + "DQ " + FloatToString(node->numberValue));
+		}
+		else
+		{
+			index = std::to_string(m_Constants.GetFloatIndex(node->numberValue));
+			variableName = "float_" + index;
+		}
+
+		//auto& variable = m_Context.GetVariable(variableName);
+
+		// Load literal into st(0) (top of FPU stack)
+		//m_TextSection.AddInstruction("fld", variable.GetASMLocation("dword"));
+
+		// Push the adress of the float literal
+		//m_TextSection.AddInstruction("mov", "eax", "dword " + variableName);
+		//m_TextSection.AddInstruction("push", "eax");
+		// Push number onto top of FPU stack
+		m_TextSection.AddInstruction("fld", "qword [" + variableName + "]");
+
 		break;
+	}
+		
 	case ASTTypes::StringLiteral:
 	{
 		// TODO: Store string in global variable
@@ -423,9 +522,18 @@ void AssemblyCompiler::Compile(ASTNode* node)
 
 		AssemblyCompilerContext::Variable variable = m_Context.GetVariable(variableName);
 
-		m_TextSection.AddInstruction("mov", "eax", variable.GetASMLocation());
+		if (variable.m_Type == ValueTypes::Integer)
+		{
+			m_TextSection.AddInstruction("mov", "eax", variable.GetASMLocation(), variable.m_MangledName);
+			m_TextSection.AddInstruction("push", "eax");
+		}
+		else if (variable.m_Type == ValueTypes::Float)
+		{
+			m_TextSection.AddInstruction("fld", variable.GetASMLocation("qword"), "", variable.m_MangledName);
+			//m_TextSection.AddInstruction("lea", "eax", variable.GetASMLocation());
+		}
 
-		m_TextSection.AddInstruction("push", "eax");
+		//m_TextSection.AddInstruction("push", "eax");
 	}
 		break;
 	case ASTTypes::Add:
@@ -509,20 +617,40 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		{
 			Compile(node->arguments[i]);
 
-			auto& variable = m_Context.CreateVariable("arg" + std::to_string(i), ValueTypes::Integer /* todo */, 4);
-
-			m_TextSection.AddInstruction("mov", variable.GetASMLocation("dword"), "eax", "store argument");
-			m_TextSection.AddInstruction("sub", "esp", "4");
+			if (i == 1)
+			{
+				auto& variable = m_Context.CreateVariable("arg" + std::to_string(i), ValueTypes::Float /* todo */, 8);
+				//m_TextSection.AddInstruction("sub", "esp", "8");
+				//m_TextSection.AddInstruction("fstp", variable.GetASMLocation("qword"), "", "push float argument to stack");
+				}
+			//else
+			//{
+				//m_TextSection.AddInstruction("push", "eax");
+			//}
+			else 
+			{
+				auto& variable = m_Context.CreateVariable("arg" + std::to_string(i), ValueTypes::Integer /* todo */, 4);
+				m_TextSection.AddInstruction("mov", variable.GetASMLocation("dword"), "eax", "store argument");
+				m_TextSection.AddInstruction("sub", "esp", "4");
+			}
 		}
 
 		// The value of the evaluated arguments are stored in registers
 		for (int i = node->arguments.size() - 1; i >= 0; i--)
 		{
 			auto& variable = m_Context.GetVariable("arg" + std::to_string(i));
-			m_TextSection.AddInstruction("mov", argumentRegisters[i], variable.GetASMLocation("dword"), "evaluated argument");
+
+			if (variable.m_Type == ValueTypes::Float)
+			{
+				//m_TextSection.AddInstruction("fld", variable.GetASMLocation("qword"), "", "evaluated float argument");
+			}
+			else if (variable.m_Type == ValueTypes::Integer || variable.m_Type == ValueTypes::String)
+			{
+				m_TextSection.AddInstruction("mov", argumentRegisters[i], variable.GetASMLocation("dword"), "evaluated argument");
+			}
 
 			// Delete the temporary argument variable. The index will still be occupied, but the name will be free
-			m_Context.DeleteVariable("arg" + std::to_string(i));
+			//m_Context.DeleteVariable("arg" + std::to_string(i));
 		}
 
 		// Push caller-saved registers
@@ -539,7 +667,20 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		// The registers are pushed on to the new call stack
 		for (int i = node->arguments.size() - 1; i >= 0; i--)
 		{
-			m_TextSection.AddInstruction("push", argumentRegisters[i]);
+			auto& variable = m_Context.GetVariable("arg" + std::to_string(i));
+
+			if (variable.m_Type == ValueTypes::Float)
+			{
+				m_TextSection.AddInstruction("sub", "esp", "8");
+				m_TextSection.AddInstruction("fstp", "qword [esp]");
+			}
+			else if (variable.m_Type == ValueTypes::Integer || variable.m_Type == ValueTypes::String)
+			{
+				m_TextSection.AddInstruction("push", argumentRegisters[i]);
+			}
+
+			// Delete the temporary argument variable.The index will still be occupied, but the name will be free
+			m_Context.DeleteVariable("arg" + std::to_string(i));
 		}
 
 		std::string functionName = node->stringValue;
@@ -860,8 +1001,8 @@ bool AssemblyCompilerContext::HasFunction(const std::string& functionName)
 
 AssemblyCompilerContext::Function& AssemblyCompilerContext::GetFunction(const std::string& functionName)
 {
-	assert(HasFunction(functionName));
-	return m_Functions[functionName];
+assert(HasFunction(functionName));
+return m_Functions[functionName];
 }
 
 AssemblyCompilerContext::Function& AssemblyCompilerContext::CreateFunction(const std::string& functionName, ValueTypes returnType)
@@ -929,7 +1070,33 @@ std::string AssemblyCompilerContext::Variable::GetASMLocation(const std::string&
 		return prefix + "[" + m_MangledName + "]";
 	else
 		return prefix + "[ebp - " + std::to_string(m_Index) + "]";
-	
+
 	abort();
 	return "";
+}
+
+int ConstantsPool::GetFloatIndex(float value)
+{
+	std::string key = FloatToString(value);
+
+	assert(m_FloatConstants.count(key) != 0);
+
+	return m_FloatConstants[key];
+}
+
+int ConstantsPool::StoreFloat(float value)
+{
+	std::string key = FloatToString(value);
+
+	assert(m_FloatConstants.count(key) == 0);
+
+	m_FloatConstants[key] = ++m_FloatIndex;
+
+	return m_FloatIndex;
+}
+
+bool ConstantsPool::HasFloat(float value)
+{
+	std::string key = FloatToString(value);
+	return m_FloatConstants.count(key) != 0;
 }
