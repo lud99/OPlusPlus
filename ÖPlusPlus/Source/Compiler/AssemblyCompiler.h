@@ -77,7 +77,7 @@ public:
 
 		ValueTypes m_Type = ValueTypes::Void;
 
-		std::string GetASMLocation(const std::string& datatype = "");
+		std::string GetASMLocation(const std::string& datatype = "", int offset = 0);
 
 		//Variable(int index = 0, std::string name = "", ValueTypes type = ValueTypes::Void, bool isGlobal = false) : m_Name(name), m_Index(index), m_Type(type), m_IsGlobal(isGlobal) {};
 	};

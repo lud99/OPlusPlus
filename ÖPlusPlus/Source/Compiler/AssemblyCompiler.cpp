@@ -302,8 +302,13 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		if (m_Context.HasVariable(name))
 			return MakeError("Variable '" + name + "' has already been declared in this scope");
 
-		ValueTypes type = NodeVariableTypeToValueType(node->left);
+		ValueTypes type = GetValueTypeOfNode(node->left);
 		int size = 4;
+
+		if (type == ValueTypes::Integer || type == ValueTypes::String)
+			size = 4;
+		else if (type == ValueTypes::Float)
+			size = 8;
 
 		Publicity publicity = Publicity::Local;
 		if (node->type == ASTTypes::GlobalVariableDeclaration)
@@ -323,8 +328,16 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		}
 		else 
 		{
-			m_TextSection.AddInstruction("mov", variable.GetASMLocation("dword"), "0");
-			m_TextSection.AddInstruction("sub", "esp", "4");
+			if (type == ValueTypes::Integer || type == ValueTypes::String)
+			{
+				m_TextSection.AddInstruction("mov", variable.GetASMLocation("dword"), "0");
+				m_TextSection.AddInstruction("sub", "esp", "4");
+			}
+			else if (type == ValueTypes::Float)
+			{
+				m_TextSection.AddInstruction("fstp", variable.GetASMLocation("qword"));
+				m_TextSection.AddInstruction("sub", "esp", "8");
+			}
 		}
 
 		break;
@@ -612,6 +625,8 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		if (node->arguments.size() > maxArgumentCount)
 			return MakeError("Too many arguments for function. A maximum of 4 is supported");
 
+		int argumentsSize = 0;
+
 		// Evaluate the arguments. The results are stored as variables on the stack
 		for (int i = node->arguments.size() - 1; i >= 0; i--)
 		{
@@ -623,19 +638,27 @@ void AssemblyCompiler::Compile(ASTNode* node)
 				return;
 
 			if (typeOfArgument == ValueTypes::Float)
-				m_Context.CreateVariable("arg" + std::to_string(i), ValueTypes::Float, 8);
-
+			{
+				//m_Context.CreateVariable("arg" + std::to_string(i), ValueTypes::Float, 8);
+				argumentsSize += 8;
+			}
+				
 			if (typeOfArgument == ValueTypes::Integer || typeOfArgument == ValueTypes::String)
 			{
 				auto& variable = m_Context.CreateVariable("arg" + std::to_string(i), typeOfArgument, 4);
 				m_TextSection.AddInstruction("mov", variable.GetASMLocation("dword"), "eax", "store argument " + ValueTypeToString(typeOfArgument));
 				m_TextSection.AddInstruction("sub", "esp", "4");
+
+				argumentsSize += 4;
 			}
 		}
 
 		// The value of the evaluated arguments are stored in registers
 		for (int i = node->arguments.size() - 1; i >= 0; i--)
 		{
+			if (!m_Context.HasVariable("arg" + std::to_string(i)))
+				continue;
+
 			auto& variable = m_Context.GetVariable("arg" + std::to_string(i));
 
 			if (variable.m_Type == ValueTypes::Integer || variable.m_Type == ValueTypes::String)
@@ -656,6 +679,13 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		// The registers are pushed on to the new call stack
 		for (int i = node->arguments.size() - 1; i >= 0; i--)
 		{
+			if (!m_Context.HasVariable("arg" + std::to_string(i)))
+			{
+				m_TextSection.AddInstruction("sub", "esp", "8");
+				m_TextSection.AddInstruction("fstp", "qword [esp]");
+				continue;
+			}
+
 			auto& variable = m_Context.GetVariable("arg" + std::to_string(i));
 
 			if (variable.m_Type == ValueTypes::Float)
@@ -677,11 +707,21 @@ void AssemblyCompiler::Compile(ASTNode* node)
 			functionName = "print";
 
 		// TODO: check function exists
+		// Check user defined functions
+		if (!m_Context.HasFunction(functionName))
+		{
+			// Check built in functions
+			if (functionName != "printf" && functionName != "print")
+				return MakeError("Function '" + functionName + "' has not been defined");
+
+			// It is a built in function
+			// TODO
+		}
 
 		m_TextSection.AddInstruction("call", node->stringValue);
 
 		// Remove the arguments from the stack
-		m_TextSection.AddInstruction("add", "esp", std::to_string(node->arguments.size() * 4), "Assume all arguments are 4 bytes each");
+		m_TextSection.AddInstruction("add", "esp", std::to_string(argumentsSize), "size of arguments");
 
 		RestoreOldCallFrame(m_TextSection);
 
@@ -692,14 +732,35 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		//m_TextSection.AddInstruction("pop", "eax"); // Should be required, but we don't care about the old eax (most likely)
 
 		if (!ResultCanBeDiscarded(node))
-			m_TextSection.AddInstruction("push", "eax");
+		{
+			if (m_Context.HasFunction(functionName))
+			{
+				auto& function = m_Context.GetFunction(functionName);
+				if (function.m_ReturnType == ValueTypes::Integer || function.m_ReturnType == ValueTypes::String)
+					m_TextSection.AddInstruction("push", "eax");
+			}
+			else
+			{
+				// TODO: not all built in functions has int/string pointer as return type
+				m_TextSection.AddInstruction("push", "eax");
+			}
+		}
+			
 	}
 		break;
 	case ASTTypes::Return:
 	{
 		Compile(node->left);
 
-		m_TextSection.AddInstruction("pop", "eax");
+		ValueTypes type = GetValueTypeOfNode(node->left);
+		if (type == ValueTypes::Integer || type == ValueTypes::String)
+		{
+			m_TextSection.AddInstruction("pop", "eax");
+		}
+		else if (type == ValueTypes::Float)
+		{
+
+		}
 
 		m_TextSection.AddComment("Subroutine Epilogue");
 
@@ -710,7 +771,7 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		//m_TextSection.AddInstruction("pop", "esi");
 
 		// Deallocate local variables. Restores the stack pointer to the base where the first variable is
-		m_TextSection.AddInstruction("mov", "esp", "ebp", "deallocate local varibales");
+		m_TextSection.AddInstruction("mov", "esp", "ebp", "deallocate local variables");
 
 		m_TextSection.AddInstruction("pop", "ebp", "", "restore old base pointer");
 
@@ -842,15 +903,44 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		{
 			ASTNode* variableDeclaration = functionPrototype->arguments[i];
 
+			ValueTypes typeOfArgument = GetValueTypeOfNode(variableDeclaration);
+
 			// Pop the arguments and store in a register
 			// The index for the argument is the base pointer + 8 + 4n (n = 0,1,2,3...)
 			// The first arg would be at +4, but because we have to push ebp as the first thing in the function, it is +8
 
-			m_TextSection.AddInstruction("mov", "eax", "[ebp + " + std::to_string(8 + 4 * (i - 2)) + "]");
-			Compile(variableDeclaration);
+			// Ints and strings are stored as usual
+			if (typeOfArgument == ValueTypes::Integer || typeOfArgument == ValueTypes::String)
+			{
+				m_TextSection.AddInstruction("mov", "eax", "[ebp + " + std::to_string(8 + 4 * (i - 2)) + "]");
+				Compile(variableDeclaration);
 
-			// Change the instruction that stores 0 into the variable to use the eax register instead
-			m_TextSection.GetLines()[m_TextSection.GetLines().size() - 2].m_Src = "eax";
+				// Change the instruction that stores 0 into the variable to use the eax register instead
+				m_TextSection.GetLines()[m_TextSection.GetLines().size() - 2].m_Src = "eax";
+			}
+			// Floats are 8-bytes and need to be handled differently
+			else if (typeOfArgument == ValueTypes::Float)
+			{
+				m_TextSection.AddInstruction("mov", "eax", "[ebp + " + std::to_string(8 + 4 * (i - 2)) + "]");
+
+				// Create the variable
+				const std::string& name = variableDeclaration->right->stringValue;
+				if (m_Context.HasVariable(name))
+					return MakeError("Variable '" + name + "' has already been declared in this scope");
+
+				AssemblyCompilerContext::Variable& variable = m_Context.CreateVariable(name, typeOfArgument, 8, Publicity::Local);
+
+				m_TextSection.AddComment(name);
+				m_TextSection.AddInstruction("mov", variable.GetASMLocation("dword"), "eax");
+
+				m_TextSection.AddInstruction("mov", "eax", "[ebp + " + std::to_string(8 + 4 * (i - 1)) + "]");
+				m_TextSection.AddInstruction("mov", variable.GetASMLocation("dword", 4), "eax");
+
+				m_TextSection.AddInstruction("sub", "esp", "8");
+
+				// Change the instruction that stores 0 into the variable to use the eax register instead
+				//m_TextSection.GetLines()[m_TextSection.GetLines().size() - 2].m_Src = "eax";
+			}
 		}
 
 		m_TextSection.AddComment("");
@@ -1085,9 +1175,23 @@ ValueTypes AssemblyCompiler::GetValueTypeOfNode(ASTNode* node)
 	case ASTTypes::FunctionCall:
 	{
 		const std::string& functionName = node->stringValue;
-		abort();
 
-		//if (m_Context.HasFunction(functionName
+		// Check user defined functions
+		if (!m_Context.HasFunction(functionName))
+		{
+			// Check built in functions
+			if (functionName != "printf" && functionName != "print")
+			{
+				MakeError("Function '" + functionName + "' has not been defined");
+				return ValueTypes::Void;
+			}
+
+			// It is a built in function
+			return ValueTypes::Void; // TODO: fix
+		}
+
+		auto& function = m_Context.GetFunction(functionName);
+		return function.m_ReturnType;
 	}
 
 	
@@ -1205,14 +1309,14 @@ std::string Instruction::ToString()
 	return newS;
 }
 
-std::string AssemblyCompilerContext::Variable::GetASMLocation(const std::string& datatype)
+std::string AssemblyCompilerContext::Variable::GetASMLocation(const std::string& datatype, int offset)
 {
 	std::string prefix = datatype == "" ? "" : (datatype + " ");
 
 	if (m_Publicity == Publicity::Global)
 		return prefix + "[" + m_MangledName + "]";
 	else
-		return prefix + "[ebp - " + std::to_string(m_Index) + "]";
+		return prefix + "[ebp - " + std::to_string(m_Index - offset) + "]";
 
 	abort();
 	return "";
