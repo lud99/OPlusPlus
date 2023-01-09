@@ -139,45 +139,46 @@ void Section::AddLine(const std::string& line)
 	m_Lines.push_back(inst);
 }
 
-void Section::AddCorrectMathInstruction(ASTNode* n, bool reverse)
+void Section::AddCorrectMathInstruction(ASTNode* n, ValueTypes type, bool reverse)
 {
 	if (n->type == ASTTypes::Add)
 	{
-#ifdef USE_FLOATS
 		// multiply and pop, leaving st0 = old_st0 * old_st1. (st1 is freed / empty now)
-		AddInstruction("faddp");
-#else
-		AddInstruction("add", "eax", "ebx");
-#endif
+		if (type == ValueTypes::Float)
+			AddInstruction("faddp");
+		else
+			AddInstruction("add", "eax", "ebx");
 	}
 	else if (n->type == ASTTypes::Subtract)
 	{
 		// Because the result is stored in the first operand, and all code assumes eax has the result. Therefore the value of ebx has to be moved to eax.
 		if (reverse)
 		{
-#ifdef USE_FLOATS
-			abort();
-
-#endif
-			AddInstruction("sub", "ebx", "eax");
-			AddInstruction("mov", "eax", "ebx");
+			if (type == ValueTypes::Float)
+			{
+				abort();
+			}
+			else
+			{
+				AddInstruction("sub", "ebx", "eax");
+				AddInstruction("mov", "eax", "ebx");
+			}
 		}
 		else
 		{
-#ifdef USE_FLOATS
-			AddInstruction("fsubrp");
-#else
-			AddInstruction("sub", "eax", "ebx");
-#endif
+			if (type == ValueTypes::Float)
+				AddInstruction("fsubrp");
+			else
+				AddInstruction("sub", "eax", "ebx");
+
 		}
 	}
 	else if (n->type == ASTTypes::Multiply)
 	{
-#ifdef USE_FLOATS
-		AddInstruction("fmulp");
-#else
-		AddInstruction("imul", "eax", "ebx");
-#endif
+		if (type == ValueTypes::Float)
+			AddInstruction("fmulp");
+		else
+			AddInstruction("imul", "eax", "ebx");
 	}
 		
 	else if (n->type == ASTTypes::Divide)
@@ -187,14 +188,15 @@ void Section::AddCorrectMathInstruction(ASTNode* n, bool reverse)
 
 		assert(!reverse);
 
-#ifdef USE_FLOATS
-		AddInstruction("fdivrp");
-#else
-		AddInstruction("mov", "edx", "0");
-		AddInstruction("idiv", "ebx");
-#endif
-
-
+		if (type == ValueTypes::Float)
+		{
+			AddInstruction("fdivrp");
+		} 
+		else
+		{
+			AddInstruction("mov", "edx", "0");
+			AddInstruction("idiv", "ebx");
+		}
 	} else
 		abort();
 }
@@ -232,18 +234,27 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		// pop latest to the "left" reg
 		// pop the one after to the "right" reg
 
+		ValueTypes typeLhs = GetValueTypeOfNode(left);
+		ValueTypes typeRhs = GetValueTypeOfNode(right);
+		ValueTypes type = typeLhs;
+
+		// Typechecking
+		if (typeLhs != typeRhs)
+			return MakeError("Non-match matching types for " + node->ToString(false) + "(" + ValueTypeToString(typeLhs) + " and " + ValueTypeToString(typeRhs) + ")");
+
 		//m_TextSection.AddLine("; pop values");
-#ifndef USE_FLOATS
-		m_TextSection.AddInstruction("pop", "eax");
-		m_TextSection.AddInstruction("pop", "ebx");
-#endif
+		if (type == ValueTypes::Integer || type == ValueTypes::String)
+		{
+			m_TextSection.AddInstruction("pop", "eax");
+			m_TextSection.AddInstruction("pop", "ebx");
+		}
 
 		m_TextSection.AddComment("math operation");
-		m_TextSection.AddCorrectMathInstruction(node, reverse);
+		m_TextSection.AddCorrectMathInstruction(node, type, reverse);
 
-#ifndef USE_FLOATS
-		m_TextSection.AddInstruction("push", "eax");
-#endif
+		if (type == ValueTypes::Integer || type == ValueTypes::String)
+			m_TextSection.AddInstruction("push", "eax");
+
 		m_TextSection.AddComment("");
 	};
 
@@ -589,6 +600,12 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		// Recursivly perform the operations, do the inner ones first
 		if (right->IsMathOperator())
 		{
+			// Typechecking
+			ValueTypes typeRhs = GetValueTypeOfNode(right);
+			ValueTypes typeLhs = GetValueTypeOfNode(left);
+			if (typeLhs != typeRhs)
+				return MakeError("Non-match matching types for " + node->right->ToString(false) + " (" + ValueTypeToString(typeLhs) + " and " + ValueTypeToString(typeRhs) + ")");
+
 			Compile(right);
 			m_TextSection.AddComment("push lhs");
 			Compile(left);
@@ -599,6 +616,12 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		}
 		if (left->IsMathOperator())
 		{
+			// Typechecking
+			ValueTypes typeLhs = GetValueTypeOfNode(left);
+			ValueTypes typeRhs = GetValueTypeOfNode(right);
+			if (typeLhs != typeRhs)
+				return MakeError("Non-match matching types for " + node->right->ToString(false) + " (" + ValueTypeToString(typeLhs) + " and " + ValueTypeToString(typeRhs) + ")");
+
 			Compile(left);
 			m_TextSection.AddComment("push rhs");
 			Compile(right);
@@ -606,6 +629,12 @@ void AssemblyCompiler::Compile(ASTNode* node)
 
 			return;
 		}
+
+		// Typechecking
+		ValueTypes typeRhs = GetValueTypeOfNode(right);
+		ValueTypes typeLhs = GetValueTypeOfNode(left);
+		if (typeLhs != typeRhs)
+			return MakeError("Non-match matching types for " + node->right->ToString(false) + " (" + ValueTypeToString(typeLhs) + " and " + ValueTypeToString(typeRhs) + ")");
 
 		m_TextSection.AddComment("push rhs and lhs");
 		Compile(right);

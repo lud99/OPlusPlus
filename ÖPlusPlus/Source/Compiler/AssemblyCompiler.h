@@ -49,7 +49,7 @@ public:
 	void AddLabel(const std::string& label);
 	void AddLine(const std::string& line);
 
-	void AddCorrectMathInstruction(ASTNode* n, bool reverse = false);
+	void AddCorrectMathInstruction(ASTNode* n, ValueTypes type, bool reverse = false);
 
 	std::vector<Instruction>& GetLines() { return m_Lines; }
 
