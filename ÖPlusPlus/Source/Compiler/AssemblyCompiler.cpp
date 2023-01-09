@@ -199,6 +199,24 @@ void Section::AddCorrectMathInstruction(ASTNode* n, bool reverse)
 		abort();
 }
 
+AssemblyCompiler::AssemblyCompiler()
+{
+	auto& printfFunc = m_Context.CreateFunction("print", ValueTypes::Void);
+	printfFunc.m_ActualName = "printf";
+	printfFunc.m_IsStdLib = true;
+	
+	printfFunc.m_Arguments = {
+		ValueTypes::String,
+		ValueTypes::Any,
+		ValueTypes::Any,
+		ValueTypes::Any,
+		ValueTypes::Any,
+		ValueTypes::Any,
+		ValueTypes::Any,
+		// TODO: ...
+	};
+}
+
 void AssemblyCompiler::Compile(ASTNode* node)
 {
 	ASTNode* left = node->left;
@@ -630,6 +648,14 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		if (node->arguments.size() > maxArgumentCount)
 			return MakeError("Too many arguments for function. A maximum of 4 is supported");
 
+		std::string functionName = node->stringValue;
+
+		// Check if the function has been defined
+		if (!m_Context.HasFunction(functionName))
+			return MakeError("Function '" + functionName + "' has not been defined");
+
+		auto& function = m_Context.GetFunction(functionName);
+
 		int argumentsSize = 0;
 
 		// Evaluate the arguments. The results are stored as variables on the stack
@@ -638,9 +664,12 @@ void AssemblyCompiler::Compile(ASTNode* node)
 			Compile(node->arguments[i]);
 
 			ValueTypes typeOfArgument = GetValueTypeOfNode(node->arguments[i]);
-
 			if (m_Error != "")
 				return;
+
+			// Ensure that the passed argument is the same as the type of the argument in the function prototype
+			if (function.m_Arguments[i] != typeOfArgument && function.m_Arguments[i] != ValueTypes::Any)
+				return MakeError("Parameter of type '" + ValueTypeToString(typeOfArgument) + "' cannot be passed to function that expects a '" + ValueTypeToString(function.m_Arguments[i]) + "'");
 
 			if (typeOfArgument == ValueTypes::Float)
 			{
@@ -687,8 +716,8 @@ void AssemblyCompiler::Compile(ASTNode* node)
 			if (!m_Context.HasVariable("arg" + std::to_string(i)))
 			{
 				m_TextSection.AddInstruction("sub", "esp", "8");
-m_TextSection.AddInstruction("fstp", "qword [esp]");
-continue;
+				m_TextSection.AddInstruction("fstp", "qword [esp]");
+				continue;
 			}
 
 			auto& variable = m_Context.GetVariable("arg" + std::to_string(i));
@@ -705,25 +734,7 @@ continue;
 			m_Context.DeleteVariable("arg" + std::to_string(i));
 		}
 
-		std::string functionName = node->stringValue;
-
-		// printf -> print
-		if (functionName == "printf")
-			functionName = "print";
-
-		// TODO: check function exists
-		// Check user defined functions
-		if (!m_Context.HasFunction(functionName))
-		{
-			// Check built in functions
-			if (functionName != "printf" && functionName != "print")
-				return MakeError("Function '" + functionName + "' has not been defined");
-
-			// It is a built in function
-			// TODO
-		}
-
-		m_TextSection.AddInstruction("call", node->stringValue);
+		m_TextSection.AddInstruction("call", function.m_ActualName);
 
 		// Remove the arguments from the stack
 		m_TextSection.AddInstruction("add", "esp", std::to_string(argumentsSize), "size of arguments");
@@ -738,17 +749,8 @@ continue;
 
 		if (!ResultCanBeDiscarded(node))
 		{
-			if (m_Context.HasFunction(functionName))
-			{
-				auto& function = m_Context.GetFunction(functionName);
-				if (function.m_ReturnType == ValueTypes::Integer || function.m_ReturnType == ValueTypes::String)
-					m_TextSection.AddInstruction("push", "eax");
-			}
-			else
-			{
-				// TODO: not all built in functions has int/string pointer as return type
+			if (function.m_ReturnType == ValueTypes::Integer || function.m_ReturnType == ValueTypes::String)
 				m_TextSection.AddInstruction("push", "eax");
-			}
 		}
 
 	}
@@ -895,8 +897,16 @@ continue;
 
 		if (m_Context.HasFunction(name))
 			return MakeError("Function '" + name + "' has already been defined");
+		
+		// Create arguments for the function definition
+		std::vector<ValueTypes> functionArguments;
+		functionArguments.reserve(functionPrototype->arguments.size() - 2); // Reserve space. Not really needed :)
+		for (int i = 2; i < functionPrototype->arguments.size(); i++)
+		{
+			functionArguments.push_back(GetValueTypeOfNode(functionPrototype->arguments[i]));
+		}
 
-		AssemblyCompilerContext::Function& function = m_Context.CreateFunction(name, returnType);
+		AssemblyCompilerContext::Function& function = m_Context.CreateFunction(name, returnType, functionArguments);
 
 		m_TextSection.AddLabel(name + ":");
 
@@ -1275,16 +1285,19 @@ assert(HasFunction(functionName));
 return m_Functions[functionName];
 }
 
-AssemblyCompilerContext::Function& AssemblyCompilerContext::CreateFunction(const std::string& functionName, ValueTypes returnType)
+AssemblyCompilerContext::Function& AssemblyCompilerContext::CreateFunction(const std::string& functionName, ValueTypes returnType, std::vector<ValueTypes> arguments)
 {
 	assert(!HasFunction(functionName));
 
-	Function var;
-	var.m_Name = functionName;
-	var.m_MangledName = MangleName(functionName);
-	var.m_ReturnType = returnType;
+	Function func;
+	func.m_Name = functionName;
+	func.m_MangledName = MangleName(functionName);
+	func.m_ReturnType = returnType;
+	func.m_Arguments = arguments;
 
-	m_Functions[functionName] = var;
+	func.m_ActualName = func.m_Name;
+
+	m_Functions[functionName] = func;
 	return m_Functions[functionName];
 }
 

@@ -88,7 +88,10 @@ public:
 		std::string m_MangledName = "";
 		ValueTypes m_ReturnType = ValueTypes::Void;
 
-		//std::vector<Variable> m_Arguments;
+		bool m_IsStdLib = false;
+		std::string m_ActualName = "";
+
+		std::vector<ValueTypes> m_Arguments;
 	};
 
 	struct LoopInfo
@@ -108,7 +111,7 @@ public:
 
 	bool HasFunction(const std::string& functionName);
 	Function& GetFunction(const std::string& functionName);
-	Function& CreateFunction(const std::string& functionName, ValueTypes returnType /* todo args*/);
+	Function& CreateFunction(const std::string& functionName, ValueTypes returnType, std::vector<ValueTypes> args = {});
 
 	int Allocate(int size);
 
@@ -128,7 +131,7 @@ public:
 class AssemblyCompiler
 {
 public:
-	AssemblyCompiler() {};
+	AssemblyCompiler();
 
 	void Compile(ASTNode* node);
 	void Optimize();
