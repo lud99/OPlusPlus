@@ -6,4 +6,4 @@ float add (float x, float y) => {
 
 string s = "hej! %f";
 
-print(s, add(1.0, 2.0));
+print(s, add(1.0, to_float(2)));

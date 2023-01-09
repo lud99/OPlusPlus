@@ -201,6 +201,8 @@ void Section::AddCorrectMathInstruction(ASTNode* n, bool reverse)
 
 AssemblyCompiler::AssemblyCompiler()
 {
+	// Declare internal functions
+	// printf
 	auto& printfFunc = m_Context.CreateFunction("print", ValueTypes::Void);
 	printfFunc.m_ActualName = "printf";
 	printfFunc.m_IsStdLib = true;
@@ -215,6 +217,10 @@ AssemblyCompiler::AssemblyCompiler()
 		ValueTypes::Any,
 		// TODO: ...
 	};
+
+	// to_float
+	auto& to_floatFunc = m_Context.CreateFunction("to_float", ValueTypes::Float, { ValueTypes::Integer } );
+	printfFunc.m_IsStdLib = true;
 }
 
 void AssemblyCompiler::Compile(ASTNode* node)

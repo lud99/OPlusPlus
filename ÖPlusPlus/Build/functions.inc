@@ -73,3 +73,27 @@ rand_range:
 	mov esp, ebp ; deallocate local varibales
 	pop ebp ; restore old base pointer
 	ret
+
+to_float:
+    ; Subroutine Prologue
+
+    ; Create call frame
+    push ebp
+    mov ebp, esp
+
+    push ebx
+    ; Get arguments
+	; x
+    mov eax, [ebp + 8]
+	mov dword [ebp - 4], eax
+	sub esp, 4
+
+	; Body
+	fild dword [ebp - 4];
+
+    ; Subroutine Epilogue
+    ; Restore calle-saved registers
+    pop ebx
+    mov esp, ebp ; deallocate local variables
+    pop ebp ; restore old base pointer
+    ret
