@@ -540,7 +540,7 @@ void AssemblyCompiler::Compile(ASTNode* node)
 
 		AssemblyCompilerContext::Variable variable = m_Context.GetVariable(variableName);
 
-		if (variable.m_Type == ValueTypes::Integer)
+		if (variable.m_Type == ValueTypes::Integer || variable.m_Type == ValueTypes::String)
 		{
 			m_TextSection.AddInstruction("mov", "eax", variable.GetASMLocation(), variable.m_MangledName);
 			m_TextSection.AddInstruction("push", "eax");
@@ -777,11 +777,6 @@ continue;
 
 		if (function.m_ReturnType != rhsType)
 			return MakeError("Return value '" + ValueTypeToString(rhsType) + "' does not match function prototype return value '" + ValueTypeToString(function.m_ReturnType) + "'");
-
-		// Ensure that void functions cannot return a value
-		if (node->left != nullptr && node->left->type != ASTTypes::Empty)
-			return MakeError("A void function cannot return a value. An empty return statement should be used instead");
-
 
 		m_TextSection.AddComment("Subroutine Epilogue");
 
