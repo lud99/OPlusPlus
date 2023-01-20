@@ -76,6 +76,26 @@ std::string ComparisonTypeToJumpInstruction(ASTTypes& type)
 	return "";
 }
 
+// Floating comparisons is the opposite of normal integer cmp
+std::string ComparisonTypeToJumpInstructionFloat(ASTTypes& type)
+{
+	if (type == ASTTypes::CompareEquals)
+		return "jne";
+	if (type == ASTTypes::CompareNotEquals)
+		return "je";
+	if (type == ASTTypes::CompareGreaterThan)
+		return "jge";
+	if (type == ASTTypes::CompareGreaterThanEqual)
+		return "jg";
+	if (type == ASTTypes::CompareLessThan)
+		return "jle";
+	if (type == ASTTypes::CompareLessThanEqual)
+		return "jl";
+
+	abort();
+	return "";
+}
+
 ValueTypes NodeVariableTypeToValueType(ASTNode* n)
 {
 	assert(n->type == ASTTypes::VariableType);
@@ -605,6 +625,7 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		else if (typeRhs == ValueTypes::Float)
 		{
 			m_TextSection.AddInstruction("fcomip");
+			
 		}
 
 		break;
@@ -974,7 +995,13 @@ void AssemblyCompiler::Compile(ASTNode* node)
 
 		Compile(node->left);
 
-		std::string jmpInstruction = ComparisonTypeToJumpInstruction(node->left->type);
+		ValueTypes type = GetValueTypeOfNode(node->left);
+
+		std::string jmpInstruction = "";
+		if (type == ValueTypes::Float)
+			jmpInstruction = ComparisonTypeToJumpInstructionFloat(node->left->type);
+		else
+			jmpInstruction = ComparisonTypeToJumpInstruction(node->left->type);
 
 		if (node->parent->type != ASTTypes::Else)
 			m_TextSection.AddInstruction(jmpInstruction, "if_end" + std::to_string(labelIndex));
@@ -1015,7 +1042,13 @@ void AssemblyCompiler::Compile(ASTNode* node)
 
 		Compile(node->left);
 
-		std::string jmpInstruction = ComparisonTypeToJumpInstruction(node->left->type);
+		ValueTypes type = GetValueTypeOfNode(node->left);
+
+		std::string jmpInstruction = "";
+		if (type == ValueTypes::Float)
+			jmpInstruction = ComparisonTypeToJumpInstructionFloat(node->left->type);
+		else
+			jmpInstruction = ComparisonTypeToJumpInstruction(node->left->type);
 
 		m_TextSection.AddInstruction(jmpInstruction, "while_end" + std::to_string(labelIndex));
 
@@ -1042,7 +1075,14 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		Compile(node->arguments[1]);
 
 		// Skip loop if condition is false
-		std::string jmpInstruction = ComparisonTypeToJumpInstruction(node->arguments[1]->type);
+		ValueTypes type = GetValueTypeOfNode(node->arguments[1]);
+
+		std::string jmpInstruction = "";
+		if (type == ValueTypes::Float)
+			jmpInstruction = ComparisonTypeToJumpInstructionFloat(node->arguments[1]->type);
+		else
+			jmpInstruction = ComparisonTypeToJumpInstruction(node->arguments[1]->type);
+
 		m_TextSection.AddInstruction(jmpInstruction, "for_end" + std::to_string(labelIndex));
 
 		// Body
@@ -1261,7 +1301,7 @@ ValueTypes AssemblyCompiler::GetValueTypeOfNode(ASTNode* node)
 	case ASTTypes::CompareLessThanEqual:
 	case ASTTypes::CompareGreaterThanEqual:
 	{
-		abort();
+		return GetValueTypeOfNode(node->left);
 		// Should be a boolean (or int), but right now comparisions don't store a value. 
 		// They are only used for the conditional jump instruction
 

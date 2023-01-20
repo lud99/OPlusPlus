@@ -1,32 +1,35 @@
-float rand_range_float (int b, float min, int c, float max) => {
-    print("%d\n", b);
-    print("%f\n", min);
-    print("%d\n", c);
-    print("%f\n", max);
-    return 1.0;//return ((max - min) * (to_float(rand()) / 32767.0)) + min;
+if (1.0 != 1.0) {
+    print("hi");
+}
+
+/*float rand_range_float (float min, float max) => {
+    return (max - min) * (to_float(rand()) / 32767.0) + min;
 };
-/*
+
 float pi() => {
     int inside = 0;
-    int its = 10000;
+    int its = 10;
 
     for (int i = 0, i < its, i++) {
         float x = rand_range_float(to_float(-1) * 1.0, 1.0);
         float y = rand_range_float(to_float(-1) * 1.0, 1.0);
 
+        print("x,y: %f, %f\n", x, y);
+
         if (x * x + y * y <= 1.0) {
             inside++;
+
+            //print("x,y: %f, %f\n", x, y);
         };
     };
 
     return to_float(inside);
 
     return 4.0 * to_float(inside) / to_float(its);
-};*/
+};
 
-srand(100);//srand(time(0));
+srand(101);//srand(time(0));
 
-//for (int i = 0, i < 20, i++) {
-    print("%f\n", rand_range_float(1, 2.0, 3, 4.0));
-//};
+print("%f\n", pi());*/
+
 //rand_range_float(1.0, 2.0)

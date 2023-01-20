@@ -83,6 +83,25 @@ int main(int argc, const char* argv[])
 
 	srand(100);
 
+	int inside = 0;
+	int its = 10;
+
+	for (int i = 0; i < its; i++) {
+		float x = rand_range_float(-1.0, 1.0);
+		float y = rand_range_float(-1.0, 1.0);
+
+		printf("x,y: %f, %f\n", x, y);
+
+		if (x * x + y * y <= 1.0) {
+			inside++;
+			
+		};
+	};
+
+	
+
+	float p = 4.0 * float(inside) / float(its);
+
 	for (int i = 0; i < 20; i++)
 	{
 		printf("%f\n", rand_range_float(-1.0, 1.0));
