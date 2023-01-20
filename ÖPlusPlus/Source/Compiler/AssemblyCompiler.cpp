@@ -84,13 +84,13 @@ std::string ComparisonTypeToJumpInstructionFloat(ASTTypes& type)
 	if (type == ASTTypes::CompareNotEquals)
 		return "je";
 	if (type == ASTTypes::CompareGreaterThan)
-		return "jge";
-	if (type == ASTTypes::CompareGreaterThanEqual)
-		return "jg";
-	if (type == ASTTypes::CompareLessThan)
 		return "jle";
-	if (type == ASTTypes::CompareLessThanEqual)
+	if (type == ASTTypes::CompareGreaterThanEqual)
 		return "jl";
+	if (type == ASTTypes::CompareLessThan)
+		return "jge";
+	if (type == ASTTypes::CompareLessThanEqual)
+		return "jg";
 
 	abort();
 	return "";
@@ -625,7 +625,7 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		else if (typeRhs == ValueTypes::Float)
 		{
 			m_TextSection.AddInstruction("fcomip");
-			
+			m_TextSection.AddInstruction("fstp", "st0");
 		}
 
 		break;
