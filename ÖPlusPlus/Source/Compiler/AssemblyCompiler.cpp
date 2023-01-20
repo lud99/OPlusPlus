@@ -108,6 +108,104 @@ bool HasPriorityCompilation(ASTNode* n)
 	return false;
 }
 
+std::vector<std::pair<ValueTypes, std::string>> AssemblyCompiler::ReverseFunctionArguments(ASTNode* node)
+{
+	std::vector<std::pair<ValueTypes, std::string>> argsSortedByType;
+
+	// 1, 2, x, 3
+	// 3, x, 2, 1
+
+	// i1, i2, f3, f4
+	// f3, f4, i2, i1
+
+	// 1, y, x, 3
+	// 3, y, x, 1
+
+	// 1, y, 2, x, z
+	// z, x, 2, y, 1
+
+	for (int i = node->arguments.size() - 1; i >= 0; i--)
+	{
+		std::string name = "arg" + std::to_string(i);
+
+		// Float variable, because the intermediate value is not stored in a variable
+		if (!m_Context.HasVariable(name))
+		{
+			argsSortedByType.push_back(std::make_pair(ValueTypes::Float, name));
+		}
+		else
+		{
+			auto& variable = m_Context.GetVariable(name);
+			argsSortedByType.push_back(std::make_pair(variable.m_Type, name));
+		}
+	}
+
+	// Now find the floats in the array and reverse them
+	std::vector<std::pair<ValueTypes, std::string>> floatArguments;
+
+	// Collect floats
+	for (int i = 0; i < argsSortedByType.size(); i++)
+	{
+		if (argsSortedByType[i].first == ValueTypes::Float)
+			floatArguments.push_back(argsSortedByType[i]);
+	}
+
+	// Reverse them
+	std::reverse(floatArguments.begin(), floatArguments.end());
+
+	// Put the reversed items back into the original positions
+	for (int i = 0, j = 0; i < argsSortedByType.size(); i++)
+	{
+		if (argsSortedByType[i].first == ValueTypes::Float)
+		{
+			argsSortedByType[i] = floatArguments[j];
+			j++;
+		}
+	}
+
+	return argsSortedByType;
+}
+
+std::vector<std::pair<ValueTypes, int>> AssemblyCompiler::ReverseFunctionArgumentIndicies(ASTNode* node)
+{
+	std::vector<std::pair<ValueTypes, int>> argsSortedByType;
+
+	// Collect arguments in reverse order
+	for (int i = node->arguments.size() - 1; i >= 0; i--)
+	{
+		ValueTypes typeOfArgument = GetValueTypeOfNode(node->arguments[i]);
+		if (m_Error != "")
+			return {};
+
+		argsSortedByType.push_back(std::make_pair(typeOfArgument, i));
+	}
+
+	// Now find the floats in the array and reverse them
+	std::vector<std::pair<ValueTypes, int>> floatArguments;
+
+	// Collect floats
+	for (int i = 0; i < argsSortedByType.size(); i++)
+	{
+		if (argsSortedByType[i].first == ValueTypes::Float)
+			floatArguments.push_back(argsSortedByType[i]);
+	}
+
+	// Reverse them
+	std::reverse(floatArguments.begin(), floatArguments.end());
+
+	// Put the reversed items back into the original positions
+	for (int i = 0, j = 0; i < argsSortedByType.size(); i++)
+	{
+		if (argsSortedByType[i].first == ValueTypes::Float)
+		{
+			argsSortedByType[i] = floatArguments[j];
+			j++;
+		}
+	}
+
+	return argsSortedByType;
+}
+
 void Section::AddInstruction(Instruction inst)
 {
 	m_Lines.push_back(inst);
@@ -220,9 +318,20 @@ AssemblyCompiler::AssemblyCompiler()
 		// TODO: ...
 	};
 
+	// rand
+	auto& randFunc = m_Context.CreateFunction("rand", ValueTypes::Integer);
+	randFunc.m_IsStdLib = true;
+	// srand
+	auto& srandFunc = m_Context.CreateFunction("srand", ValueTypes::Integer, { ValueTypes::Integer });
+	srandFunc.m_IsStdLib = true;
+	// time
+	auto& timeFunc = m_Context.CreateFunction("time", ValueTypes::Integer, { ValueTypes::Integer });
+	timeFunc.m_IsStdLib = true;
+
+
 	// to_float
 	auto& to_floatFunc = m_Context.CreateFunction("to_float", ValueTypes::Float, { ValueTypes::Integer } );
-	printfFunc.m_IsStdLib = true;
+	to_floatFunc.m_IsStdLib = true;
 }
 
 void AssemblyCompiler::Compile(ASTNode* node)
@@ -472,14 +581,32 @@ void AssemblyCompiler::Compile(ASTNode* node)
 	case ASTTypes::CompareLessThanEqual:
 	case ASTTypes::CompareGreaterThanEqual:
 	{
+		ValueTypes typeLhs = GetValueTypeOfNode(left);
+		ValueTypes typeRhs = GetValueTypeOfNode(right);
+		if (typeLhs != typeRhs)
+			return MakeError("Non-match matching types for " + node->right->ToString(false) + " (" + ValueTypeToString(typeLhs) + " and " + ValueTypeToString(typeRhs) + ")");
+
+
 		Compile(node->left);
 		Compile(node->right);
 
-		m_TextSection.AddInstruction("pop", "eax");
-		m_TextSection.AddInstruction("pop", "ebx");
 
-		m_TextSection.AddInstruction("cmp", "ebx", "eax");
-		
+		if (typeLhs == ValueTypes::Integer)
+		{
+			m_TextSection.AddInstruction("pop", "eax");
+			m_TextSection.AddInstruction("pop", "ebx");
+
+			m_TextSection.AddInstruction("cmp", "ebx", "eax");
+		} 
+		else if (typeRhs == ValueTypes::String)
+		{
+			abort();
+		}
+		else if (typeRhs == ValueTypes::Float)
+		{
+			m_TextSection.AddInstruction("fcomip");
+		}
+
 		break;
 	}
 	case ASTTypes::And:
@@ -519,14 +646,6 @@ void AssemblyCompiler::Compile(ASTNode* node)
 			variableName = "float_" + index;
 		}
 
-		//auto& variable = m_Context.GetVariable(variableName);
-
-		// Load literal into st(0) (top of FPU stack)
-		//m_TextSection.AddInstruction("fld", variable.GetASMLocation("dword"));
-
-		// Push the adress of the float literal
-		//m_TextSection.AddInstruction("mov", "eax", "dword " + variableName);
-		//m_TextSection.AddInstruction("push", "eax");
 		// Push number onto top of FPU stack
 		m_TextSection.AddInstruction("fld", "qword [" + variableName + "]");
 
@@ -674,10 +793,10 @@ void AssemblyCompiler::Compile(ASTNode* node)
 	{
 		const int maxArgumentCount = 4;
 		const char* argumentRegisters[maxArgumentCount] = {
-			"eax",
-			"ecx",
+			"ebx",
 			"edx",
-			"ebx"
+			"ecx",
+			"eax"
 		};
 
 		if (node->arguments.size() > maxArgumentCount)
@@ -693,14 +812,21 @@ void AssemblyCompiler::Compile(ASTNode* node)
 
 		int argumentsSize = 0;
 
+		auto argumentIndicies = ReverseFunctionArgumentIndicies(node);
+
 		// Evaluate the arguments. The results are stored as variables on the stack
-		for (int i = node->arguments.size() - 1; i >= 0; i--)
+		for (int j = 0; j < argumentIndicies.size(); j++)
 		{
+			int i = argumentIndicies[j].second;
+
 			Compile(node->arguments[i]);
 
 			ValueTypes typeOfArgument = GetValueTypeOfNode(node->arguments[i]);
 			if (m_Error != "")
 				return;
+
+			if (i >= function.m_Arguments.size())
+				return MakeError("Function '" + functionName + "' doesn't accept this many arguments");
 
 			// Ensure that the passed argument is the same as the type of the argument in the function prototype
 			if (function.m_Arguments[i] != typeOfArgument && function.m_Arguments[i] != ValueTypes::Any)
@@ -722,13 +848,17 @@ void AssemblyCompiler::Compile(ASTNode* node)
 			}
 		}
 
+		auto argsSortedByType = ReverseFunctionArguments(node);
+
 		// The value of the evaluated arguments are stored in registers
-		for (int i = node->arguments.size() - 1; i >= 0; i--)
+		for (int i = 0; i < argsSortedByType.size(); i++)
 		{
-			if (!m_Context.HasVariable("arg" + std::to_string(i)))
+			const std::string& name = argsSortedByType[i].second;
+
+			if (!m_Context.HasVariable(name))
 				continue;
 
-			auto& variable = m_Context.GetVariable("arg" + std::to_string(i));
+			auto& variable = m_Context.GetVariable(name);
 
 			if (variable.m_Type == ValueTypes::Integer || variable.m_Type == ValueTypes::String)
 				m_TextSection.AddInstruction("mov", argumentRegisters[i], variable.GetASMLocation("dword"), "evaluated argument");
@@ -746,27 +876,31 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		CreateNewCallFrame(m_TextSection);
 
 		// The registers are pushed on to the new call stack
-		for (int i = node->arguments.size() - 1; i >= 0; i--)
+		for (int i = 0; i < argsSortedByType.size(); i++)
 		{
-			if (!m_Context.HasVariable("arg" + std::to_string(i)))
+			const std::string& name = argsSortedByType[i].second;
+
+			// No variable means that it is a float
+			if (!m_Context.HasVariable(name))
 			{
 				m_TextSection.AddInstruction("sub", "esp", "8");
 				m_TextSection.AddInstruction("fstp", "qword [esp]");
 				continue;
 			}
 
-			auto& variable = m_Context.GetVariable("arg" + std::to_string(i));
+			auto& variable = m_Context.GetVariable(name);
 
-			if (variable.m_Type == ValueTypes::Float)
+			/*if (variable.m_Type == ValueTypes::Float)
 			{
 				m_TextSection.AddInstruction("sub", "esp", "8");
 				m_TextSection.AddInstruction("fstp", "qword [esp]");
 			}
-			else if (variable.m_Type == ValueTypes::Integer || variable.m_Type == ValueTypes::String)
+			else */
+			if (variable.m_Type == ValueTypes::Integer || variable.m_Type == ValueTypes::String)
 				m_TextSection.AddInstruction("push", argumentRegisters[i]);
 
 			// Delete the temporary argument variable.The index will still be occupied, but the name will be free
-			m_Context.DeleteVariable("arg" + std::to_string(i));
+			m_Context.DeleteVariable(name);
 		}
 
 		m_TextSection.AddInstruction("call", function.m_ActualName);
@@ -1245,15 +1379,8 @@ ValueTypes AssemblyCompiler::GetValueTypeOfNode(ASTNode* node)
 		// Check user defined functions
 		if (!m_Context.HasFunction(functionName))
 		{
-			// Check built in functions
-			if (functionName != "printf" && functionName != "print")
-			{
-				MakeError("Function '" + functionName + "' has not been defined");
-				return ValueTypes::Void;
-			}
-
-			// It is a built in function
-			return ValueTypes::Void; // TODO: fix
+			MakeError("Function '" + functionName + "' has not been defined");
+			return ValueTypes::Void;
 		}
 
 		auto& function = m_Context.GetFunction(functionName);

@@ -34,6 +34,10 @@
 
 #include "Tester.h"
 
+double rand_range_float(double min, double max)  {
+	return ((max - min) * (double(rand()) / 32767.0)) + min;
+};
+
 static std::vector<std::string> split(const std::string& txt, char ch, bool includeLast = true)
 {
 	std::vector<std::string> strs;
@@ -77,7 +81,12 @@ int main(int argc, const char* argv[])
 	setlocale(LC_ALL, "");
 	Functions::InitializeDefaultFunctions();
 
-	
+	srand(100);
+
+	for (int i = 0; i < 20; i++)
+	{
+		printf("%f\n", rand_range_float(-1.0, 1.0));
+	}
 
 	std::string error;
 	Value v;
@@ -145,7 +154,7 @@ int main(int argc, const char* argv[])
 		}
 
 		if (arg == "-f")
-		{
+		{ 
 			// Expect filename as next arg
 			if (i >= argc - 1)
 			{
@@ -157,7 +166,7 @@ int main(int argc, const char* argv[])
 		}
 	}
 
-	filepath = "Programs/float.ö";
+	filepath = "Programs/calc_pi.ö";
 	
 
 	if (runTests)

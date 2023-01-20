@@ -141,6 +141,9 @@ public:
 private:
 	ValueTypes GetValueTypeOfNode(ASTNode* node);
 
+	std::vector<std::pair<ValueTypes, std::string>> ReverseFunctionArguments(ASTNode* node);
+	std::vector<std::pair<ValueTypes, int>> ReverseFunctionArgumentIndicies(ASTNode* node);
+
 public:
 	Section m_DataSection;
 	Section m_TextSection;
