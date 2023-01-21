@@ -71,7 +71,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Programs\test.ö" />
-    <None Include="Programs\factorial.ö" />
+    <None Include="Programs\PerformaceTests\factorial.ö" />
     <None Include="Programs\string_format_bytecode.ö" />
     <None Include="Programs\asm_math_notes.ö" />
     <None Include="Programs\Tests\variable.ö" />
@@ -95,12 +95,14 @@
     <None Include="Programs\Tests\string.ö.result" />
     <None Include="Programs\Tests\variable.ö.result" />
     <None Include="Programs\Tests\while.ö.result" />
-    <None Include="Programs\calc_pi.ö" />
+    <None Include="Programs\PerformaceTests\calc_pi.ö" />
     <None Include="Build\functions.inc">
       <Filter>Header Files</Filter>
     </None>
     <None Include="Programs\float.ö" />
     <None Include="Programs\Tests\comparison.ö" />
     <None Include="Programs\Tests\comparison.ö.result" />
+    <None Include="Programs\PerformaceTests\average_of_random_numbers.ö" />
+    <None Include="Programs\PerformaceTests\dot_product.ö" />
   </ItemGroup>
 </Project>

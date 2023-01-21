@@ -2,8 +2,6 @@
 
 #include <iostream>
 
-#define USE_FLOATS 1
-
 std::string FloatToString(float value)
 {
 	std::string str = std::to_string(value);
@@ -358,10 +356,21 @@ AssemblyCompiler::AssemblyCompiler()
 	auto& timeFunc = m_Context.CreateFunction("time", ValueTypes::Integer, { ValueTypes::Integer });
 	timeFunc.m_IsStdLib = true;
 
-
+	// rand_range_int
+	auto& rand_range_intFunc = m_Context.CreateFunction("rand_range_int", ValueTypes::Integer, { ValueTypes::Integer, ValueTypes::Integer });
+	rand_range_intFunc.m_IsStdLib = true;
+	// rand_range_float
+	//auto& to_floatFunc = m_Context.CreateFunction("rand_range_float", ValueTypes::Float, { ValueTypes::Float, ValueTypes::Float });
+	//to_floatFunc.m_IsStdLib = true;
 	// to_float
 	auto& to_floatFunc = m_Context.CreateFunction("to_float", ValueTypes::Float, { ValueTypes::Integer } );
 	to_floatFunc.m_IsStdLib = true;
+
+
+	m_Context.CreateFunction("cos", ValueTypes::Float, { ValueTypes::Float }).m_IsStdLib = true;
+	m_Context.CreateFunction("sin", ValueTypes::Float, { ValueTypes::Float }).m_IsStdLib = true;
+	m_Context.CreateFunction("tan", ValueTypes::Float, { ValueTypes::Float }).m_IsStdLib = true;
+	m_Context.CreateFunction("sqrt", ValueTypes::Float, { ValueTypes::Float }).m_IsStdLib = true;
 }
 
 void AssemblyCompiler::Compile(ASTNode* node)
@@ -466,6 +475,7 @@ void AssemblyCompiler::Compile(ASTNode* node)
 
 		m_Context = prevContext;
 		m_Context.m_LoopInfo.labelIndex = labelIndex;
+		break;
 	}
 	case ASTTypes::Empty:
 		break;
@@ -561,8 +571,16 @@ void AssemblyCompiler::Compile(ASTNode* node)
 
 			if (variable.m_Publicity == Publicity::Global)
 			{
-				m_DataSection.AddLine(variable.m_MangledName + " " + "DD 0");
-				m_TextSection.AddInstruction("mov", variable.GetASMLocation("dword"), "eax");
+				if (variableType == ValueTypes::Integer || variableType == ValueTypes::String)
+				{
+					m_DataSection.AddLine(variable.m_MangledName + " " + "DD 0");
+					m_TextSection.AddInstruction("mov", variable.GetASMLocation("dword"), "eax");
+				}
+				else
+				{
+					m_DataSection.AddLine(variable.m_MangledName + " " + "DQ 0");
+					m_TextSection.AddInstruction("fstp", variable.GetASMLocation("qword"));
+				}
 			}
 			else
 			{
@@ -593,12 +611,34 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		// Evaluate the assignment on the rhs
 		Compile(node->right);
 
-		m_TextSection.AddInstruction("pop", "eax");
+		if (variable.m_Type == ValueTypes::Integer || variable.m_Type == ValueTypes::String)
+			m_TextSection.AddInstruction("pop", "eax");
 
 		if (variable.m_Publicity == Publicity::Global)
-			m_TextSection.AddInstruction("mov", "dword [" + variable.m_MangledName + "]", "eax");
+		{
+			if (variable.m_Type == ValueTypes::Integer || variable.m_Type == ValueTypes::String)
+			{
+				m_TextSection.AddInstruction("mov", variable.GetASMLocation("dword"), "eax");
+			}
+			else
+			{
+				m_TextSection.AddInstruction("fstp", variable.GetASMLocation("qword"));
+			}
+		}
 		else
-			m_TextSection.AddInstruction("mov", "dword [ebp - " + std::to_string(variable.m_Index) + "]", "eax");
+		{
+			if (variable.m_Type == ValueTypes::Integer || variable.m_Type == ValueTypes::String)
+			{
+				m_TextSection.AddInstruction("mov", variable.GetASMLocation("dword"), "eax");
+				m_TextSection.AddInstruction("sub", "esp", "4");
+			}
+			else if (variable.m_Type == ValueTypes::Float)
+			{
+				m_TextSection.AddInstruction("fstp", variable.GetASMLocation("qword"));
+				m_TextSection.AddInstruction("sub", "esp", "8");
+			}
+		}
+
 
 		break;
 	}
@@ -953,6 +993,11 @@ void AssemblyCompiler::Compile(ASTNode* node)
 			if (function.m_ReturnType == ValueTypes::Integer || function.m_ReturnType == ValueTypes::String)
 				m_TextSection.AddInstruction("push", "eax");
 		}
+		else
+		{
+			if (function.m_ReturnType == ValueTypes::Float)
+				m_TextSection.AddInstruction("fstp", "st0");
+		}
 
 	}
 	break;
@@ -1141,7 +1186,7 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		//m_TextSection.AddInstruction("push", "esi");
 
 		// New context for function
-		AssemblyCompilerContext ctx = m_Context;
+		AssemblyCompilerContext prevContext = m_Context;
 
 		m_Context.m_CurrentParsingFunctionName = name;
 
@@ -1196,9 +1241,13 @@ void AssemblyCompiler::Compile(ASTNode* node)
 
 		m_TextSection.AddComment("");
 		m_TextSection.AddComment("Body");
+
 		Compile(node->right);
 
-		m_Context = ctx;
+		int labelIndex = m_Context.m_LoopInfo.labelIndex;
+
+		m_Context = prevContext;
+		m_Context.m_LoopInfo.labelIndex = labelIndex;
 	}
 		break;
 	case ASTTypes::FunctionPrototype:

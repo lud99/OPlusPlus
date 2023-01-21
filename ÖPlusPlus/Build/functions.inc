@@ -1,5 +1,5 @@
 
-rand_range:
+rand_range_int:
 	; Subroutine Prologue
 	; Create call frame
 	push ebp
@@ -90,6 +90,123 @@ to_float:
 
 	; Body
 	fild dword [ebp - 4];
+
+    ; Subroutine Epilogue
+    ; Restore calle-saved registers
+    pop ebx
+    mov esp, ebp ; deallocate local variables
+    pop ebp ; restore old base pointer
+    ret
+
+cos:
+    ; Subroutine Prologue
+
+    ; Create call frame
+    push ebp
+    mov ebp, esp
+
+    push ebx
+    ; Get arguments
+    ; angle
+    mov eax, [ebp + 8]
+    mov dword [ebp - 8], eax
+    mov eax, [ebp + 12]
+    mov dword [ebp - 4], eax
+    sub esp, 8
+
+    ; Body
+    ; push rhs and lhs
+    fld qword [ebp - 8] ; angle
+    ; math operation
+    fcos
+
+    ; Subroutine Epilogue
+    ; Restore calle-saved registers
+    pop ebx
+    mov esp, ebp ; deallocate local variables
+    pop ebp ; restore old base pointer
+    ret
+
+sin:
+    ; Subroutine Prologue
+
+    ; Create call frame
+    push ebp
+    mov ebp, esp
+
+    push ebx
+    ; Get arguments
+    ; angle
+    mov eax, [ebp + 8]
+    mov dword [ebp - 8], eax
+    mov eax, [ebp + 12]
+    mov dword [ebp - 4], eax
+    sub esp, 8
+
+    ; Body
+    ; push rhs and lhs
+    fld qword [ebp - 8] ; angle
+    ; math operation
+    fsin
+
+    ; Subroutine Epilogue
+    ; Restore calle-saved registers
+    pop ebx
+    mov esp, ebp ; deallocate local variables
+    pop ebp ; restore old base pointer
+    ret
+
+tan:
+    ; Subroutine Prologue
+
+    ; Create call frame
+    push ebp
+    mov ebp, esp
+
+    push ebx
+    ; Get arguments
+    ; angle
+    mov eax, [ebp + 8]
+    mov dword [ebp - 8], eax
+    mov eax, [ebp + 12]
+    mov dword [ebp - 4], eax
+    sub esp, 8
+
+    ; Body
+    ; push rhs and lhs
+    fld qword [ebp - 8] ; angle
+    ; math operation
+    fptan
+    fstp st0 ; discard the 1.0 pushed onto the stack
+
+    ; Subroutine Epilogue
+    ; Restore calle-saved registers
+    pop ebx
+    mov esp, ebp ; deallocate local variables
+    pop ebp ; restore old base pointer
+    ret
+
+sqrt:
+    ; Subroutine Prologue
+
+    ; Create call frame
+    push ebp
+    mov ebp, esp
+
+    push ebx
+    ; Get arguments
+    ; angle
+    mov eax, [ebp + 8]
+    mov dword [ebp - 8], eax
+    mov eax, [ebp + 12]
+    mov dword [ebp - 4], eax
+    sub esp, 8
+
+    ; Body
+    ; push rhs and lhs
+    fld qword [ebp - 8] ; angle
+    ; math operation
+    fsqrt
 
     ; Subroutine Epilogue
     ; Restore calle-saved registers

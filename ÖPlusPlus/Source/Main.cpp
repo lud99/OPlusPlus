@@ -134,7 +134,7 @@ int main(int argc, const char* argv[])
 	if (interpreter.m_Error != "") std::cout << "AST Interpreter error: " << interpreter.m_Error << "\n";
 #endif // AST
 
-	bool runTests = true;
+	bool runTests = false;
 	std::string filepath = "";
 
 	for (int i = 1; i < argc; i++)
@@ -143,7 +143,7 @@ int main(int argc, const char* argv[])
 		
 		if (arg == "-t")
 		{
-			//runTests = true;
+			runTests = true;
 		}
 
 		if (arg == "-f")
@@ -159,7 +159,7 @@ int main(int argc, const char* argv[])
 		}
 	}
 
-	filepath = "Programs/Tests/comparison.ö";
+	filepath = "Programs/PerformaceTests/dot_product.ö";
 	
 
 	if (runTests)

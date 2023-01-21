@@ -1,0 +1,25 @@
+/*int rand_range (int min, int max) => {
+    return (max - min) * (rand() / 32767) + min;
+};
+*/
+
+srand(time(0));
+
+float rand_range_float(float min, float max) => {
+    return (max - min) * (to_float(rand()) / 32767.0) + min;
+};
+
+float average() => {
+    float sum = 0.0;
+    int its = 100000;
+
+    for (int i = 0, i < its, i++) {
+        sum += rand_range_float(0.0, 100.0);
+    };
+
+    printf("%f\n", sum);
+
+    return sum / to_float(its);
+};
+
+print("%f\n", average());
