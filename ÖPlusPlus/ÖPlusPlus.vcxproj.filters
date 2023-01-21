@@ -104,5 +104,8 @@
     <None Include="Programs\Tests\comparison.ö.result" />
     <None Include="Programs\PerformaceTests\average_of_random_numbers.ö" />
     <None Include="Programs\PerformaceTests\dot_product.ö" />
+    <None Include="Programs\PerformaceTests\arithmetic.ö" />
+    <None Include="Programs\PerformaceTests\pythagoras.ö" />
+    <None Include="Programs\PerformaceTests\derivative.ö" />
   </ItemGroup>
 </Project>

@@ -167,10 +167,13 @@
     <None Include="Build\build.bat" />
     <None Include="Build\functions.inc" />
     <None Include="Programs\asm_math_notes.ö" />
+    <None Include="Programs\PerformaceTests\arithmetic.ö" />
     <None Include="Programs\PerformaceTests\average_of_random_numbers.ö" />
     <None Include="Programs\PerformaceTests\calc_pi.ö" />
     <None Include="Programs\float.ö" />
+    <None Include="Programs\PerformaceTests\derivative.ö" />
     <None Include="Programs\PerformaceTests\dot_product.ö" />
+    <None Include="Programs\PerformaceTests\pythagoras.ö" />
     <None Include="Programs\string_format_bytecode.ö" />
     <None Include="Programs\Tests\comparison.ö.result" />
     <None Include="Programs\Tests\comparison.ö" />

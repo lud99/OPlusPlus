@@ -98,6 +98,36 @@ to_float:
     pop ebp ; restore old base pointer
     ret
 
+    
+abs_float:
+    ; Subroutine Prologue
+
+    ; Create call frame
+    push ebp
+    mov ebp, esp
+
+    push ebx
+    ; Get arguments
+    ; angle
+    mov eax, [ebp + 8]
+    mov dword [ebp - 8], eax
+    mov eax, [ebp + 12]
+    mov dword [ebp - 4], eax
+    sub esp, 8
+
+    ; Body
+    ; push rhs and lhs
+    fld qword [ebp - 8] ; angle
+    ; math operation
+    fabs
+
+    ; Subroutine Epilogue
+    ; Restore calle-saved registers
+    pop ebx
+    mov esp, ebp ; deallocate local variables
+    pop ebp ; restore old base pointer
+    ret
+
 cos:
     ; Subroutine Prologue
 
@@ -207,6 +237,51 @@ sqrt:
     fld qword [ebp - 8] ; angle
     ; math operation
     fsqrt
+
+    ; Subroutine Epilogue
+    ; Restore calle-saved registers
+    pop ebx
+    mov esp, ebp ; deallocate local variables
+    pop ebp ; restore old base pointer
+    ret
+
+pow:
+    ; Subroutine Prologue
+
+    ; Create call frame
+    push ebp
+    mov ebp, esp
+
+    push ebx
+    ; Get arguments
+    ; base
+    mov eax, [ebp + 8]
+    mov dword [ebp - 8], eax
+    mov eax, [ebp + 12]
+    mov dword [ebp - 4], eax
+    sub esp, 8
+    ; exponent
+    mov eax, [ebp + 16]
+    mov dword [ebp - 16], eax
+    mov eax, [ebp + 20]
+    mov dword [ebp - 12], eax
+    sub esp, 8
+
+    ; Body
+    ; push rhs and lhs
+    fld qword [ebp - 16] ; exponent
+    fld qword [ebp - 8] ; base
+    
+    ; magic :)
+    fyl2x
+    fld1
+    fld st1
+    fprem
+    f2xm1
+    fadd
+    fscale
+    fxch st1
+    fstp st0
 
     ; Subroutine Epilogue
     ; Restore calle-saved registers

@@ -159,7 +159,7 @@ int main(int argc, const char* argv[])
 		}
 	}
 
-	filepath = "Programs/PerformaceTests/dot_product.ö";
+	filepath = "Programs/PerformaceTests/derivative.ö";
 	
 
 	if (runTests)

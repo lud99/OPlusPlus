@@ -306,8 +306,18 @@ void Section::AddCorrectMathInstruction(ASTNode* n, ValueTypes type, bool revers
 	{
 		/*if (reverse)
 			return Opcodes::div_reverse;*/
-
 		assert(!reverse);
+		if (reverse)
+		{
+			if (type == ValueTypes::Float)
+			{
+				AddInstruction("fdivp");
+			}
+			else
+			{
+				assert(!reverse);
+			}
+		}
 
 		if (type == ValueTypes::Float)
 		{
@@ -367,10 +377,12 @@ AssemblyCompiler::AssemblyCompiler()
 	to_floatFunc.m_IsStdLib = true;
 
 
+	m_Context.CreateFunction("abs_float", ValueTypes::Float, { ValueTypes::Float }).m_IsStdLib = true;
 	m_Context.CreateFunction("cos", ValueTypes::Float, { ValueTypes::Float }).m_IsStdLib = true;
 	m_Context.CreateFunction("sin", ValueTypes::Float, { ValueTypes::Float }).m_IsStdLib = true;
 	m_Context.CreateFunction("tan", ValueTypes::Float, { ValueTypes::Float }).m_IsStdLib = true;
 	m_Context.CreateFunction("sqrt", ValueTypes::Float, { ValueTypes::Float }).m_IsStdLib = true;
+	m_Context.CreateFunction("pow", ValueTypes::Float, { ValueTypes::Float, ValueTypes::Float }).m_IsStdLib = true;
 }
 
 void AssemblyCompiler::Compile(ASTNode* node)
