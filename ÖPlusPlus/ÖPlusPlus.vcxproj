@@ -170,6 +170,8 @@
     <None Include="Programs\calc_pi.ö" />
     <None Include="Programs\float.ö" />
     <None Include="Programs\string_format_bytecode.ö" />
+    <None Include="Programs\Tests\comparison.ö.result" />
+    <None Include="Programs\Tests\comparison.ö" />
     <None Include="Programs\Tests\for.ö" />
     <None Include="Programs\factorial.ö" />
     <None Include="Programs\Tests\global_variable.ö" />

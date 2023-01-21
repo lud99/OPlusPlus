@@ -81,32 +81,6 @@ int main(int argc, const char* argv[])
 	setlocale(LC_ALL, "");
 	Functions::InitializeDefaultFunctions();
 
-	srand(100);
-
-	int inside = 0;
-	int its = 10;
-
-	for (int i = 0; i < its; i++) {
-		float x = rand_range_float(-1.0, 1.0);
-		float y = rand_range_float(-1.0, 1.0);
-
-		printf("x,y: %f, %f\n", x, y);
-
-		if (x * x + y * y <= 1.0) {
-			inside++;
-			
-		};
-	};
-
-	
-
-	float p = 4.0 * float(inside) / float(its);
-
-	for (int i = 0; i < 20; i++)
-	{
-		printf("%f\n", rand_range_float(-1.0, 1.0));
-	}
-
 	std::string error;
 	Value v;
 #ifdef BYTECODE
@@ -160,7 +134,7 @@ int main(int argc, const char* argv[])
 	if (interpreter.m_Error != "") std::cout << "AST Interpreter error: " << interpreter.m_Error << "\n";
 #endif // AST
 
-	bool runTests = false;
+	bool runTests = true;
 	std::string filepath = "";
 
 	for (int i = 1; i < argc; i++)
@@ -169,7 +143,7 @@ int main(int argc, const char* argv[])
 		
 		if (arg == "-t")
 		{
-			runTests = true;
+			//runTests = true;
 		}
 
 		if (arg == "-f")
@@ -185,7 +159,7 @@ int main(int argc, const char* argv[])
 		}
 	}
 
-	filepath = "Programs/calc_pi.ö";
+	filepath = "Programs/Tests/comparison.ö";
 	
 
 	if (runTests)

@@ -76,7 +76,12 @@ std::string ComparisonTypeToJumpInstruction(ASTTypes& type)
 	return "";
 }
 
-// Floating comparisons is the opposite of normal integer cmp
+// Floating comparisons is different from integer cmp
+// Floating point comparison is unsigned, so the jump functions for unsigned comparison has to be used instead
+// https://stackoverflow.com/questions/20906639/difference-between-ja-and-jg-in-assembly
+// http://unixwiz.net/techtips/x86-jumps.html
+// https://stackoverflow.com/questions/20906639/difference-between-ja-and-jg-in-assembly
+
 std::string ComparisonTypeToJumpInstructionFloat(ASTTypes& type)
 {
 	if (type == ASTTypes::CompareEquals)
@@ -84,13 +89,13 @@ std::string ComparisonTypeToJumpInstructionFloat(ASTTypes& type)
 	if (type == ASTTypes::CompareNotEquals)
 		return "je";
 	if (type == ASTTypes::CompareGreaterThan)
-		return "jle";
+		return "jbe";
 	if (type == ASTTypes::CompareGreaterThanEqual)
-		return "jl";
+		return "jb";
 	if (type == ASTTypes::CompareLessThan)
-		return "jge";
+		return "jae";
 	if (type == ASTTypes::CompareLessThanEqual)
-		return "jg";
+		return "ja";
 
 	abort();
 	return "";
@@ -323,11 +328,11 @@ AssemblyCompiler::AssemblyCompiler()
 {
 	// Declare internal functions
 	// printf
-	auto& printfFunc = m_Context.CreateFunction("print", ValueTypes::Void);
-	printfFunc.m_ActualName = "printf";
-	printfFunc.m_IsStdLib = true;
+	auto& printFunc = m_Context.CreateFunction("print", ValueTypes::Void);
+	printFunc.m_ActualName = "printf";
+	printFunc.m_IsStdLib = true;
 	
-	printfFunc.m_Arguments = {
+	printFunc.m_Arguments = {
 		ValueTypes::String,
 		ValueTypes::Any,
 		ValueTypes::Any,
@@ -337,6 +342,11 @@ AssemblyCompiler::AssemblyCompiler()
 		ValueTypes::Any,
 		// TODO: ...
 	};
+
+	auto printfFunc = printFunc;
+	printfFunc.m_Name = "printf";
+	m_Context.m_Functions["printf"] = printfFunc;
+
 
 	// rand
 	auto& randFunc = m_Context.CreateFunction("rand", ValueTypes::Integer);
@@ -624,6 +634,7 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		}
 		else if (typeRhs == ValueTypes::Float)
 		{
+			m_TextSection.AddInstruction("fxch", "st1");
 			m_TextSection.AddInstruction("fcomip");
 			m_TextSection.AddInstruction("fstp", "st0");
 		}

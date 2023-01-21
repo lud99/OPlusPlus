@@ -100,5 +100,7 @@
       <Filter>Header Files</Filter>
     </None>
     <None Include="Programs\float.ö" />
+    <None Include="Programs\Tests\comparison.ö" />
+    <None Include="Programs\Tests\comparison.ö.result" />
   </ItemGroup>
 </Project>

@@ -33,7 +33,6 @@ Tester::Tester()
 
 bool Tester::RunTests()
 {
-	bool passedTest = false;
 	bool passedAllTests = true;
 
 	namespace fs = std::filesystem;
@@ -67,6 +66,8 @@ bool Tester::RunTests()
 
 	for (int i = 0; i < testPaths.size(); i++)
 	{
+		bool passedTest = true;
+
 		const std::string& testPath = testPaths[i];
 
 		AssemblyRunner& test = testInstances[i];
@@ -97,7 +98,13 @@ bool Tester::RunTests()
 		{
 			std::cout << "Code file and test file to not have the same amount of test cases\n";
 			std::cout << "Program output:\n" << result;
-			abort();
+			std::cout << "\nExpected:\n";
+			for (int j = 0; j < expectedResultLines.size(); j++)
+			{
+				std::cout << expectedResultLines[j] << "\n";
+			}
+			passedAllTests = false;
+			break;
 		}
 
 		for (int j = 0; j < resultLines.size(); j++)
@@ -106,12 +113,12 @@ bool Tester::RunTests()
 			if (resultLines[j] == expectedResultLines[j])
 			{
 				std::cout << "Passed (" << resultLines[j] << " == " << expectedResultLines[j] << ")\n";
-				passedTest = true;
 			}
 			else
 			{
 				std::cout << "Failed (" << resultLines[j] << " == " << expectedResultLines[j] << ")\n";
 				passedAllTests = false;
+				passedTest = false;
 			}
 		}
 
