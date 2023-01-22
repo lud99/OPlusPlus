@@ -17,10 +17,9 @@
 #include <locale>
 #include <sstream>
 #include <filesystem>
+#include <chrono>
 
 #include "Interpreter/Functions.h"
-
-#define TEST 1
 
 #ifdef BYTECODE
 #include "Interpreter/Bytecode/BytecodeInterpreter.h"
@@ -79,22 +78,25 @@ std::string stringRaw(std::string s)
 int main(int argc, const char* argv[])
 {
 	setlocale(LC_ALL, "");
-	Functions::InitializeDefaultFunctions();
+
 
 	std::string error;
-	Value v;
+
+
+	std::string filepath = "Programs/PerformanceTests/dot_product.ö";
+
 #ifdef BYTECODE
-	std::string filepath = "Programs/calc_pi.ö";
 
+	Functions::InitializeDefaultFunctions();
 	//Functions::InitializeDefaultFunctions();
-
+	Value v;
 	v = BytecodeInterpreter::Get().CreateAndRunProgram(filepath, error);
 
 	if (error != "")
 		std::cout << error << "\n";
 #endif // BYTECODE
 #ifdef AST
-	
+	Functions::InitializeDefaultFunctions();
 
 	std::ifstream file(filepath);
 	if (!file.good())
@@ -130,12 +132,22 @@ int main(int argc, const char* argv[])
 
 	auto& interpreter = ASTint::ASTInterpreter::Get();
 
-	v = interpreter.Execute(tree.parent);
+	auto start = std::chrono::high_resolution_clock::now();
+
+	std::cout << "Console output:\n";
+
+	interpreter.Execute(tree.parent);
 	if (interpreter.m_Error != "") std::cout << "AST Interpreter error: " << interpreter.m_Error << "\n";
+
+	auto stop = std::chrono::high_resolution_clock::now();
+	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+
+	std::cout << "\nExecution took: " << (duration.count()) << "ms" << "\n";
+	
 #endif // AST
 
 	bool runTests = false;
-	std::string filepath = "";
+	//std::string filepath = "";
 
 	for (int i = 1; i < argc; i++)
 	{
@@ -155,16 +167,16 @@ int main(int argc, const char* argv[])
 				abort();
 			}
 
-			filepath = argv[i + 1];
+			//filepath = argv[i + 1];
 		}
 	}
 
-	filepath = "Programs/PerformaceTests/derivative.ö";
+	//filepath = "Programs/PerformaceTests/derivative.ö";
 	
 
 	if (runTests)
 	{
-#ifdef ASM
+#ifdef TESTER
 		Tester tester;
 
 		bool passedAllTests = tester.RunTests();

@@ -13,7 +13,7 @@
 namespace ASTint 
 {
 
-constexpr int ScopeFramesCount = 64;
+constexpr int ScopeFramesCount = 5000;
 
 class ScopeFrame 
 {
@@ -24,9 +24,12 @@ public:
 	Value& CreateVariable(const std::string& name, Value value);
 
 	bool HasFunction(const std::string& name);
+	ASTNode* GetFunction(const std::string& name);
+	void CreateFunction(const std::string& name, ASTNode* start);
 
 public:
 	std::map<std::string, Value> m_Variables;
+	std::map<std::string, Value> m_InitialVariables;
 	std::map<std::string, ASTNode*> m_Functions;
 
 	std::vector<Value> m_ArgumentsForFunction;
@@ -53,6 +56,8 @@ private:
 
 	std::string ResolveVariableName(ASTNode* node);
 	void InheritVariables(ScopeFrame& previous, ScopeFrame& current);
+	void InheritGlobalVariables(ScopeFrame& previous, ScopeFrame& current);
+	void PropagateVariables(ScopeFrame& previous, ScopeFrame& current);
 
 private:
 	std::vector<ScopeFrame> m_ScopeFrames;

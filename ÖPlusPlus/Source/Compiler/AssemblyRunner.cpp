@@ -6,6 +6,7 @@
 #include <iostream>
 #include <fstream>
 
+#include <chrono>
 #include <cstdio>
 #include <iostream>
 #include <memory>
@@ -99,6 +100,10 @@ std::string AssemblyRunner::Execute()
 
 	system(".\\Build\\build.bat");
 
+	auto start = std::chrono::high_resolution_clock::now();
+
+	std::cout << "Console output:\n";
+
 	const char* cmd = ".\\Build\\program.exe";
 	
 	// Execute the built exe file and grab the std output
@@ -111,6 +116,11 @@ std::string AssemblyRunner::Execute()
 	while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
 		result += buffer.data();
 	}
+
+	auto stop = std::chrono::high_resolution_clock::now();
+	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+
+	std::cout << "\nExecution took: " << (duration.count()) << "ms" << "\n";
 
 	return result;
 }

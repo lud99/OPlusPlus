@@ -3,8 +3,8 @@
 #include <string>
 #include <unordered_map>
 
-constexpr int STACK_SIZE = 64;
-constexpr int STACKFRAME_SIZE = 64;
+constexpr int STACK_SIZE = 16;
+constexpr int STACKFRAME_SIZE = 16;
 
 class HeapEntry
 {

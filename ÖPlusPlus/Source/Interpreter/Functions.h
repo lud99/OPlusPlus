@@ -26,8 +26,19 @@ namespace Functions
 
 	Value print(ARGS);
 	Value printf(ARGS);
+	Value _rand(ARGS);
+	Value _srand(ARGS);
+	Value _time(ARGS);
 	Value rand_range(ARGS);
-	Value rand_range_float(ARGS);
+	//Value rand_range_float(ARGS);
+
+	Value _sin(ARGS);
+	Value _cos(ARGS);
+	Value _tan(ARGS);
+	Value _sqrt(ARGS);
+	Value _pow(ARGS);
+
+	Value abs_float(ARGS);
 
 	Value to_int(ARGS);
 	Value to_float(ARGS);

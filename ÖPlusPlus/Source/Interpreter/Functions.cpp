@@ -8,11 +8,22 @@ void Functions::InitializeDefaultFunctions()
 	//NativeFunctions["__print_stack"] = &__print_stack;
 	NativeFunctions["print"] = &print;
 	NativeFunctions["printf"] = &printf;
+	NativeFunctions["rand"] = &_rand;
+	NativeFunctions["srand"] = &_srand;
+	NativeFunctions["time"] = &_time;
 	NativeFunctions["rand_range"] = &rand_range;
-	NativeFunctions["rand_range_float"] = &rand_range_float;
+	//NativeFunctions["rand_range_float"] = &rand_range_float;
+
+	NativeFunctions["sin"] = &_sin;
+	NativeFunctions["cos"] = &_cos;
+	NativeFunctions["tan"] = &_tan;
+	NativeFunctions["sqrt"] = &_sqrt;
+	NativeFunctions["pow"] = &_pow;
 
 	NativeFunctions["to_int"] = &to_int;
 	NativeFunctions["to_float"] = &to_float;
+
+	NativeFunctions["abs_float"] = &abs_float;
 	
 	/*NativeFunctions["to_string"] = &to_string;
 	NativeFunctions["to_string_raw"] = &to_string_raw;
@@ -72,6 +83,9 @@ void Functions::InitializeDefaultFunctions()
 
 CallableFunction Functions::GetFunctionByName(std::string name)
 {
+	if (NativeFunctions.count(name) == 0)
+		return nullptr;
+
 	return (CallableFunction)NativeFunctions[name];
 }
 
@@ -95,6 +109,23 @@ Value Functions::print(ARGS)
 	return Value(ValueTypes::Void);
 }
 
+Value Functions::_rand(ARGS)
+{
+	return Value(rand(), ValueTypes::Integer);
+}
+
+Value Functions::_srand(ARGS)
+{
+	srand(args[0].GetInt());
+
+	return Value(ValueTypes::Void);
+}
+
+Value Functions::_time(ARGS)
+{
+	return Value((int)time(0), ValueTypes::Integer);
+}
+
 Value Functions::rand_range(ARGS)
 {
 	int min = args[0].GetInt();
@@ -104,14 +135,51 @@ Value Functions::rand_range(ARGS)
 	return Value(value, ValueTypes::Integer);
 }
 
-Value Functions::rand_range_float(ARGS)
+Value Functions::_sin(ARGS)
+{
+	float argument = args[0].GetFloat();
+	return Value(std::sin(argument), ValueTypes::Float);
+}
+
+Value Functions::_cos(ARGS)
+{
+	float argument = args[0].GetFloat();
+	return Value(std::cos(argument), ValueTypes::Float);
+}
+
+Value Functions::_tan(ARGS)
+{
+	float argument = args[0].GetFloat();
+	return Value(std::tan(argument), ValueTypes::Float);
+}
+
+Value Functions::_sqrt(ARGS)
+{
+	float argument = args[0].GetFloat();
+	return Value(std::sqrt(argument), ValueTypes::Float);
+}
+
+Value Functions::_pow(ARGS)
+{
+	float base = args[0].GetFloat();
+	float exponent = args[1].GetFloat();
+	return Value(std::pow(base, exponent), ValueTypes::Float);
+}
+
+Value Functions::abs_float(ARGS)
+{
+	float arg = args[0].GetFloat();
+	return Value(fabs(arg), ValueTypes::Float);
+}
+
+/*Value Functions::rand_range_float(ARGS)
 {
 	float min = args[0].GetFloat();
 	float max = args[1].GetFloat();
 
 	float value = min + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (max - min)));
 	return Value(value, ValueTypes::Float);
-}
+}*/
 
 Value Functions::to_int(ARGS)
 {

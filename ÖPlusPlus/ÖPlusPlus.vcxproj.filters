@@ -24,19 +24,16 @@
     <ClCompile Include="Source\Parser.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Interpreter\Value.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Source\Interpreter\Functions.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Compiler\AssemblyCompiler.cpp">
+    <ClCompile Include="Source\Interpreter\Value.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Compiler\AssemblyRunner.cpp">
+    <ClCompile Include="Source\Interpreter\AST\ASTFunctions.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Tester.cpp">
+    <ClCompile Include="Source\Interpreter\AST\ASTInterpreter.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -50,28 +47,22 @@
     <ClInclude Include="Source\Parser.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Interpreter\ValueTypes.h">
+    <ClInclude Include="Source\Interpreter\Functions.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Source\Interpreter\Value.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Interpreter\Functions.h">
+    <ClInclude Include="Source\Interpreter\ValueTypes.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Tester.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Compiler\AssemblyCompiler.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Compiler\AssemblyRunner.h">
+    <ClInclude Include="Source\Interpreter\AST\ASTInterpreter.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Programs\test.ö" />
-    <None Include="Programs\PerformaceTests\factorial.ö" />
+    <None Include="Programs\PerformanceTests\factorial.ö" />
     <None Include="Programs\string_format_bytecode.ö" />
     <None Include="Programs\asm_math_notes.ö" />
     <None Include="Programs\Tests\variable.ö" />
@@ -95,17 +86,18 @@
     <None Include="Programs\Tests\string.ö.result" />
     <None Include="Programs\Tests\variable.ö.result" />
     <None Include="Programs\Tests\while.ö.result" />
-    <None Include="Programs\PerformaceTests\calc_pi.ö" />
+    <None Include="Programs\PerformanceTests\pi.ö" />
     <None Include="Build\functions.inc">
       <Filter>Header Files</Filter>
     </None>
     <None Include="Programs\float.ö" />
     <None Include="Programs\Tests\comparison.ö" />
     <None Include="Programs\Tests\comparison.ö.result" />
-    <None Include="Programs\PerformaceTests\average_of_random_numbers.ö" />
-    <None Include="Programs\PerformaceTests\dot_product.ö" />
-    <None Include="Programs\PerformaceTests\arithmetic.ö" />
-    <None Include="Programs\PerformaceTests\pythagoras.ö" />
-    <None Include="Programs\PerformaceTests\derivative.ö" />
+    <None Include="Programs\PerformanceTests\average.ö" />
+    <None Include="Programs\PerformanceTests\dot_product.ö" />
+    <None Include="Programs\PerformanceTests\arithmetic.ö" />
+    <None Include="Programs\PerformanceTests\distance.ö" />
+    <None Include="Programs\PerformanceTests\derivative.ö" />
+    <None Include="Programs\example.ö" />
   </ItemGroup>
 </Project>

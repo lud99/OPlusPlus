@@ -871,10 +871,10 @@ void ExecutionContext::Execute()
 			}
 
 			// All the extra frames have been popped, now pop the intended frame
-			StackFrame scopeStack = PopFrame();
+			//StackFrame scopeStack = PopFrame();
 
-			DeleteLocalVariables(GetTopFrame(), scopeStack);
-			ClearOperands(scopeStack);
+			//DeleteLocalVariables(GetTopFrame(), scopeStack);
+			//ClearOperands(scopeStack);
 
 			break;
 		}

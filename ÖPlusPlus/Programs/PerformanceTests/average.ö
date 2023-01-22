@@ -3,7 +3,7 @@
 };
 */
 
-srand(time(0));
+srand(100);
 
 float rand_range_float(float min, float max) => {
     return (max - min) * (to_float(rand()) / 32767.0) + min;

@@ -52,6 +52,17 @@ namespace ASTint
 	{
 		return m_Functions.count(name) == 1;
 	}
+	ASTNode* ScopeFrame::GetFunction(const std::string& name)
+	{
+		assert(HasFunction(name));
+		return m_Functions[name];
+	}
+	void ScopeFrame::CreateFunction(const std::string& name, ASTNode* start)
+	{
+		assert(!HasFunction(name));
+
+		m_Functions[name] = start;
+	}
 }
 
 namespace ASTint
@@ -127,6 +138,8 @@ namespace ASTint
 
 			// Return the value of the last line
 			valueOfLastLine = InterpretTree(nodes[nodes.size() - 1]);
+
+			PropagateVariables(previousFrame, frame);
 
 			// Pop the scope
 			PopFrame();
@@ -378,7 +391,7 @@ namespace ASTint
 				ScopeFrame previousFrame = GetTopFrame();
 				ScopeFrame& frame = PushFrame();
 
-				InheritVariables(previousFrame, frame);
+				InheritGlobalVariables(previousFrame, frame);
 
 				// Args
 				for (int i = 2; i < functionPrototype->arguments.size(); i++)
@@ -398,6 +411,8 @@ namespace ASTint
 				// Jump to the function
 				Value returnValue = InterpretTree(functionDefinition->right);
 
+				PopFrame();
+
 				m_ShouldReturn = false;
 
 				return returnValue;
@@ -405,10 +420,18 @@ namespace ASTint
 
 			// Internal function
 			CallableFunction function = Functions::GetFunctionByName(functionName);
-			if (!function)
-				return MakeErrorValueReturn("Function '" + functionName + "' doesn't exist");
+			if (function)
+				return function(args);
 
-			return function(args);
+			if (currentFrame.HasFunction(functionName))
+			{
+				return InterpretTree(currentFrame.GetFunction(functionName));
+			}
+
+			//if (function == nullptr && !currentFrame.HasFunction(functionName));
+			
+			return MakeErrorValueReturn("Function '" + functionName + "' doesn't exist");
+
 		}
 		case ASTTypes::Return:
 		{
@@ -450,12 +473,6 @@ namespace ASTint
 		}
 		case ASTTypes::ForStatement:
 		{
-			ScopeFrame previousFrame = GetTopFrame();
-			ScopeFrame& frame = PushFrame();
-
-			// Copy variables from previous frame to the current frame
-			InheritVariables(previousFrame, frame);
-
 			// 1. Variable
 			InterpretTree(node->arguments[0]); // Create or set the variable
 			std::string variableName = ResolveVariableName(node->arguments[0]);
@@ -464,7 +481,7 @@ namespace ASTint
 
 			// 2. Condition
 			auto condition = [&]() { return InterpretTree(node->arguments[1]); };
-			while (condition().IsTruthy())
+			while (m_Error == "" && condition().IsTruthy())
 			{
 				// Execute the scope
 				lastResult = InterpretTree(node->right);
@@ -475,8 +492,6 @@ namespace ASTint
 				// 3. Action (increment, decrement)
 				InterpretTree(node->arguments[2]);
 			}
-
-			PopFrame();
 
 			return lastResult;
 		}
@@ -549,7 +564,12 @@ namespace ASTint
 		{
 		case ASTTypes::VariableDeclaration:
 		{
-			std::string variableName = node->left->right->stringValue;
+			std::string variableName = "";
+			if (node->left->right == nullptr)
+				variableName = node->right->stringValue;
+			else
+				variableName = node->left->right->stringValue;
+
 			return variableName;
 		}
 		case ASTTypes::Assign:
@@ -580,5 +600,32 @@ namespace ASTint
 		{
 			current.m_Variables[map.first] = map.second;
 		}
+
+		// Copy functions from previous frame to the current fram
+		for (auto& map : previous.m_Functions)
+		{
+			current.m_Functions[map.first] = map.second;
+		}
 	}
+
+	void ASTInterpreter::InheritGlobalVariables(ScopeFrame& previous, ScopeFrame& current)
+	{
+		// Copy functions from previous frame to the current fram
+		for (auto& map : previous.m_Functions)
+		{
+			current.m_Functions[map.first] = map.second;
+		}
+	}
+
+	void ASTInterpreter::PropagateVariables(ScopeFrame& topFrame, ScopeFrame& localFrame)
+	{
+		// Copy variables from previous frame to the current fram
+		for (auto& map : topFrame.m_Variables)
+		{
+			//if (topFrame.m_Variables[map.first].GetType() != ValueTypes::Void)
+				//topFrame.m_Variables[map.first] = localFrame.m_Variables[map.first];
+		}		
+	}
+
+	//topFrame.m_VariablesList[i] = localFrame.m_VariablesList[i];
 }

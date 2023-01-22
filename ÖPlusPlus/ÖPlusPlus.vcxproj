@@ -85,7 +85,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>ASM;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>BYTECODE;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
@@ -101,7 +101,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions);AST_INTERPRETER</PreprocessorDefinitions>
+      <PreprocessorDefinitions>AST;WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions);AST_INTERPRETER</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
@@ -143,42 +143,40 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Source\Compiler\AssemblyCompiler.cpp" />
-    <ClCompile Include="Source\Compiler\AssemblyRunner.cpp" />
+    <ClCompile Include="Source\Interpreter\AST\ASTFunctions.cpp" />
+    <ClCompile Include="Source\Interpreter\AST\ASTInterpreter.cpp" />
     <ClCompile Include="Source\Interpreter\Functions.cpp" />
     <ClCompile Include="Source\Interpreter\Value.cpp" />
     <ClCompile Include="Source\Lexer.cpp" />
     <ClCompile Include="Source\Main.cpp" />
     <ClCompile Include="Source\Parser.cpp" />
-    <ClCompile Include="Source\Tester.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Source\Compiler\AssemblyCompiler.h" />
-    <ClInclude Include="Source\Compiler\AssemblyRunner.h" />
+    <ClInclude Include="Source\Interpreter\AST\ASTInterpreter.h" />
     <ClInclude Include="Source\Interpreter\Functions.h" />
     <ClInclude Include="Source\Interpreter\Value.h" />
     <ClInclude Include="Source\Interpreter\ValueTypes.h" />
     <ClInclude Include="Source\Lexer.h" />
     <ClInclude Include="Source\Parser.h" />
-    <ClInclude Include="Source\Tester.h" />
     <ClInclude Include="Source\Utils.hpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Build\build.bat" />
     <None Include="Build\functions.inc" />
     <None Include="Programs\asm_math_notes.ö" />
-    <None Include="Programs\PerformaceTests\arithmetic.ö" />
-    <None Include="Programs\PerformaceTests\average_of_random_numbers.ö" />
-    <None Include="Programs\PerformaceTests\calc_pi.ö" />
+    <None Include="Programs\example.ö" />
+    <None Include="Programs\PerformanceTests\arithmetic.ö" />
+    <None Include="Programs\PerformanceTests\average.ö" />
+    <None Include="Programs\PerformanceTests\pi.ö" />
     <None Include="Programs\float.ö" />
-    <None Include="Programs\PerformaceTests\derivative.ö" />
-    <None Include="Programs\PerformaceTests\dot_product.ö" />
-    <None Include="Programs\PerformaceTests\pythagoras.ö" />
+    <None Include="Programs\PerformanceTests\derivative.ö" />
+    <None Include="Programs\PerformanceTests\dot_product.ö" />
+    <None Include="Programs\PerformanceTests\distance.ö" />
     <None Include="Programs\string_format_bytecode.ö" />
     <None Include="Programs\Tests\comparison.ö.result" />
     <None Include="Programs\Tests\comparison.ö" />
     <None Include="Programs\Tests\for.ö" />
-    <None Include="Programs\PerformaceTests\factorial.ö" />
+    <None Include="Programs\PerformanceTests\factorial.ö" />
     <None Include="Programs\Tests\global_variable.ö" />
     <None Include="Programs\Tests\factorial.ö" />
     <None Include="Programs\Tests\factorial.ö.result" />

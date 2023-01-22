@@ -882,7 +882,7 @@ void BytecodeCompiler::Compile(ASTNode* node, std::vector<Instruction>& instruct
 			return Throw("Function " + node->stringValue + " not defined");
 
 		instructions.push_back(Instruction(Opcodes::load).Arg(variable.m_Index));
-		instructions.push_back(Instruction(Opcodes::call).Arg(node->arguments.size()).Arg(node->stringValue));
+		instructions.push_back(Instruction(Opcodes::call, ResultCanBeDiscarded(node)).Arg(node->arguments.size()).Arg(node->stringValue));
 
 		break;
 	}
