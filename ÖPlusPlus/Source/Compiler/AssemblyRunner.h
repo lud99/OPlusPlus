@@ -4,28 +4,28 @@
 
 #include <string>
 
-#ifdef ASM
+namespace ASM {
+	class AssemblyRunner
+	{
+	public:
+		AssemblyRunner() {};
 
-class AssemblyRunner
-{
-public:
-	AssemblyRunner() {};
+		AssemblyRunner(const std::string& fileContent, const std::string& buildDir);
 
-	AssemblyRunner(const std::string& filepath);
+		std::string Compile(bool quiet = false);
 
-	std::string Compile();
+		std::string Execute(bool quiet = false);
 
-	std::string Execute();
+		const std::string& GetCompiledCode() { return m_Code; }
 
-	const std::string& GetCompiledCode() { return m_Code; }
+		ASM::AssemblyCompiler& GetCompiler() { return m_Compiler; }
+	private:
+		ASM::AssemblyCompiler m_Compiler;
 
-	AssemblyCompiler& GetCompiler() { return m_Compiler; }
-private:
-	AssemblyCompiler m_Compiler;
+		std::string m_FileContent;
 
-	std::string m_Filepath;
+		std::string m_BuildDir;
 
-	std::string m_Code;
-};
-
-#endif
+		std::string m_Code;
+	};
+}

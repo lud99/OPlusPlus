@@ -19,6 +19,10 @@ struct Token
 		CharType,
 		CharLiteral,
 
+		SingleLineComment,
+		MultiLineComment,
+		NewLine,
+
 		Variable,
 
 		Semicolon,
@@ -75,7 +79,7 @@ struct Token
 	};
 
 	Token() {};
-	Token(Types type, std::string value = "", int depth = -1) : m_Type(type), m_Value(value), m_Depth(depth) {};
+	Token(Types type, int position, std::string value = "", int depth = -1) : m_Type(type), m_StartPosition(position), m_Value(value), m_Depth(depth) {};
 
 	std::string ToString();
 
@@ -106,6 +110,8 @@ struct Token
 	Types m_Type = Types::Empty;
 	std::string m_Value;
 
+	int m_StartPosition = 0;
+
 	int m_Depth = -1;
 };
 
@@ -114,7 +120,7 @@ typedef std::vector<Token> Tokens;
 class Lexer
 {
 public:
-	std::string CreateTokens(const std::string& source);
+	std::string CreateTokens(const std::string& source, bool createCommentTokens = false);
 
 	char ConsumeNext();
 	char Next();

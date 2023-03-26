@@ -10,21 +10,6 @@
 
 #include "Heap.h"
 
-ValueTypes NodeVariableTypeToValueType(ASTNode* n)
-{
-	assert(n->type == ASTTypes::VariableType);
-
-	if (n->stringValue == "int") return ValueTypes::Integer;
-	if (n->stringValue == "float") return ValueTypes::Float;
-	if (n->stringValue == "double") return ValueTypes::Float;
-	if (n->stringValue == "string") return ValueTypes::StringConstant;
-	//if (n->stringValue == "char") return ValueTypes::Char;
-	//if (n->stringValue == "array") return ValueTypes::Array;
-	//if (n->stringValue == "function") return ValueTypes::Function;
-	//if (n->stringValue == "object") return ValueTypes::Object;
-
-	return ValueTypes::Void;
-}
 //
 //ValueTypes NodeTypeToValueType(ASTNode* n)
 //{
@@ -37,8 +22,9 @@ ValueTypes NodeVariableTypeToValueType(ASTNode* n)
 //	return ValueTypes::Empty;
 //}
 
-Opcodes ASTComparisonTypeToOpcode(ASTTypes type)
+Bytecode::Opcodes ASTComparisonTypeToOpcode(ASTTypes type)
 {
+	using namespace Bytecode;
 	if (type == ASTTypes::CompareEquals)
 		return Opcodes::eq;
 	if (type == ASTTypes::CompareNotEquals)
@@ -54,6 +40,8 @@ Opcodes ASTComparisonTypeToOpcode(ASTTypes type)
 
 	return Opcodes::no_op;
 }
+
+namespace Bytecode {
 
 uint32_t BytecodeConverterContext::AddStringConstant(ConstantsPool& constants, std::string string)
 {
@@ -277,7 +265,9 @@ void BytecodeCompiler::CompileAssignment(ASTNode* node, std::vector<Instruction>
 	if (node->left->type == ASTTypes::VariableDeclaration)
 	{
 		variable.m_Name = node->left->right->stringValue;
-		variable.m_Type = NodeVariableTypeToValueType(node->left->left);
+		variable.m_Type = node->left->left->VariableTypeToValueType();
+		if (variable.m_Type == ValueTypes::String)
+			variable.m_Type == ValueTypes::StringConstant;
 
 		bool isGlobal = m_CurrentScope == 0;
 		variable.m_IsGlobal = isGlobal;
@@ -730,7 +720,9 @@ void BytecodeCompiler::Compile(ASTNode* node, std::vector<Instruction>& instruct
 	case ASTTypes::VariableDeclaration:
 	{
 		bool isGlobalVariable = m_CurrentScope == 0;
-		BytecodeConverterContext::Variable variable(-1, right->stringValue, NodeVariableTypeToValueType(left), isGlobalVariable);
+		BytecodeConverterContext::Variable variable(-1, right->stringValue, left->VariableTypeToValueType(), isGlobalVariable);
+		if (variable.m_Type == ValueTypes::String)
+			variable.m_Type = ValueTypes::StringConstant;
 
 		if (m_Context.m_ShouldExportVariable)
 			ExportVariable(node, variable, instructions);
@@ -1064,4 +1056,5 @@ Instruction& Instruction::Arg(std::string arg)
 	m_Arguments[m_ArgsCount++] = InstructionArgument(arg, ValueTypes::String);
 
 	return *this;
+}
 }

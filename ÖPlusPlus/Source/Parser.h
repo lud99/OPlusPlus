@@ -4,6 +4,7 @@
 #include <assert.h>
 
 #include "Lexer.h"
+#include "Interpreter/ValueTypes.h"
 
 struct ASTNode;
 
@@ -96,6 +97,18 @@ struct ASTNode
 	{
 		abort();
 		return false;// return type == ASTTypes::Number || type == ASTTypes::String || type == ASTTypes::ArrayType || type == ASTTypes::FunctionType;
+	}
+
+	inline ValueTypes VariableTypeToValueType()
+	{
+		assert(type == ASTTypes::VariableType);
+
+		if (stringValue == "int") return ValueTypes::Integer;
+		if (stringValue == "float") return ValueTypes::Float;
+		if (stringValue == "double") return ValueTypes::Float;
+		if (stringValue == "string") return ValueTypes::String;
+
+		return ValueTypes::Void;
 	}
 };
 

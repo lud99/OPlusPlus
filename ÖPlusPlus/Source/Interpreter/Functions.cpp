@@ -3,11 +3,15 @@
 #include <time.h>
 #include <iostream>	
 
-void Functions::InitializeDefaultFunctions()
+#include "Bytecode/BytecodeInterpreter.h"
+
+void Functions::InitializeDefaultFunctions(ExecutionMethods method)
 {
+	m_ExecutionMethod = method;
+
 	//NativeFunctions["__print_stack"] = &__print_stack;
-	NativeFunctions["print"] = &print;
-	NativeFunctions["printf"] = &printf;
+	NativeFunctions["print"] = &_printf;
+	NativeFunctions["printf"] = &_printf;
 	NativeFunctions["rand"] = &_rand;
 	NativeFunctions["srand"] = &_srand;
 	NativeFunctions["time"] = &_time;
@@ -96,6 +100,30 @@ void Functions::ThrowException(std::string error)
 
 Value Functions::print(ARGS)
 {
+	const std::string& base = args[0].GetString();
+	
+	if (args.empty())
+	{
+		ThrowException("Function 'print' cannot be called without arguments");
+		return Value(ValueTypes::Void);
+	}
+		
+	/*if (args.size() == 1)
+		printf(base.c_str());
+	else if (args.size() == 2)
+		printf(base.c_str(), args[1].ToFormattedString(false).c_str());
+	else if (args.size() == 3)
+		printf(base.c_str(), args[1].ToFormattedString(false), args[2].ToFormattedString(false));
+	else if (args.size() == 4)
+		printf(base.c_str(), args[1].ToFormattedString(false), args[2].ToFormattedString(false), args[3].ToFormattedString(false));
+	else if (args.size() == 5)
+		printf(base.c_str(), args[1].ToFormattedString(false), args[2].ToFormattedString(false), args[3].ToFormattedString(false), args[4].ToFormattedString(false));
+	else
+	{
+		ThrowException("Function doesn't accept more than 5 arguments");
+		return Value(ValueTypes::Void);
+	}*/
+
 	std::string printed;
 	for (int i = 0; i < args.size(); i++)
 	{
@@ -104,9 +132,66 @@ Value Functions::print(ARGS)
 		if (i < args.size() - 1) printed += " ";
 	}
 
-	std::cout << printed << "\n";
+	std::cout << printed;
 
 	return Value(ValueTypes::Void);
+}
+
+Value Functions::_printf(ARGS)
+{
+	Value formatted = format_string(args);
+	std::cout << formatted.ToString();
+
+	// Cleanup
+	if (m_ExecutionMethod == ExecutionMethods::Bytecode)
+		Bytecode::BytecodeInterpreter::Get().m_Heap.DeleteObject(formatted.m_HeapEntryPointer);
+		 
+	return Value(ValueTypes::Void);
+}
+
+Value Functions::format_string(ARGS)
+{
+	//EnsureTypeOfArg(args, 0, ValueTypes::String);
+
+	std::string formatted = args.at(0).GetString();
+
+	if (args.size() == 1)
+	{
+		if (m_ExecutionMethod == ExecutionMethods::Bytecode)
+			return Bytecode::BytecodeInterpreter::Get().m_Heap.CreateString(formatted);
+
+		if (m_ExecutionMethod == ExecutionMethods::AST)
+			return Value(formatted, ValueTypes::String);
+	}
+		
+
+	std::string formats[] = {
+		"%f", "%i", "%s"
+	};
+
+	int argIndex = 1;
+	for (int j = 0; j < 3; j++)
+	{
+		for (int i = 1; i < args.size(); i++)
+		{
+			std::size_t charPos = formatted.find(formats[j]);
+
+			if (charPos != std::string::npos) // Something to format
+			{
+				// Remove the '%.'
+				formatted.erase(charPos, 2);
+
+				// Insert the thing at that position
+				formatted = formatted.insert(charPos, args.at(argIndex).ToString());
+				argIndex++;
+			}
+		}
+	}
+	
+	if (m_ExecutionMethod == ExecutionMethods::Bytecode)
+		return Bytecode::BytecodeInterpreter::Get().m_Heap.CreateString(formatted);
+	if (m_ExecutionMethod == ExecutionMethods::AST)
+		return Value(formatted, ValueTypes::String);
 }
 
 Value Functions::_rand(ARGS)
@@ -195,10 +280,5 @@ Value Functions::to_float(ARGS)
 	return Value((float)args[0].GetInt(), ValueTypes::Float);
 }
 
-
-// Stub the functions if in assembly mode
-#ifdef ASM
-Value Functions::printf(ARGS) { return Value(); };
-#endif
-
 std::map<std::string, CallableFunction> Functions::NativeFunctions;
+ExecutionMethods Functions::m_ExecutionMethod;

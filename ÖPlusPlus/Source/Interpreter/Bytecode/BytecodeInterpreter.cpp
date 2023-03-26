@@ -13,32 +13,26 @@
 #include "../Functions.h"
 #include "../../Parser.h"
 
+namespace Bytecode {
 BytecodeInterpreter& BytecodeInterpreter::Get()
 {
 	static BytecodeInterpreter instance;
 	return instance;
 }
 
-Value BytecodeInterpreter::CreateAndRunProgram(std::string filepath, std::string& error, bool verbose)
+Value BytecodeInterpreter::CreateAndRunProgram(std::string fileContent, std::string& error, bool verbose)
 {
-	std::ifstream file(filepath);
-	if (!file.good())
-		std::cout << "Couldn't open file " << filepath << "\n\n";
-
-	std::string fileContent = "";
-	for (std::string line; std::getline(file, line);)
-	{
-		fileContent += line + "\n";
-	}
-
 	Lexer lexer;
 	error = lexer.CreateTokens(fileContent);
 	if (error != "")
 		std::cout << error << "\n\n";
 
-	for (int i = 0; i < lexer.m_Tokens.size(); i++)
-		std::cout << lexer.m_Tokens[i].ToString() << ": " << lexer.m_Tokens[i].m_Value << " [" << lexer.m_Tokens[i].m_Depth << "]\n";
-	std::cout << "\n";
+	if (verbose)
+	{
+		for (int i = 0; i < lexer.m_Tokens.size(); i++)
+			std::cout << lexer.m_Tokens[i].ToString() << ": " << lexer.m_Tokens[i].m_Value << " [" << lexer.m_Tokens[i].m_Depth << "]\n";
+		std::cout << "\n";
+	}
 
 	Parser parser;
 
@@ -51,30 +45,34 @@ Value BytecodeInterpreter::CreateAndRunProgram(std::string filepath, std::string
 	if (parser.m_Error != "")
 		std::cout << "AST Error: " << parser.m_Error << "\n";
 
-	parser.PrintASTTree(tree.parent, 0);
+	if (verbose)
+		parser.PrintASTTree(tree.parent, 0);
 
-	std::vector<Instruction> instructions;
+	std::vector<Bytecode::Instruction> instructions;
 	m_Compiler.Compile(tree.parent, instructions);
 
 	//m_ProgramCounter = m_Compiler.m_StartExecutionAt;
 	m_ConstantsPool = m_Compiler.m_Constants;
 
 	// Print
-	std::cout << "\n";
-	for (int i = 0; i < instructions.size(); i++)
+	if (verbose)
 	{
-		std::cout << "(" << i << ") " << OpcodeToString(instructions[i].m_Type) << " ";
-
-		for (int a = 0; a < INSTRUCTION_ARG_SIZE; a++)
-		{
-			if (instructions[i].m_Arguments[a].GetType() != ValueTypes::Void)
-			{
-				if (a > 0 && a < INSTRUCTION_ARG_SIZE - 1) std::cout << ", ";
-				std::cout << instructions[i].m_Arguments[a].ToString();
-			}
-		}
-
 		std::cout << "\n";
+		for (int i = 0; i < instructions.size(); i++)
+		{
+			std::cout << "(" << i << ") " << OpcodeToString(instructions[i].m_Type) << " ";
+
+			for (int a = 0; a < InstructionArgSize; a++)
+			{
+				if (instructions[i].m_Arguments[a].GetType() != ValueTypes::Void)
+				{
+					if (a > 0 && a < InstructionArgSize - 1) std::cout << ", ";
+					std::cout << instructions[i].m_Arguments[a].ToString();
+				}
+			}
+
+			std::cout << "\n";
+		}
 	}
 	//std::cout << "Program counter: " << m_ProgramCounter << "\n\n";
 
@@ -84,16 +82,14 @@ Value BytecodeInterpreter::CreateAndRunProgram(std::string filepath, std::string
 		return Value();
 	}
 
-	std::cout << sizeof(StackFrame) << ", " << sizeof(Value) << ", " << sizeof(ExecutionContext) << "\n";
+	//std::cout << sizeof(StackFrame) << ", " << sizeof(Value) << ", " << sizeof(ExecutionContext) << "\n";
 
 	m_Debugger = Debugger(instructions);
 	m_Debugger.m_Enabled = false;
 
-	
-
 	auto start = std::chrono::high_resolution_clock::now();
 
-	std::cout << "Console output:\n";
+	if (verbose) std::cout << "Console output:\n";
 
 	m_Instructions = instructions;
 	InterpretBytecode();
@@ -104,7 +100,7 @@ Value BytecodeInterpreter::CreateAndRunProgram(std::string filepath, std::string
 	auto stop = std::chrono::high_resolution_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
 
-	std::cout << "\nExecution took: " << (duration.count()) << "ms" << "\n";
+	if (verbose) std::cout << "\nExecution took: " << (duration.count()) << "ms" << "\n";
 
 	return Value();
 }
@@ -292,6 +288,8 @@ StackFrame& ExecutionContext::GetTopFrame()
 
 void ExecutionContext::Execute()
 {
+	using namespace Bytecode;
+
 	// Initialize stack frames
 	m_StackFrames.resize(STACKFRAME_SIZE);
 	for (int i = 0; i < STACKFRAME_SIZE; i++)
@@ -1014,4 +1012,5 @@ ExecutionContext* BytecodeInterpreter::GetContext(int id)
 	assert(m_Contexts.count(id) == 1);
 
 	return m_Contexts[id];
+}
 }

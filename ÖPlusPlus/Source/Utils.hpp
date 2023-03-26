@@ -4,6 +4,17 @@
 #include <sstream>
 #include <vector>
 
+enum class ExecutionMethods {
+	Assembly,
+	AST,
+	Bytecode
+};
+
+namespace ExecutionMethods_Global 
+{
+	extern ExecutionMethods m_Method;
+};
+
 static double StringToDouble(std::string s)
 {
 	std::istringstream streamToConvert(s);

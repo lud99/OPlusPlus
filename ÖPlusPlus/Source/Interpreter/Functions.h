@@ -4,6 +4,8 @@
 #include <string>
 #include <iostream>
 
+#include "../Utils.hpp"
+
 #include <map>
 
 #include "Value.h"
@@ -16,7 +18,9 @@ namespace Functions
 {
 	extern std::map<std::string, CallableFunction> NativeFunctions;
 
-	void InitializeDefaultFunctions();
+	extern ExecutionMethods m_ExecutionMethod;
+
+	void InitializeDefaultFunctions(ExecutionMethods method);
 	CallableFunction GetFunctionByName(std::string name);
 
 	void ThrowException(std::string error);
@@ -25,7 +29,7 @@ namespace Functions
 	//StackValue __print_stack(ValueArray* args);
 
 	Value print(ARGS);
-	Value printf(ARGS);
+	Value _printf(ARGS);
 	Value _rand(ARGS);
 	Value _srand(ARGS);
 	Value _time(ARGS);

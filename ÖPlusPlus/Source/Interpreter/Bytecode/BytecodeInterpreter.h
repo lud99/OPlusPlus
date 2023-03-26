@@ -7,108 +7,111 @@
 #include <tuple>
 
 struct ASTNode;
-class ExecutionContext;
 
-class StackFrame
-{
-public:
-	StackFrame();
-	StackFrame(ExecutionContext* ctx);
+namespace Bytecode {
+	class ExecutionContext;
 
-	void Alloc();
+	class StackFrame
+	{
+	public:
+		StackFrame();
+		StackFrame(ExecutionContext* ctx);
 
-	Value& GetVariable(uint32_t index);
-	Value PopOperand();
+		void Alloc();
 
-	void StoreVariable(uint32_t index, Value value);
-	void StoreVariable(uint32_t index, Value value, ValueTypes variableType);
-	void PushOperand(Value value);
-	void PushOperand(double value);
-	void PushOperand(int value);
+		Value& GetVariable(uint32_t index);
+		Value PopOperand();
 
-	void Delete();
-	~StackFrame();
+		void StoreVariable(uint32_t index, Value value);
+		void StoreVariable(uint32_t index, Value value, ValueTypes variableType);
+		void PushOperand(Value value);
+		void PushOperand(double value);
+		void PushOperand(int value);
 
-public:
-	Value m_VariablesList[STACK_SIZE];// = nullptr;
-	Value m_OperandStack[STACK_SIZE];// = nullptr;
+		void Delete();
+		~StackFrame();
 
-	Value m_InitialVariablesList[STACK_SIZE];// = nullptr;
+	public:
+		Value m_VariablesList[STACK_SIZE];// = nullptr;
+		Value m_OperandStack[STACK_SIZE];// = nullptr;
 
-	int m_ReturnAdress = 0;
+		Value m_InitialVariablesList[STACK_SIZE];// = nullptr;
 
-	uint32_t m_OperandStackTop = 0;
+		int m_ReturnAdress = 0;
 
-	ExecutionContext* m_Context = nullptr;
-};
+		uint32_t m_OperandStackTop = 0;
 
-class ExecutionContext
-{
-public:
-	ExecutionContext();
+		ExecutionContext* m_Context = nullptr;
+	};
 
-	//void PushFrame(StackFrame frame);
-	void PushFrame(ExecutionContext* ctx);
-	StackFrame PopFrame();
-	StackFrame& GetTopFrame();
+	class ExecutionContext
+	{
+	public:
+		ExecutionContext();
 
-	void Execute();
+		//void PushFrame(StackFrame frame);
+		void PushFrame(ExecutionContext* ctx);
+		StackFrame PopFrame();
+		StackFrame& GetTopFrame();
 
-	void DeleteLocalVariables(StackFrame& topFrame, StackFrame& localFrame);
-	void ClearOperands(StackFrame& frame);
+		void Execute();
 
-	Value ThrowExceptionValue(std::string error);
-	void ThrowExceptionVoid(std::string error);
-	bool Exception();
+		void DeleteLocalVariables(StackFrame& topFrame, StackFrame& localFrame);
+		void ClearOperands(StackFrame& frame);
 
-public:
-	Instructions m_Instructions;
+		Value ThrowExceptionValue(std::string error);
+		void ThrowExceptionVoid(std::string error);
+		bool Exception();
 
-	int m_ProgramCounter = 0;
+	public:
+		Bytecode::Instructions m_Instructions;
 
-	std::vector<StackFrame> m_StackFrames;
+		int m_ProgramCounter = 0;
 
-	//StackFrame m_StackFrames[STACKFRAME_SIZE];
+		std::vector<StackFrame> m_StackFrames;
 
-	uint32_t m_StackFrameTop = 0;
+		//StackFrame m_StackFrames[STACKFRAME_SIZE];
 
-	int m_Id = -1;
+		uint32_t m_StackFrameTop = 0;
 
-	std::string m_Exception;
-};
+		int m_Id = -1;
 
-class BytecodeInterpreter
-{
-public:
-	static BytecodeInterpreter& Get();
+		std::string m_Exception;
+	};
 
-	Value CreateAndRunProgram(std::string source, std::string& error, bool verbose = false);
+	class BytecodeInterpreter
+	{
+	public:
+		static BytecodeInterpreter& Get();
 
-	std::string InterpretBytecode();
+		Value CreateAndRunProgram(std::string fileContent, std::string& error, bool verbose = false);
 
-	ExecutionContext* CreateContext();
-	void AddContext(ExecutionContext* context);
-	void RemoveContext(int id);
-	ExecutionContext* GetContext(int id);
+		std::string InterpretBytecode();
 
-	inline Value ThrowExceptionValue(std::string error) { ExceptionError = error; return Value(ValueTypes::Void); };
+		ExecutionContext* CreateContext();
+		void AddContext(ExecutionContext* context);
+		void RemoveContext(int id);
+		ExecutionContext* GetContext(int id);
 
-private:
-	BytecodeInterpreter() {};
+		inline Value ThrowExceptionValue(std::string error) { ExceptionError = error; return Value(ValueTypes::Void); };
 
-	int m_NextFreeContextId = 0;
+	private:
+		BytecodeInterpreter() {};
 
-public:
-	Instructions m_Instructions;
-	std::unordered_map<int, ExecutionContext*> m_Contexts;
+		int m_NextFreeContextId = 0;
 
-	Heap m_Heap;
-	ConstantsPool m_ConstantsPool;
+	public:
+		Instructions m_Instructions;
+		std::unordered_map<int, ExecutionContext*> m_Contexts;
 
-	std::string ExceptionError;
+		Heap m_Heap;
+		ConstantsPool m_ConstantsPool;
 
-	BytecodeCompiler m_Compiler;
+		std::string ExceptionError;
 
-	/*Console m_Console;*/
-	Debugger m_Debugger;
-};
+		BytecodeCompiler m_Compiler;
+
+		/*Console m_Console;*/
+		Debugger m_Debugger;
+	};
+}

@@ -30,10 +30,28 @@
     <ClCompile Include="Source\Interpreter\Value.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Interpreter\AST\ASTFunctions.cpp">
+    <ClCompile Include="Source\Interpreter\AST\ASTInterpreter.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Interpreter\AST\ASTInterpreter.cpp">
+    <ClCompile Include="Source\Interpreter\Bytecode\BytecodeCompiler.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Interpreter\Bytecode\BytecodeInterpreter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Interpreter\Bytecode\Debugger.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Interpreter\Bytecode\Heap.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Tester.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Compiler\AssemblyCompiler.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Compiler\AssemblyRunner.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -59,6 +77,30 @@
     <ClInclude Include="Source\Interpreter\AST\ASTInterpreter.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Source\json.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Interpreter\Bytecode\BytecodeCompiler.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Interpreter\Bytecode\BytecodeInterpreter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Interpreter\Bytecode\Debugger.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Interpreter\Bytecode\Heap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Tester.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Compiler\AssemblyCompiler.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Compiler\AssemblyRunner.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Programs\test.ö" />
@@ -71,7 +113,7 @@
     <None Include="Programs\Tests\while.ö" />
     <None Include="Programs\Tests\for.ö" />
     <None Include="Programs\Tests\string.ö" />
-    <None Include="Build\build.bat">
+    <None Include="ASM Build files\build.bat">
       <Filter>Source Files</Filter>
     </None>
     <None Include="Programs\simple_function.ö" />
@@ -87,7 +129,7 @@
     <None Include="Programs\Tests\variable.ö.result" />
     <None Include="Programs\Tests\while.ö.result" />
     <None Include="Programs\PerformanceTests\pi.ö" />
-    <None Include="Build\functions.inc">
+    <None Include="ASM Build files\functions.inc">
       <Filter>Header Files</Filter>
     </None>
     <None Include="Programs\float.ö" />
@@ -99,5 +141,6 @@
     <None Include="Programs\PerformanceTests\distance.ö" />
     <None Include="Programs\PerformanceTests\derivative.ö" />
     <None Include="Programs\example.ö" />
+    <None Include="Programs\hello_world.ö" />
   </ItemGroup>
 </Project>

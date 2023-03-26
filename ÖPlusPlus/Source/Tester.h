@@ -4,20 +4,17 @@
 
 #include "Compiler/AssemblyRunner.h"
 
-#ifdef ASM
-
 class Tester
 {
 public:
-	Tester();
+	Tester(const std::string& buildDir);
 
 	bool RunTests();
 
 	~Tester();
 private:
-	std::vector<AssemblyRunner> testInstances;
+	std::vector<ASM::AssemblyRunner> testInstances;
 
 	std::string m_FolderPath;
+	std::string m_BuildDir;
 };
-
-#endif

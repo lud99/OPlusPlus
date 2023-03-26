@@ -3,44 +3,38 @@
 #include <iostream>
 #include <assert.h>
 
-#ifdef AST
-#include "AST/ASTInterpreter.h"
-#endif
-#ifdef BYTECODE
-#include "Bytecode/BytecodeInterpreter.h"
-#endif
 
+#include "AST/ASTInterpreter.h"
+#include "Bytecode/BytecodeInterpreter.h"
 
 #include "../Utils.hpp"
 
 Value Value::MakeRuntimeError(std::string error)
 {
-#ifdef AST
-	return ASTint::ASTInterpreter::Get().MakeErrorValueReturn(error);
-#endif // AST
-#ifdef BYTECODE
-	return BytecodeInterpreter::Get().ThrowExceptionValue(error);
-#endif // BYTECODE
-#ifdef ASM
+	if (ExecutionMethods_Global::m_Method == ExecutionMethods::AST)
+		return AST::ASTInterpreter::Get().MakeErrorValueReturn(error);
+	if (ExecutionMethods_Global::m_Method == ExecutionMethods::Bytecode)
+		return Bytecode::BytecodeInterpreter::Get().ThrowExceptionValue(error);
+	if (ExecutionMethods_Global::m_Method == ExecutionMethods::Assembly)
+		return Value();
+
+	abort();
 	return Value();
-#endif // ASM
 }
 
 bool Value::MakeRuntimeErrorBool(std::string error)
 {
-#ifdef AST
-	ASTint::ASTInterpreter::Get().MakeErrorValueReturn(error);
-#endif // AST
-#ifdef BYTECODE
-	BytecodeInterpreter::Get().ThrowExceptionValue(error);
-#endif // BYTECODE
+	if (ExecutionMethods_Global::m_Method == ExecutionMethods::AST)
+		AST::ASTInterpreter::Get().MakeErrorValueReturn(error);
+	if (ExecutionMethods_Global::m_Method == ExecutionMethods::Bytecode)
+		Bytecode::BytecodeInterpreter::Get().ThrowExceptionValue(error);
+	
 	return false;
 }
 
 Value::Value()
 {
 }
-
 
 Value::Value(int value, ValueTypes type)
 {
@@ -62,7 +56,7 @@ Value::Value(std::string value, ValueTypes type)
 
 	m_StringValue = value;
 }
-#ifdef BYTECODE
+
 Value::Value(HeapEntry& value)
 {
 	m_HeapEntryPointer = &value;
@@ -74,17 +68,24 @@ Value::Value(HeapEntry& value)
 	else if (value.m_Type == 2)
 		m_Type = Value::Object;*/
 }
-#endif
+
 std::string Value::GetString()
 {
 	assert(IsString());
 
-#ifdef BYTECODE
-	if (m_HeapEntryPointer != nullptr)
-		return (char*)(m_HeapEntryPointer)->m_Data;
-#endif // BYTECODE
+	if (ExecutionMethods_Global::m_Method == ExecutionMethods::Bytecode)
+	{
+		if (m_HeapEntryPointer != nullptr)
+			return (char*)(m_HeapEntryPointer)->m_Data;
 
-	return m_StringValue;
+		return m_StringValue;
+	}
+
+	if (ExecutionMethods_Global::m_Method == ExecutionMethods::AST)
+		return m_StringValue;
+
+	abort();
+	return "";
 }
 
 int& Value::GetInt()
@@ -105,8 +106,11 @@ void Value::SetString(std::string value)
 {
 	assert(IsString());
 
-	// TODO: might cause problems
-	m_StringValue = value;
+	if (ExecutionMethods_Global::m_Method == ExecutionMethods::AST)
+	{
+		// TODO: might cause problems
+		m_StringValue = value;
+	}
 
 #ifdef BYTECODE
 	//if (m_HeapEntryPointer != nullptr)
@@ -231,14 +235,15 @@ std::string Value::ToFormattedString(bool extraQuotes, int currentDepth)
 
 void Value::Delete()
 {
-#ifdef BYTECODE
-	if (IsString())
+	if (ExecutionMethods_Global::m_Method == ExecutionMethods::Bytecode)
 	{
-		// Delete the string, because strings aren't stored as a reference to each other. Don't delete constants!!!
-		if (m_Type == ValueTypes::StringReference)
-			BytecodeInterpreter::Get().m_Heap.DeleteObject(m_HeapEntryPointer);
+		if (IsString())
+		{
+			// Delete the string, because strings aren't stored as a reference to each other. Don't delete constants!!!
+			if (m_Type == ValueTypes::StringReference)
+				Bytecode::BytecodeInterpreter::Get().m_Heap.DeleteObject(m_HeapEntryPointer);
+		}
 	}
-#endif
 	
 	m_Type = ValueTypes::Void;
 }
@@ -479,17 +484,18 @@ Value Value::Decrement(Value& value)
 	{
 		return Value(value.GetFloat() - 1.0, ValueTypes::Float);
 	}
-#ifdef AST
-	else if (value.IsString())
+	else if (ExecutionMethods_Global::m_Method == ExecutionMethods::AST)
 	{
-		std::string removed = value.GetString().substr(0, value.GetString().length() - 1);
+		if (value.IsString())
+		{
+			std::string removed = value.GetString().substr(0, value.GetString().length() - 1);
 
-		// Allocate a new object in the heap that stores the string
-		//HeapEntry& newObject = BytecodeInterpreter::Get().m_Heap.CreateString(appended);
+			// Allocate a new object in the heap that stores the string
+			//HeapEntry& newObject = BytecodeInterpreter::Get().m_Heap.CreateString(appended);
 
-		return Value(removed, ValueTypes::String);
+			return Value(removed, ValueTypes::String);
+		}
 	}
-#endif
 
 	return MakeRuntimeError("Unhandled decrement of type " + ValueTypeToString(value.m_Type));
 }

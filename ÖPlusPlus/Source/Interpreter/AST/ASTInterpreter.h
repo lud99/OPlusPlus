@@ -10,7 +10,7 @@
 #include <map>
 #include <stack>
 
-namespace ASTint 
+namespace AST 
 {
 
 constexpr int ScopeFramesCount = 5000;

@@ -1134,10 +1134,10 @@ bool Parser::ParseFunctionPrototype(Tokens& tokens, ASTNode* node)
 	if (!ElementExists(tokens, 0) || !tokens[0].IsVariableType())
 		return MakeError("Expected return type of the function at the start of the function prototype");
 
-	if (!ElementExists(tokens, 1) || !tokens[1].m_Type == Token::Variable)
+	if (!ElementExists(tokens, 1) || tokens[1].m_Type != Token::FunctionName)
 		return MakeError("Expected function name after the function return type");
 
-	if (!ElementExists(tokens, 2) || !tokens[2].m_Type == Token::LeftParentheses)
+	if (!ElementExists(tokens, 2) || tokens[2].m_Type != Token::LeftParentheses)
 		return MakeError("Expected left parentheses after function name in prototype");
 
 	// Return type

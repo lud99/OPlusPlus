@@ -20,125 +20,127 @@ std::vector<std::string> split(std::string s, std::string delimiter) {
 	return res;
 }
 
-
-Debugger::Debugger()
-{
-}
-
-Debugger::Debugger(Instructions instructions)
-{
-	m_Instructions = instructions;
-}
-
-void Debugger::BreakAtInstruction(int instruction)
-{
-	m_Breakpoint = instruction;
-}
-
-void Debugger::StepForward()
-{
-	BytecodeInterpreter::Get().GetContext(0)->m_ProgramCounter++;
-}
-
-void Debugger::Render()
-{
-	if (!m_Enabled) return;
-
-	ExecutionContext* ctx = BytecodeInterpreter::Get().GetContext(0);
-
-	if (ctx->m_ProgramCounter == m_Breakpoint)
+namespace Bytecode {
+	Debugger::Debugger()
 	{
-		m_ContinueToBreakpoint = false;
-	} else
-		if (m_ContinueToBreakpoint) return;
-
-	// Print
-	std::cout << "\n";
-	for (int i = 0; i < m_Instructions.size(); i++)
-	{
-		if (i == ctx->m_ProgramCounter)
-			std::cout << "HERE ---> ";
-
-		std::cout << "(" << i << ") " << OpcodeToString(m_Instructions[i].m_Type) << " ";
-
-		for (int a = 0; a < INSTRUCTION_ARG_SIZE; a++)
-		{
-			if (m_Instructions[i].m_Arguments[a].GetType() != ValueTypes::Void)
-			{
-				if (a > 0 && a < INSTRUCTION_ARG_SIZE - 1) std::cout << ", ";
-				std::cout << m_Instructions[i].m_Arguments[a].ToString();
-			}
-		}
-
-		std::cout << "\n";
 	}
 
-	std::cout << "\nOperand stack	   Variables stack\n";
-	for (int i = 0; i < 8; i++)
+	Debugger::Debugger(Instructions instructions)
 	{
-		Value& stack = ctx->GetTopFrame().m_OperandStack[i];
-		Value& variable = ctx->GetTopFrame().m_VariablesList[i];
-
-		std::cout << "(" << ValueTypeToString(stack.GetType()) << ") ";
-		//if (stack.IsObject())
-			//std::cout << stack.m_HeapEntryPointer << ", ";
-
-		std::cout << stack.ToFormattedString();
-		std::cout << "               ";
-
-		std::cout << "(" << ValueTypeToString(variable.GetType()) << ") ";
-		//if (variable.IsObject())
-			//std::cout << variable.m_HeapEntryPointer << ", ";
-		std::cout << variable.ToFormattedString() << "\n";
+		m_Instructions = instructions;
 	}
-	std::cout << "\ Current instruction: " << ctx->m_ProgramCounter << "\n";
-	std::cout << "\ Breakpoint: " << m_Breakpoint << "\n\n";
 
-	ReadCommands();
-}
-
-void Debugger::ReadCommands()
-{
-	ExecutionContext* ctx = BytecodeInterpreter::Get().GetContext(0);
-
-	while (true)
+	void Debugger::BreakAtInstruction(int instruction)
 	{
-		std::cout << "Debugger: ";
-		std::string in;
-		std::getline(std::cin >> std::ws, in);
+		m_Breakpoint = instruction;
+	}
 
-		std::vector<std::string> splitted = split(in, " ");
+	void Debugger::StepForward()
+	{
+		BytecodeInterpreter::Get().GetContext(0)->m_ProgramCounter++;
+	}
 
-		std::string cmd = splitted[0];
-		std::vector<std::string> args = SliceVector(splitted, 1);
+	void Debugger::Render()
+	{
+		if (!m_Enabled) return;
 
-		if (cmd == "br")
+		ExecutionContext* ctx = BytecodeInterpreter::Get().GetContext(0);
+
+		if (ctx->m_ProgramCounter == m_Breakpoint)
 		{
-			int instruction = std::stoi(args[0]);
-
-			BreakAtInstruction(instruction);
-		}
-		else if (cmd == "s")
-		{
-			return;
-		}
-		else if (cmd == "r")
-		{
-			ctx->m_ProgramCounter = 0;
-
-			return;
-		}
-		else if (cmd == "c")
-		{
-			m_ContinueToBreakpoint = true;
-
-			return;
+			m_ContinueToBreakpoint = false;
 		}
 		else
-			return;
-	}
-}
+			if (m_ContinueToBreakpoint) return;
 
-Debugger::~Debugger()
-{
+		// Print
+		std::cout << "\n";
+		for (int i = 0; i < m_Instructions.size(); i++)
+		{
+			if (i == ctx->m_ProgramCounter)
+				std::cout << "HERE ---> ";
+
+			std::cout << "(" << i << ") " << OpcodeToString(m_Instructions[i].m_Type) << " ";
+
+			for (int a = 0; a < InstructionArgSize; a++)
+			{
+				if (m_Instructions[i].m_Arguments[a].GetType() != ValueTypes::Void)
+				{
+					if (a > 0 && a < InstructionArgSize - 1) std::cout << ", ";
+					std::cout << m_Instructions[i].m_Arguments[a].ToString();
+				}
+			}
+
+			std::cout << "\n";
+		}
+
+		std::cout << "\nOperand stack	   Variables stack\n";
+		for (int i = 0; i < 8; i++)
+		{
+			Value& stack = ctx->GetTopFrame().m_OperandStack[i];
+			Value& variable = ctx->GetTopFrame().m_VariablesList[i];
+
+			std::cout << "(" << ValueTypeToString(stack.GetType()) << ") ";
+			//if (stack.IsObject())
+				//std::cout << stack.m_HeapEntryPointer << ", ";
+
+			std::cout << stack.ToFormattedString();
+			std::cout << "               ";
+
+			std::cout << "(" << ValueTypeToString(variable.GetType()) << ") ";
+			//if (variable.IsObject())
+				//std::cout << variable.m_HeapEntryPointer << ", ";
+			std::cout << variable.ToFormattedString() << "\n";
+		}
+		std::cout << "\nCurrent instruction: " << ctx->m_ProgramCounter << "\n";
+		std::cout << "\nBreakpoint: " << m_Breakpoint << "\n\n";
+
+		ReadCommands();
+	}
+
+	void Debugger::ReadCommands()
+	{
+		ExecutionContext* ctx = BytecodeInterpreter::Get().GetContext(0);
+
+		while (true)
+		{
+			std::cout << "Debugger: ";
+			std::string in;
+			std::getline(std::cin >> std::ws, in);
+
+			std::vector<std::string> splitted = split(in, " ");
+
+			std::string cmd = splitted[0];
+			std::vector<std::string> args = SliceVector(splitted, 1);
+
+			if (cmd == "br")
+			{
+				int instruction = std::stoi(args[0]);
+
+				BreakAtInstruction(instruction);
+			}
+			else if (cmd == "s")
+			{
+				return;
+			}
+			else if (cmd == "r")
+			{
+				ctx->m_ProgramCounter = 0;
+
+				return;
+			}
+			else if (cmd == "c")
+			{
+				m_ContinueToBreakpoint = true;
+
+				return;
+			}
+			else
+				return;
+		}
+	}
+
+	Debugger::~Debugger()
+	{
+	}
 }

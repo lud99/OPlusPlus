@@ -26,9 +26,10 @@ static std::vector<std::string> SplitString(const std::string& txt, char ch, boo
 	return strs;
 }
 
-Tester::Tester()
+Tester::Tester(const std::string& buildDir)
 {
 	m_FolderPath = "Programs\\Tests";
+	m_BuildDir = buildDir;
 }
 
 bool Tester::RunTests()
@@ -49,7 +50,7 @@ bool Tester::RunTests()
 			// Compile the tests now
 			
 			// TODO: generalize 
-			AssemblyRunner test(entry.path().string()); 
+			ASM::AssemblyRunner test(entry.path().string(), m_BuildDir); 
 			std::string compileError = test.Compile();
 
 			if (compileError != "")
@@ -70,7 +71,7 @@ bool Tester::RunTests()
 
 		const std::string& testPath = testPaths[i];
 
-		AssemblyRunner& test = testInstances[i];
+		ASM::AssemblyRunner& test = testInstances[i];
 
 		std::ifstream resultFile(testPath + ".result");
 		if (!resultFile.good())

@@ -19,6 +19,10 @@ std::string Token::ToString()
 		"CharType",
 		"CharLiteral",
 
+		"SingleLineComment",
+		"MultiLineComment",
+		"NewLine",
+
 		"Variable",
 
 		"Semicolon",
@@ -392,7 +396,7 @@ Token Lexer::AddToken(Token token, int customDepth)
 	token.m_Depth = customDepth == -1 ? TotalDepth() : customDepth;
 
 	m_Tokens.push_back(token);
-	return Token();
+	return Token(/*Token::Empty, token.m_StartPosition + 1*/);
 }
 
 std::string Lexer::MakeError(const std::string& message)
@@ -409,7 +413,7 @@ std::string Lexer::MakeError(const std::string& message)
 	return std::to_string(m_CurrentLine) + ":" + std::to_string(lineIndex + 1) + " " + message;
 }
 
-std::string Lexer::CreateTokens(const std::string& source)
+std::string Lexer::CreateTokens(const std::string& source, bool createCommentTokens)
 {
 	m_Lines = split(source, '\n');
 	for (int i = 0; i < m_Lines.size(); i++)
@@ -427,17 +431,19 @@ std::string Lexer::CreateTokens(const std::string& source)
 	int parenthesisParsingDepth = 0;
 	int statementParsingDepth = 0;
 
-	auto shouldAddSemicolon = [&] {
-		return !m_Tokens.empty() && 
-			m_Tokens.back().m_Type != Token::Semicolon && 
-			m_Tokens.back().m_Type != Token::LeftCurlyBracket && 
-			m_Tokens.back().m_Type != Token::RightCurlyBracket;
-	};
-
 	auto isInComment = [&] {
 		return isInSingleLineComment || isMultilineComment;
 	};
-	
+
+	auto shouldAddSemicolon = [&] {
+		return !m_Tokens.empty() && 
+			m_Tokens.back().m_Type != Token::Semicolon && 
+			m_Tokens.back().m_Type != Token::NewLine &&
+			m_Tokens.back().m_Type != Token::LeftCurlyBracket && 
+			m_Tokens.back().m_Type != Token::RightCurlyBracket &&
+			!isInComment();
+	};
+
 	Token token;
 	for (m_Position = 0; m_Position < source.length(); Skip())
 	{
@@ -445,8 +451,14 @@ std::string Lexer::CreateTokens(const std::string& source)
 		{
 			m_CurrentLine++;
 
+			if (isInSingleLineComment)
+				isInSingleLineComment = false;
+
 			if (shouldAddSemicolon())
-				AddToken(Token(Token::Semicolon, ";"));
+				AddToken(Token(Token::Semicolon, m_Position, ";"));
+
+			if (createCommentTokens)
+				AddToken(Token(Token::NewLine, m_Position));
 		}
 			
 		std::string error;
@@ -454,8 +466,15 @@ std::string Lexer::CreateTokens(const std::string& source)
 		// Skip spaces
 		if (!isInString && Current() == ' ')
 		{
-			// Check if current token is a variable, because it might be 'null', 'string' or 'number' but be considered a variable still
-			token = AddToken(ResolveTokenKeyword(token));
+			if (isInComment())
+			{
+				if (createCommentTokens)
+					token.m_Value += Current();
+			}
+			else
+				// Check if current token is a variable, because it might be 'null', 'string' or 'number' but be considered a variable still
+				token = AddToken(ResolveTokenKeyword(token));
+
 			continue;
 		}
 
@@ -465,6 +484,7 @@ std::string Lexer::CreateTokens(const std::string& source)
 			if (isInComment())
 				continue;
 			isInString = true;
+			token.m_StartPosition = m_Position;
 			token.m_Type = Token::StringLiteral;
 		}
 		// Check for end of string
@@ -484,15 +504,24 @@ std::string Lexer::CreateTokens(const std::string& source)
 			{
 				if (IsNext())
 				{
+					token = AddToken(token); // todo?
+					//token = Token();
+					token.m_StartPosition = m_Position;
+
 					if (Next() == '*')
 					{
 						isMultilineComment = true;
+						if (createCommentTokens) token.m_Type = Token::MultiLineComment;
+
 						Skip();
 						continue;
 					}
 					if (Next() == '/')
 					{
 						if (!isMultilineComment) isInSingleLineComment = true;
+
+						if (createCommentTokens) token.m_Type = Token::SingleLineComment;
+
 						Skip();
 						continue;
 					}
@@ -505,13 +534,22 @@ std::string Lexer::CreateTokens(const std::string& source)
 					if (IsNext() && Current() == '*' && Next() == '/')
 					{
 						isMultilineComment = false;
+						if (createCommentTokens) AddToken(token);
+						token = Token();
 						Skip();
 						continue;
 					}
 				}
 
 				if (isInSingleLineComment && Current() == '\n')
+				{
 					isInSingleLineComment = false;
+					if (createCommentTokens) AddToken(token);
+					token = Token();
+				}
+					
+				if (createCommentTokens)
+					token.m_Value += Current();
 
 				continue;
 			}
@@ -519,6 +557,7 @@ std::string Lexer::CreateTokens(const std::string& source)
 			// If parsing variable name (or a variable type, as long as it is a valid variable name)
 			else if (IsValidVariablePart(source, m_Position, error))
 			{
+				token.m_StartPosition = m_Position;
 				while (IsValidVariablePart(source, m_Position, error))
 				{
 					if (error != "") return MakeError(error);
@@ -535,6 +574,7 @@ std::string Lexer::CreateTokens(const std::string& source)
 					depth++;
 
 				token = AddToken(ResolveTokenKeyword(token), depth);
+				token.m_StartPosition = m_Position;
 			}
 
 			else if (!m_Tokens.empty() && m_Tokens.back().IsStatementKeyword())
@@ -550,6 +590,7 @@ std::string Lexer::CreateTokens(const std::string& source)
 			// FIXME: 2-30 is parsed as a valid int literal, when it should be 2 minus 30 (not 2 and -30 either)
 			else if (IsValidNumberPart(source, m_Position, error))
 			{
+				token.m_StartPosition = m_Position;
 				while (IsValidNumberPart(source, m_Position, error))
 				{
 					if (error != "") return MakeError(error);
@@ -566,6 +607,7 @@ std::string Lexer::CreateTokens(const std::string& source)
 				if (error != "") return MakeError(error);
 
 				token = AddToken(token);
+				token.m_StartPosition = m_Position;
 			}
 
 			if (error != "") return MakeError(error);
@@ -574,11 +616,11 @@ std::string Lexer::CreateTokens(const std::string& source)
 			if (Current() == '{')
 			{
 				m_ScopeParsingDepth++;
-				AddToken(Token(Token::LeftCurlyBracket));
+				AddToken(Token(Token::LeftCurlyBracket, m_Position, "{"));
 			}
 			else if (Current() == '}')
 			{
-				AddToken(Token(Token::RightCurlyBracket));
+				AddToken(Token(Token::RightCurlyBracket, m_Position, "}"));
 				m_ScopeParsingDepth--;
 			}
 			// Check for parathesis
@@ -589,10 +631,10 @@ std::string Lexer::CreateTokens(const std::string& source)
 					m_Tokens.back().m_Type = Token::FunctionName;
 
 				m_ParenthesisParsingDepth++;
-				AddToken(Token(Token::LeftParentheses, "("));
+				AddToken(Token(Token::LeftParentheses, m_Position, "("));
 			} else if (Current() == ')')
 			{
-				AddToken(Token(Token::RightParentheses, ")"));
+				AddToken(Token(Token::RightParentheses, m_Position, ")"));
 				m_ParenthesisParsingDepth--;
 			}
 
@@ -622,31 +664,31 @@ std::string Lexer::CreateTokens(const std::string& source)
 					// ==
 					if (Current() == '=' && Next() == '=')
 					{
-						AddToken(Token(Token::CompareEquals, "=="));
+						AddToken(Token(Token::CompareEquals, m_Position, "=="));
 						foundMatch = true;
 					}
 					// !=
 					if (Current() == '!' && Next() == '=')
 					{
-						AddToken(Token(Token::NotEquals, "!="));
+						AddToken(Token(Token::NotEquals, m_Position, "!="));
 						foundMatch = true;
 					}
 					// <=
 					if (Current() == '<' && Next() == '=')
 					{
-						AddToken(Token(Token::LessThanEqual, "<="));
+						AddToken(Token(Token::LessThanEqual, m_Position, "<="));
 						foundMatch = true;
 					}
 					// >=
 					if (Current() == '>' && Next() == '=')
 					{
-						AddToken(Token(Token::GreaterThanEqual, ">="));
+						AddToken(Token(Token::GreaterThanEqual, m_Position, ">="));
 						foundMatch = true;
 					}
 					// =>
 					if (Current() == '=' && Next() == '>')
 					{
-						AddToken(Token(Token::RightArrow, "=>"));
+						AddToken(Token(Token::RightArrow, m_Position, "=>"));
 						foundMatch = true;
 					}
 				}
@@ -654,12 +696,12 @@ std::string Lexer::CreateTokens(const std::string& source)
 				// >
 				if (Current() == '>' && !foundMatch)
 				{
-					AddToken(Token(Token::GreaterThan, ">"));
+					AddToken(Token(Token::GreaterThan, m_Position, ">"));
 					foundMatch = true;
 				}
 				if (Current() == '<' && !foundMatch)
 				{
-					AddToken(Token(Token::LessThan, "<"));
+					AddToken(Token(Token::LessThan, m_Position, "<"));
 					foundMatch = true;
 				}
 
@@ -676,9 +718,9 @@ std::string Lexer::CreateTokens(const std::string& source)
 				if (Next() == '=' && (Current() == '+' || Current() == '-'))
 				{
 					if (Current() == '+')
-						AddToken(Token(Token::PlusEquals, "+="));
+						AddToken(Token(Token::PlusEquals, m_Position, "+="));
 					else if (Current() == '-')
-						AddToken(Token(Token::MinusEquals, "-="));
+						AddToken(Token(Token::MinusEquals, m_Position, "-="));
 
 					// Skip parsing the equals sign, or else there will be duplicates
 					Skip();
@@ -690,9 +732,9 @@ std::string Lexer::CreateTokens(const std::string& source)
 			if (IsValidIncrement(m_Source, m_Position) || IsValidDecrement(m_Source, m_Position))
 			{
 				if (IsValidIncrement(m_Source, m_Position))
-					AddToken(Token(Token::PostIncrement, "++"));
+					AddToken(Token(Token::PostIncrement, m_Position, "++"));
 				if (IsValidDecrement(m_Source, m_Position))
-					AddToken(Token(Token::PostDecrement, "--"));
+					AddToken(Token(Token::PostDecrement, m_Position, "--"));
 
 				Skip();
 				continue;
@@ -701,44 +743,44 @@ std::string Lexer::CreateTokens(const std::string& source)
 			// Logical and
 			if (IsNext() && (Current() == '&' && Next() == '&'))
 			{
-				token = AddToken(Token(Token::And, "&&"));
+				token = AddToken(Token(Token::And, m_Position, "&&"));
 				Skip();
 				continue;
 			}
 			// Logical or
 			if (IsNext() && (Current() == '|' && Next() == '|'))
 			{
-				token = AddToken(Token(Token::Or, "||"));
+				token = AddToken(Token(Token::Or, m_Position, "||"));
 				Skip();
 				continue;
 			}
 
 			// Not
 			if (Current() == '!')
-				token = AddToken(Token(Token::Not, "!"));
+				token = AddToken(Token(Token::Not, m_Position, "!"));
 			// Xor
 			if (Current() == '^')
-				token = AddToken(Token(Token::Xor, "^"));
+				token = AddToken(Token(Token::Xor, m_Position, "^"));
 			// Modulus
 			if (Current() == '%')
-				token = AddToken(Token(Token::Modulus, "%"));
+				token = AddToken(Token(Token::Modulus, m_Position, "%"));
 
 			// Plus
 			if (Current() == '+')
-				AddToken(Token(Token::Add, "+"));
+				AddToken(Token(Token::Add, m_Position, "+"));
 			// Subtract
 			else if (Current() == '-')
-				AddToken(Token(Token::Subtract, "-"));
+				AddToken(Token(Token::Subtract, m_Position, "-"));
 			// Multiply
 			else if (Current() == '*')
-				AddToken(Token(Token::Multiply, "*"));
+				AddToken(Token(Token::Multiply, m_Position, "*"));
 			// Divide
 			else if (Current() == '/')
-				AddToken(Token(Token::Divide, "/"));
+				AddToken(Token(Token::Divide, m_Position, "/"));
 
 			// Equals sign. Make sure the last token wasn't a PlusEquals or similar, or else there will be duplicates
 			else if (Current() == '=')// && (tokens.back().Type != Token::PlusEquals || tokens.back().Type != Token::MinusEquals))
-				AddToken(Token(Token::SetEquals, "="));
+				AddToken(Token(Token::SetEquals, m_Position, "="));
 
 			//if (string[i] == ':')
 			//{
@@ -750,18 +792,23 @@ std::string Lexer::CreateTokens(const std::string& source)
 			//}
 
 			if (Current() == ',')
-				AddToken(Token(Token::Comma, ","));
+				AddToken(Token(Token::Comma, m_Position, ","));
 
 			// Check for line ends
 			if (Current() == ';')
-				AddToken(Token(Token::Semicolon, ";"));
+				AddToken(Token(Token::Semicolon, m_Position, ";"));
 
 			if (Current() == '\n')
 			{
 				m_CurrentLine++;
 
+				isInSingleLineComment = false;
+
 				if (shouldAddSemicolon())
-					AddToken(Token(Token::Semicolon, ";"));
+					AddToken(Token(Token::Semicolon, m_Position, ";"));
+
+				//if (createCommentTokens)
+				//	AddToken(Token(Token::NewLine, m_Position));
 			}
 
 		}
@@ -798,8 +845,10 @@ std::string Lexer::CreateTokens(const std::string& source)
 		}
 	}
 
+	AddToken(token);
+
 	// Unclosed comment
-	if (isInComment())
+	if (isMultilineComment)
 		return "Expected the comment to end";
 
 	// Check for unclosed strings
@@ -812,6 +861,8 @@ std::string Lexer::CreateTokens(const std::string& source)
 
 	if (parenthesisParsingDepth != 0)
 		return "Expected closing parenthesis";
+
+	
 
 	// Check if current token is a variable, because it might be 'null', 'string' or 'number' but be considered a variable still
 	/*if (token.Type == Token::Variable)

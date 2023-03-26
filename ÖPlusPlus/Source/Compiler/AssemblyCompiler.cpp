@@ -10,7 +10,7 @@ std::string FloatToString(float value)
 	return str;
 }
 
-void CreateNewCallFrame(Section& section)
+void CreateNewCallFrame(ASM::Section& section)
 {
 	section.AddLine("");
 	section.AddComment("Create call frame");
@@ -18,7 +18,7 @@ void CreateNewCallFrame(Section& section)
 	section.AddInstruction("mov", "ebp", "esp");
 	section.AddLine("");
 }
-void RestoreOldCallFrame(Section& section)
+void RestoreOldCallFrame(ASM::Section& section)
 {
 	section.AddLine("");
 	section.AddComment("Restore call frame");
@@ -99,18 +99,6 @@ std::string ComparisonTypeToJumpInstructionFloat(ASTTypes& type)
 	return "";
 }
 
-ValueTypes NodeVariableTypeToValueType(ASTNode* n)
-{
-	assert(n->type == ASTTypes::VariableType);
-
-	if (n->stringValue == "int") return ValueTypes::Integer;
-	if (n->stringValue == "float") return ValueTypes::Float;
-	if (n->stringValue == "double") return ValueTypes::Float;
-	if (n->stringValue == "string") return ValueTypes::String;
-
-	return ValueTypes::Void;
-}
-
 bool IsGlobalVariableDeclaration(ASTNode* n)
 {
 	return (n->type == ASTTypes::GlobalVariableDeclaration ||
@@ -130,6 +118,8 @@ bool HasPriorityCompilation(ASTNode* n)
 
 	return false;
 }
+
+namespace ASM {
 
 std::vector<std::pair<ValueTypes, std::string>> AssemblyCompiler::ReverseFunctionArguments(ASTNode* node)
 {
@@ -553,7 +543,7 @@ void AssemblyCompiler::Compile(ASTNode* node)
 
 			// Typecheck rhs and variable type
 			ValueTypes rhsType = GetValueTypeOfNode(node->right);
-			ValueTypes variableType = NodeVariableTypeToValueType(node->left->left);
+			ValueTypes variableType = node->left->left->VariableTypeToValueType();
 			if (variableType != rhsType)
 				return MakeError("Right hand side with value '" + ValueTypeToString(rhsType) + "' cannot be assigned to an '" + ValueTypeToString(variableType) + "'");
 
@@ -781,7 +771,7 @@ void AssemblyCompiler::Compile(ASTNode* node)
 		if (variable.m_Type == ValueTypes::Integer || variable.m_Type == ValueTypes::String)
 		{
 			m_TextSection.AddInstruction("mov", "eax", variable.GetASMLocation(), variable.m_MangledName);
-			m_TextSection.AddInstruction("push", "eax");
+			m_TextSection.AddInstruction("push", "eax"); // TODO: proboably causes overflow as this value is never popped if the variable is not used
 		}
 		else if (variable.m_Type == ValueTypes::Float)
 		{
@@ -904,6 +894,11 @@ void AssemblyCompiler::Compile(ASTNode* node)
 			int i = argumentIndicies[j].second;
 
 			Compile(node->arguments[i]);
+
+			// The compilation of a variable may add an unused push. Therefore it should be removed
+			// TODO: this has not been thorougly tested
+			if (m_TextSection.GetLines().back().m_Op == "push" && m_TextSection.GetLines().back().m_Dest == "eax")
+				m_TextSection.AddInstruction("pop", "eax");
 
 			ValueTypes typeOfArgument = GetValueTypeOfNode(node->arguments[i]);
 			if (m_Error != "")
@@ -1169,7 +1164,7 @@ void AssemblyCompiler::Compile(ASTNode* node)
 	case ASTTypes::FunctionDefinition:
 	{
 		ASTNode* functionPrototype = node->left;
-		ValueTypes returnType = NodeVariableTypeToValueType(functionPrototype->arguments[0]);
+		ValueTypes returnType = functionPrototype->arguments[0]->VariableTypeToValueType();
 		const std::string& name = functionPrototype->arguments[1]->stringValue;
 
 		if (m_Context.HasFunction(name))
@@ -1359,7 +1354,7 @@ ValueTypes AssemblyCompiler::GetValueTypeOfNode(ASTNode* node)
 	case ASTTypes::GlobalVariableDeclaration:
 		return GetValueTypeOfNode(node->left);
 	case ASTTypes::VariableType:
-		return NodeVariableTypeToValueType(node);
+		return node->VariableTypeToValueType();
 	case ASTTypes::Assign:
 	{
 		abort();
@@ -1656,4 +1651,5 @@ bool ConstantsPool::HasFloat(float value)
 {
 	std::string key = FloatToString(value);
 	return m_FloatConstants.count(key) != 0;
+}
 }

@@ -2,158 +2,156 @@
 
 #include "../Parser.h"
 
-#include "../Interpreter/ValueTypes.h";
+#include "../Interpreter/ValueTypes.h"
 
 #include <unordered_map>
 
-#ifdef ASM
-
-class ConstantsPool
-{
-public:
-
-	int GetFloatIndex(float value);
-	int StoreFloat(float value);
-	bool HasFloat(float value);
-
-private:
-	std::unordered_map<std::string, int> m_FloatConstants;
-
-	int m_FloatIndex = 0;
-};
-
-
-struct Instruction
-{
-	std::string m_Op;
-	std::string m_Dest;
-	std::string m_Src;
-
-	std::string m_Comment;
-
-	bool m_IsLabel = false;
-	bool m_IsOnlyComment = false;
-
-	Instruction() {};
-	Instruction(std::string op, std::string dest = "", std::string src = "", std::string comment = "");
-
-	std::string ToString();
-};
-
-class Section
-{
-public:
-	void AddInstruction(Instruction inst);
-	void AddInstruction(std::string op, std::string dest = "", std::string src = "", std::string comment = "");
-	void AddComment(const std::string& comment);
-	void AddLabel(const std::string& label);
-	void AddLine(const std::string& line);
-
-	void AddCorrectMathInstruction(ASTNode* n, ValueTypes type, bool reverse = false);
-
-	std::vector<Instruction>& GetLines() { return m_Lines; }
-
-private:
-	std::vector<Instruction> m_Lines;
-};
-
-enum class Publicity
-{
-	Local,
-	Global
-};
-
-class AssemblyCompilerContext;
-class AssemblyCompilerContext
-{
-public:
-	struct Variable
+namespace ASM {
+	class ConstantsPool
 	{
-		std::string m_Name = "";
-		std::string m_MangledName = "";
-		uint32_t m_Index = 0;
+	public:
 
-		Publicity m_Publicity;
+		int GetFloatIndex(float value);
+		int StoreFloat(float value);
+		bool HasFloat(float value);
 
-		ValueTypes m_Type = ValueTypes::Void;
+	private:
+		std::unordered_map<std::string, int> m_FloatConstants;
 
-		std::string GetASMLocation(const std::string& datatype = "", int offset = 0);
-
-		//Variable(int index = 0, std::string name = "", ValueTypes type = ValueTypes::Void, bool isGlobal = false) : m_Name(name), m_Index(index), m_Type(type), m_IsGlobal(isGlobal) {};
+		int m_FloatIndex = 0;
 	};
 
-	struct Function
+
+	struct Instruction
 	{
-		std::string m_Name = "";
-		std::string m_MangledName = "";
-		ValueTypes m_ReturnType = ValueTypes::Void;
+		std::string m_Op;
+		std::string m_Dest;
+		std::string m_Src;
 
-		bool m_IsStdLib = false;
-		std::string m_ActualName = "";
+		std::string m_Comment;
 
-		std::vector<ValueTypes> m_Arguments;
+		bool m_IsLabel = false;
+		bool m_IsOnlyComment = false;
+
+		Instruction() {};
+		Instruction(std::string op, std::string dest = "", std::string src = "", std::string comment = "");
+
+		std::string ToString();
 	};
 
-	struct LoopInfo
+	class Section
 	{
-		bool m_InLoop = false;
-		int m_Reset = -1;
-		int m_End = -1;
-		int m_BodyDepth = -1;
-		int labelIndex = 0;
+	public:
+		void AddInstruction(Instruction inst);
+		void AddInstruction(std::string op, std::string dest = "", std::string src = "", std::string comment = "");
+		void AddComment(const std::string& comment);
+		void AddLabel(const std::string& label);
+		void AddLine(const std::string& line);
+
+		void AddCorrectMathInstruction(ASTNode* n, ValueTypes type, bool reverse = false);
+
+		std::vector<Instruction>& GetLines() { return m_Lines; }
+
+	private:
+		std::vector<Instruction> m_Lines;
 	};
 
-public:
-	bool HasVariable(const std::string& variableName);
-	Variable& GetVariable(const std::string& variableName);
-	Variable& CreateVariable(const std::string& variableName, ValueTypes type, int size = 4, Publicity publicity = Publicity::Local);
-	bool DeleteVariable(const std::string& variableName);
+	enum class Publicity
+	{
+		Local,
+		Global
+	};
 
-	bool HasFunction(const std::string& functionName);
-	Function& GetFunction(const std::string& functionName);
-	Function& CreateFunction(const std::string& functionName, ValueTypes returnType, std::vector<ValueTypes> args = {});
+	class AssemblyCompilerContext;
+	class AssemblyCompilerContext
+	{
+	public:
+		struct Variable
+		{
+			std::string m_Name = "";
+			std::string m_MangledName = "";
+			uint32_t m_Index = 0;
 
-	int Allocate(int size);
+			Publicity m_Publicity;
 
-public:
-	std::unordered_map<std::string, Variable> m_Variables;
-	std::unordered_map<std::string, Function> m_Functions;
+			ValueTypes m_Type = ValueTypes::Void;
 
-	uint32_t m_CurrentVariableIndex = 0;
+			std::string GetASMLocation(const std::string& datatype = "", int offset = 0);
 
-	std::string m_CurrentParsingFunctionName = "";
+			//Variable(int index = 0, std::string name = "", ValueTypes type = ValueTypes::Void, bool isGlobal = false) : m_Name(name), m_Index(index), m_Type(type), m_IsGlobal(isGlobal) {};
+		};
 
-	LoopInfo m_LoopInfo;
+		struct Function
+		{
+			std::string m_Name = "";
+			std::string m_MangledName = "";
+			ValueTypes m_ReturnType = ValueTypes::Void;
 
-	AssemblyCompilerContext* m_GlobalContext = nullptr;
-};
+			bool m_IsStdLib = false;
+			std::string m_ActualName = "";
 
-class AssemblyCompiler
-{
-public:
-	AssemblyCompiler();
+			std::vector<ValueTypes> m_Arguments;
+		};
 
-	void Compile(ASTNode* node);
-	void Optimize();
+		struct LoopInfo
+		{
+			bool m_InLoop = false;
+			int m_Reset = -1;
+			int m_End = -1;
+			int m_BodyDepth = -1;
+			int labelIndex = 0;
+		};
 
-	void MakeError(std::string error) { m_Error = error; }
+	public:
+		bool HasVariable(const std::string& variableName);
+		Variable& GetVariable(const std::string& variableName);
+		Variable& CreateVariable(const std::string& variableName, ValueTypes type, int size = 4, Publicity publicity = Publicity::Local);
+		bool DeleteVariable(const std::string& variableName);
 
-private:
-	ValueTypes GetValueTypeOfNode(ASTNode* node);
+		bool HasFunction(const std::string& functionName);
+		Function& GetFunction(const std::string& functionName);
+		Function& CreateFunction(const std::string& functionName, ValueTypes returnType, std::vector<ValueTypes> args = {});
 
-	std::vector<std::pair<ValueTypes, std::string>> ReverseFunctionArguments(ASTNode* node);
-	std::vector<std::pair<ValueTypes, int>> ReverseFunctionArgumentIndicies(ASTNode* node);
+		int Allocate(int size);
 
-public:
-	Section m_DataSection;
-	Section m_TextSection;
+	public:
+		std::unordered_map<std::string, Variable> m_Variables;
+		std::unordered_map<std::string, Function> m_Functions;
 
-	AssemblyCompilerContext m_Context;
-	AssemblyCompilerContext m_GlobalContext;
+		uint32_t m_CurrentVariableIndex = 0;
 
-	ConstantsPool m_Constants;
+		std::string m_CurrentParsingFunctionName = "";
 
-	std::string m_Error;
-};
+		LoopInfo m_LoopInfo;
 
-#endif
+		AssemblyCompilerContext* m_GlobalContext = nullptr;
+	};
+
+	class AssemblyCompiler
+	{
+	public:
+		AssemblyCompiler();
+
+		void Compile(ASTNode* node);
+		void Optimize();
+
+		void MakeError(std::string error) { m_Error = error; }
+
+	private:
+		ValueTypes GetValueTypeOfNode(ASTNode* node);
+
+		std::vector<std::pair<ValueTypes, std::string>> ReverseFunctionArguments(ASTNode* node);
+		std::vector<std::pair<ValueTypes, int>> ReverseFunctionArgumentIndicies(ASTNode* node);
+
+	public:
+		Section m_DataSection;
+		Section m_TextSection;
+
+		AssemblyCompilerContext m_Context;
+		AssemblyCompilerContext m_GlobalContext;
+
+		ConstantsPool m_Constants;
+
+		std::string m_Error;
+	};
+}

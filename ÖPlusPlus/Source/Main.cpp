@@ -4,6 +4,11 @@
 #include <iostream>
 #include <vector>
 #include <map>
+#include <thread>
+#include <chrono>
+#include <filesystem>
+
+#include "json.hpp"
 
 #include "Lexer.h"
 #include "Parser.h"
@@ -21,15 +26,9 @@
 
 #include "Interpreter/Functions.h"
 
-#ifdef BYTECODE
 #include "Interpreter/Bytecode/BytecodeInterpreter.h"
-#endif
-#ifdef AST
 #include "Interpreter/AST/ASTInterpreter.h"
-#endif
-#ifdef ASM
 #include "Compiler/AssemblyRunner.h"
-#endif
 
 #include "Tester.h"
 
@@ -79,87 +78,51 @@ int main(int argc, const char* argv[])
 {
 	setlocale(LC_ALL, "");
 
-
 	std::string error;
 
-
-	std::string filepath = "Programs/PerformanceTests/dot_product.ö";
-
-#ifdef BYTECODE
-
-	Functions::InitializeDefaultFunctions();
-	//Functions::InitializeDefaultFunctions();
-	Value v;
-	v = BytecodeInterpreter::Get().CreateAndRunProgram(filepath, error);
-
-	if (error != "")
-		std::cout << error << "\n";
-#endif // BYTECODE
-#ifdef AST
-	Functions::InitializeDefaultFunctions();
-
-	std::ifstream file(filepath);
-	if (!file.good())
-		std::cout << "Couldn't open file " << filepath << "\n\n";
-
-	std::string fileContent = "";
-	for (std::string line; std::getline(file, line);)
-	{
-		fileContent += line + "\n";
-	}
-
-	Lexer lexer;
-	error = lexer.CreateTokens(fileContent);
-	if (error != "")
-		std::cout << error << "\n\n";
-
-	for (int i = 0; i < lexer.m_Tokens.size(); i++)
-		std::cout << lexer.m_Tokens[i].ToString() << ": " << lexer.m_Tokens[i].m_Value << " [" << lexer.m_Tokens[i].m_Depth << "]\n";
-	std::cout << "\n";
-
-	Parser parser;
-
-	ASTNode tree;
-	tree.parent = new ASTNode(ASTTypes::ProgramBody);
-	tree.parent->left = &tree;
-
-	parser.CreateAST(lexer.m_Tokens, &tree, tree.parent);
-
-	if (parser.m_Error != "")
-		std::cout << "AST Error: " << parser.m_Error << "\n";
-
-	parser.PrintASTTree(tree.parent, 0);
-
-	auto& interpreter = ASTint::ASTInterpreter::Get();
-
-	auto start = std::chrono::high_resolution_clock::now();
-
-	std::cout << "Console output:\n";
-
-	interpreter.Execute(tree.parent);
-	if (interpreter.m_Error != "") std::cout << "AST Interpreter error: " << interpreter.m_Error << "\n";
-
-	auto stop = std::chrono::high_resolution_clock::now();
-	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-
-	std::cout << "\nExecution took: " << (duration.count()) << "ms" << "\n";
-	
-#endif // AST
-
 	bool runTests = false;
-	//std::string filepath = "";
+	bool onlyTokens = false;
+	bool quiet = false;
+	std::string filepath = "";// "Programs/hello_world.ö";
+	std::string fileContent = "";
+	std::string asmBuildDir = std::filesystem::current_path().generic_string() + "\\ASM Build files";
+	ExecutionMethods method = ExecutionMethods::Bytecode;
 
+	// Iterate over arguments
 	for (int i = 1; i < argc; i++)
 	{
 		std::string arg = argv[i];
-		
+
 		if (arg == "-t")
 		{
 			runTests = true;
 		}
 
+		if (arg == "-q")
+		{
+			quiet = true;
+		}
+
+		if (arg == "-asm")
+		{
+			method = ExecutionMethods::Assembly;
+		}
+		if (arg == "-ast")
+		{
+			method = ExecutionMethods::AST;
+		}
+		if (arg == "-bytecode")
+		{
+			method = ExecutionMethods::Bytecode;
+		}
+
+		if (arg == "-buildDir")
+		{
+			asmBuildDir = argv[i + 1];
+		}
+
 		if (arg == "-f")
-		{ 
+		{
 			// Expect filename as next arg
 			if (i >= argc - 1)
 			{
@@ -167,17 +130,78 @@ int main(int argc, const char* argv[])
 				abort();
 			}
 
-			//filepath = argv[i + 1];
+			filepath = argv[i + 1];
+		}
+
+		if (arg == "-fc")
+		{
+			// Expect text content as next arg up to the end
+			if (i >= argc - 1)
+			{
+				std::cout << "Expected argument with file contents after -fc argument\n";
+				abort();
+			}
+
+			for (int j = i + 1; j < argc; j++)
+			{
+				fileContent += argv[j];
+				fileContent += "\n";
+			}
+		}
+
+		if (arg == "-tokens")
+		{
+			onlyTokens = true;
 		}
 	}
 
-	//filepath = "Programs/PerformaceTests/derivative.ö";
-	
+	ExecutionMethods_Global::m_Method = method;
+
+	Functions::InitializeDefaultFunctions(method);
+
+	// Print the tokens for the source code in -fc argument in JSON format for use in VSCode extension
+	if (onlyTokens)
+	{
+		Lexer lexerForTokens;
+		error = lexerForTokens.CreateTokens(fileContent, true);
+		if (error != "") {
+			std::cout << error;
+			return 1;
+		}
+
+		Lexer lexerForParsing;
+		lexerForParsing.CreateTokens(fileContent, false);
+
+		Parser parser;
+
+		ASTNode tree;
+		tree.parent = new ASTNode(ASTTypes::ProgramBody);
+		tree.parent->left = &tree;
+
+		parser.CreateAST(lexerForParsing.m_Tokens, &tree, tree.parent);
+
+		if (parser.m_Error != "")
+		{
+			std::cout << parser.m_Error;
+			return 1;
+		}
+
+		using json = nlohmann::json;
+		json tokens = json::array();
+
+		for (int i = 0; i < lexerForTokens.m_Tokens.size(); i++)
+		{
+			Token& token = lexerForTokens.m_Tokens[i];
+			tokens.push_back({ {"type", token.ToString() }, { "value", token.m_Value }, { "index", token.m_StartPosition} });
+		}
+
+		std::cout << tokens;
+		return 0;
+	}
 
 	if (runTests)
 	{
-#ifdef TESTER
-		Tester tester;
+		Tester tester(asmBuildDir);
 
 		bool passedAllTests = tester.RunTests();
 
@@ -185,37 +209,122 @@ int main(int argc, const char* argv[])
 			std::cout << "Passed all the tests in all files!! :)\n";
 		else
 			std::cout << "Failed one of the test files :(\n";
-#endif
+
+		while (true) {};
+	}
+
+	// Read file if filepath is specified
+	if (filepath != "")
+	{
+		std::ifstream file(filepath);
+		if (!file.good())
+			std::cout << "Couldn't open file " << filepath << "\n\n";
+
+
+		for (std::string line; std::getline(file, line);)
+		{
+			fileContent += line + "\n";
+		}
 	}
 	else
 	{
-		// Default. Run a specified program
+		if (fileContent == "")
+		{
+			std::cout << "Expected a file in -fc or -f argument, got none\n";
+			return 1;
+		}
+	}
 
-#ifdef ASM
-		AssemblyRunner runner(filepath);
-		error = runner.Compile();
+	if (method == ExecutionMethods::Bytecode)
+	{
+		Value v = Bytecode::BytecodeInterpreter::Get().CreateAndRunProgram(fileContent, error, !quiet);
 
 		if (error != "")
 		{
-			std::cout << "\n\n" << error << "\n\n";
+			std::cout << error << "\n";
+			return 1;
+		}
+			
+	}
+	else if (method == ExecutionMethods::AST)
+	{
+		Lexer lexer;
+		error = lexer.CreateTokens(fileContent);
+		if (error != "")
+			std::cout << error << "\n\n";
+
+		if (!quiet)
+		{
+			for (int i = 0; i < lexer.m_Tokens.size(); i++)
+				std::cout << lexer.m_Tokens[i].ToString() << ": " << lexer.m_Tokens[i].m_Value << " [" << lexer.m_Tokens[i].m_Depth << "]\n";
+			std::cout << "\n";
+		}
+
+		Parser parser;
+
+		ASTNode tree;
+		tree.parent = new ASTNode(ASTTypes::ProgramBody);
+		tree.parent->left = &tree;
+
+		parser.CreateAST(lexer.m_Tokens, &tree, tree.parent);
+
+		if (parser.m_Error != "") 
+		{
+			std::cout << "AST Error: " << parser.m_Error << "\n";
+			return 1;
+		}
+
+		if (!quiet) parser.PrintASTTree(tree.parent, 0);
+
+		auto& interpreter = AST::ASTInterpreter::Get();
+
+		auto start = std::chrono::high_resolution_clock::now();
+
+		if (!quiet) std::cout << "Console output:\n";
+
+		interpreter.Execute(tree.parent);
+		if (interpreter.m_Error != "")
+		{
+			std::cout << "AST Interpreter error: " << interpreter.m_Error << "\n";
+			return 1;
+		}
+
+		auto stop = std::chrono::high_resolution_clock::now();
+		auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+
+		if (!quiet) std::cout << "\nExecution took: " << (duration.count()) << "ms" << "\n";
+	}
+	else if (method == ExecutionMethods::Assembly)
+	{
+		ASM::AssemblyRunner runner(fileContent, asmBuildDir);
+		error = runner.Compile(quiet);
+
+		if (error != "")
+		{
+			std::cout << error << "\n\n";
+			return 1;
 		}
 		else
 		{
-			std::cout << "Code:\n" << runner.GetCompiledCode() << "\n";
+			if (!quiet) 
+				std::cout << "Code:\n" << runner.GetCompiledCode() << "\n";
 
-			std::cout << "Program output: " << runner.Execute() << "\n";
+			std::string output = runner.Execute(quiet);
+
+			if (!quiet)
+				std::cout << "Program output: " << output << "\n";
+			else 
+			{
+				//std::cout << output;
+				return 0;
+			}
 		}
-
-#endif
 	}
 
-	//BytecodeInterpreter::Get().CreateAndRunProgram("Programs/function.ö", error);
-
-//	if (error != "") std::cout << "error: " << error;
-
-
-	while (true)
+	/*while (true)
 	{
 
-	}
+	}*/
 }
+
+ExecutionMethods ExecutionMethods_Global::m_Method;

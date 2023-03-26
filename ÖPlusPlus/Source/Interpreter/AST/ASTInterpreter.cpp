@@ -22,7 +22,7 @@ ValueTypes NodeVariableTypeToValueType(ASTNode* n)
 }
 
 // Scope frame
-namespace ASTint
+namespace AST
 {
 	bool ScopeFrame::HasVariable(const std::string& name)
 	{
@@ -65,7 +65,7 @@ namespace ASTint
 	}
 }
 
-namespace ASTint
+namespace AST
 {
 	ASTInterpreter& ASTInterpreter::Get()
 	{
@@ -619,6 +619,8 @@ namespace ASTint
 
 	void ASTInterpreter::PropagateVariables(ScopeFrame& topFrame, ScopeFrame& localFrame)
 	{
+		// TODO: NEEDS TO BE IMPLEMENTED
+		// 
 		// Copy variables from previous frame to the current fram
 		for (auto& map : topFrame.m_Variables)
 		{
