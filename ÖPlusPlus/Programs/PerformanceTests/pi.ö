@@ -4,11 +4,11 @@ float rand_range_float (float min, float max) => {
 
 float pi() => {
     int inside = 0;
-    int its = 10000;
+    int its = 100000;
 
     for (int i = 0, i < its, i++) {       
-        float x = rand_range_float(to_float(-1) * 1.0, 1.0);
-        float y = rand_range_float(to_float(-1) * 1.0, 1.0);
+        float x = rand_range_float(-1.0, 1.0);
+        float y = rand_range_float(-1.0, 1.0);
         
         if (x * x + y * y <= 1.0) {
             inside++;
@@ -20,8 +20,8 @@ float pi() => {
 
 srand(100);
 
-for (int i = 0, i < 10, i++) {
+//for (int i = 0, i < 10, i++) {
     float p = pi();
-}
+//}
 
 print("pi = %f\n", pi());
