@@ -1,8 +1,1 @@
-int i = 0;
-
-string s = "abc";
-
-while (1 == 1) {
-    print(s);
-    i++;
-}
+print("Hello, World!");

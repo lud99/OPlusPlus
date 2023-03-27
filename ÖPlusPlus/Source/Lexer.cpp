@@ -153,7 +153,7 @@ bool IsValidNumberPart(const std::string& string, int index, std::string& error)
 				return false;
 			}
 
-			if (string[index - 1] == ' ' || IsValidNumberPart(string, index - 1, error))
+			if (string[index - 1] == ' ' || string[index - 1] == '-' || IsValidNumberPart(string, index - 1, error))
 			{
 				// Check for more decimal points
 				for (int i = index - 1; i >= 0; i--)
@@ -194,6 +194,11 @@ bool IsValidNumberPart(const std::string& string, int index, std::string& error)
 				return false;
 			}
 
+			// If previous is a digit, then that means a minus sign is inside a number, which is not allowed
+			if (isdigit(string[index - 1]))
+				return false;
+
+			// If previous is a space or the previous is a variable
 			if (string[index - 1] == ' ' || IsValidNumberPart(string, index - 1, error))
 			{
 				// Check for more minus signs
@@ -210,6 +215,14 @@ bool IsValidNumberPart(const std::string& string, int index, std::string& error)
 					}
 				}
 
+				return true;
+			}
+
+			// It is a valid number if the digit after the minus sign is valid
+			// -5.4 => negative 5.4
+			// - 5.4 => subtract 5.4
+			if (IsValidNumberPart(string, index + 1, error))
+			{
 				return true;
 			}
 		}
@@ -587,7 +600,6 @@ std::string Lexer::CreateTokens(const std::string& source, bool createCommentTok
 			}
 
 			// Number
-			// FIXME: 2-30 is parsed as a valid int literal, when it should be 2 minus 30 (not 2 and -30 either)
 			else if (IsValidNumberPart(source, m_Position, error))
 			{
 				token.m_StartPosition = m_Position;
