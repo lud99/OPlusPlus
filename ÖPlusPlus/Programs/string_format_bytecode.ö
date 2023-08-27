@@ -1,5 +1,0 @@
-string a = "ludvig";
-
-printf("hej jag heter $ och är 1 år gammal", a);
-
-print(a);

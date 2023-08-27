@@ -1,4 +1,0 @@
-global int pi = 3;
-global int tau = 2 * pi;
-
-printf("%i, %i\n", pi, tau);

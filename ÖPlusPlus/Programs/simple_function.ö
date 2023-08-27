@@ -1,5 +1,0 @@
-int f(int arg) => {
-	return arg - 10;
-};
-
-printf("hej %i", f(2));

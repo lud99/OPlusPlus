@@ -1,0 +1,21 @@
+
+
+What is needed:
+	- Strings
+	- Datastructures
+		- Map
+		- Arrays
+
+	- Structs
+	- Classes
+
+	- FileIO
+	- Optimizations
+	- Strong types and typechecking
+
+	Parsing
+	- Curly brackets on next line for if-statements etc.
+	- Dont require semicolons after curly brackets
+
+Goal: Call glfw and open gl functions from Ö++
+	- Then write a simple renderer
