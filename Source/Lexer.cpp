@@ -28,6 +28,7 @@ namespace Ö
 			"NewLine",
 
 			"Variable",
+			"MemberAccessor",
 
 			"Semicolon",
 			"Comma",
@@ -574,7 +575,12 @@ namespace Ö
 					continue;
 				}
 
-				// If parsing variable name (or a variable type, as long as it is a valid variable name)
+				else if (Current() == '#')
+				{
+					token = AddToken(Token(Token::MemberAccessor, m_Position, "#", TotalDepth()));
+				}
+
+				// If parsing variable name (or a variable typeEntry, as long as it is a valid variable name)
 				else if (IsValidVariablePart(source, m_Position, error))
 				{
 					token.m_StartPosition = m_Position;

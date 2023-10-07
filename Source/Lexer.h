@@ -31,6 +31,7 @@ namespace Ö
 			NewLine,
 
 			Variable,
+			MemberAccessor,
 
 			Semicolon,
 			Comma,
@@ -91,12 +92,12 @@ namespace Ö
 		EXPORT std::string ToString();
 
 		/*
-		string, int, double and also user-defined structs. Eg: Not an integer literal, but the explicit type
+		string, int, double and also user-defined structs. Eg: Not an integer literal, but the explicit typeEntry
 		*/
-		inline bool IsVariableType()
+		/*inline bool IsVariableType()
 		{
 			return m_Type == Token::VoidType || m_Type == Token::IntType || m_Type == Token::StringType || m_Type == Token::DoubleType || m_Type == Token::FloatType;
-		}
+		}*/
 
 		inline bool IsMathOperator()
 		{
