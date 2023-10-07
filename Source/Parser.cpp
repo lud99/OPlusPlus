@@ -39,6 +39,8 @@ std::string ASTNode::ToString(bool includeData)
 		"ObjectType",
 		"Class",
 		"Variable",
+		"MemberAcessor",
+		"ScopeResolution",
 		"PropertyAccess",
 		"ListInitializer",
 		"MathExpression",
@@ -293,18 +295,18 @@ void ReduceDepthOfTokens(std::vector<Token>& tokens, int delta = -1)
 		tokens[i].m_Depth += delta;
 	}
 }
-
-bool IsTokenValidPartOfExpression(Token token)
-{
-	//if (token.IsStatementKeyword())
-		//return false;
-	if (token.IsVariableType())
-		return false;
-	//if (token.m_Type == Token::FunctionType)
-		//return true;
-
-	return true;
-}
+//
+//bool IsTokenValidPartOfExpression(Token token)
+//{
+//	//if (token.IsStatementKeyword())
+//		//return false;
+//	if (token.IsVariableType())
+//		return false;
+//	//if (token.m_Type == Token::FunctionType)
+//		//return true;
+//
+//	return true;
+//}
 
 //bool IsValidFunctionDeclaration(std::vector<Token>& tokens)
 //{
@@ -589,8 +591,8 @@ bool Parser::IsValidClassDeclaration(Tokens tokens)
 	if (!ElementExists(tokens, 0) || tokens[0].m_Type != Token::ClassKeyword)
 		return false;
 
-	if (tokens[0].m_Depth != 0)
-		return MakeError("Cannot have a class declaration inside another class");
+	//if (tokens[0].m_Depth != 0)
+		//return MakeError("Cannot have a class declaration inside another class");
 
 	if (!ElementExists(tokens, 1) || tokens[1].m_Type != Token::Variable)
 		return MakeError("Expected a name after class keyword");
@@ -649,7 +651,7 @@ bool Parser::IsValidStatement(Tokens tokens)
 	return true;
 }
 
-// {type} {variable} = {expression} 
+// {typeEntry} {variable} = {expression} 
 // {variable} = {expression} 
 bool Parser::IsValidAssignmentExpression(Tokens tokens, int equalsSignPosition)
 {
@@ -658,8 +660,8 @@ bool Parser::IsValidAssignmentExpression(Tokens tokens, int equalsSignPosition)
 
 	if (ElementExists(tokens, equalsSignPosition - 2))
 	{
-		// For this to be valid the token i - 2 has to be a type decleration
-		if (!tokens[equalsSignPosition - 2].IsVariableType())// && tokens[equalsSignPosition - 2].m_Type != Token::PropertyAccess)
+		// For this to be valid the token i - 2 has to be a typeEntry decleration
+		if (!m_TypeTable.HasType(tokens[equalsSignPosition - 2].m_Value))// && tokens[equalsSignPosition - 2].m_Type != Token::PropertyAccess)
 			return MakeError("Expected variable type to the left of variable in assignment, not a " + tokens[equalsSignPosition - 2].ToString());
 	}
 
@@ -669,8 +671,8 @@ bool Parser::IsValidAssignmentExpression(Tokens tokens, int equalsSignPosition)
 	//if (tokens[equalsSignPosition + 1].m_Type == Token::FunctionType)
 		//return true;
 
-	if (!IsTokenValidPartOfExpression(tokens[equalsSignPosition + 1]))
-		return MakeError("Expected an expression on the right side of the equals sign, not a " + tokens[equalsSignPosition + 1].ToString());
+	//if (!m_TypeTable.HasType(tokens[equalsSignPosition + 1].m_Value)) //if (!IsTokenValidPartOfExpression(tokens[equalsSignPosition + 1]))
+		//return MakeError("Expected an expression on the right side of the equals sign, not a " + tokens[equalsSignPosition + 1].ToString());
 
 	return true;
 }
@@ -772,6 +774,17 @@ bool Parser::IsValidPreIncDecExpression(Tokens tokens, int position)
 	return true;
 }
 
+bool Parser::IsValidScopeResolutionExpresion(Tokens tokens, int position)
+{
+	if (!ElementExists(tokens, position - 1))
+		return MakeError("Expected something before scope resultion operator");
+
+	if (!ElementExists(tokens, position + 1))
+		return MakeError("Expected something after scope resultion operator");
+
+	return true;
+}
+
 bool Parser::IsValidFunctionCallExpression(Tokens tokens)
 {
 	if (tokens[0].m_Type != Token::FunctionName)
@@ -794,23 +807,67 @@ bool Parser::IsValidFunctionCallExpression(Tokens tokens)
 	return true;
 }
 
-// {type} {variable} or global {type} {variable}
+// {typeEntry} {variable} or global {typeEntry} {variable}
 bool Parser::IsValidVariableDeclarationExpression(Tokens tokens)
 {
+	auto JoinTokens = [](Tokens& tokens) {
+		std::string acc;
+		for (auto& token : tokens)
+		{
+			acc += token.m_Value;
+		}
+		return acc;
+	};
+
+	if (!ElementExists(tokens, 0) || !ElementExists(tokens, 1))
+		return false;
+
 	if (tokens[0].m_Type == Token::Global)
 	{
-		if (!tokens[1].IsVariableType())
-			return MakeError("Expected a type after 'global' keyword in variable declaration");
+		if (!ElementExists(tokens, 1))
+			return false;
+
+		if (!m_TypeTable.HasType(tokens[1].m_Value))
+			return MakeError("Expected a valid type after 'global' keyword in variable declaration");
 
 		if (!ElementExists(tokens, 2) || tokens[2].m_Type != Token::Variable)
 			return MakeError("Expected a variable after variable type");
 	}
 	else
 	{
-		if (!tokens[0].IsVariableType())
+		if (tokens.size() < 2)
+			return MakeError("Invalid variable declaration");
+
+		auto typeTokens = SliceVector(tokens, 0, tokens.size() - 1);
+
+		if (m_TypeTable.HasType(JoinTokens(typeTokens)))
+			return true;
+
+		if (typeTokens.back().m_Type != Token::Variable)
+			return false;
+		if (typeTokens.back().m_Type == Token::ScopeResultion)
 			return false;
 
-		if (!ElementExists(tokens, 1) || tokens[1].m_Type != Token::Variable)
+		for (int i = 0; i < typeTokens.size(); i++)
+		{
+			if (typeTokens[i].m_Type == Token::ScopeResultion)
+			{
+				// If a valid scope resultion as the type
+				if (IsValidScopeResolutionExpresion(typeTokens, i))
+				{
+					// And there is a variable at the end of the declaration, that is different from the one after the scope resolution
+					// Then it is a valid expression
+					return tokens.back().m_Type == Token::Variable && typeTokens[i + 1].m_Value != tokens.back().m_Value;
+				}
+			}
+		}
+
+		// IsValidType (typeTokens)
+
+		//if (!m_TypeTable.HasType(tokens[0].m_Value))
+			//return MakeError("Type before variable declaration is not a valid type");
+
+		if (ElementExists(tokens, 1) && tokens.back().m_Type != Token::Variable)
 			return MakeError("Expected a variable after variable type");
 	}
 
@@ -963,6 +1020,14 @@ void Parser::CreateAST(Tokens& tokens, ASTNode* node, ASTNode* parent)
 		if (HasError())
 			return;
 	}
+	else return; // TODO: Might cause trouble
+
+	if (!ParseMemberAccessor(tokens, node))
+	{
+		if (HasError())
+			return;
+	}
+	else return; // TODO: Might cause trouble
 
 	if (!ParseIncrementDecrement(tokens, node))
 	{
@@ -984,6 +1049,13 @@ void Parser::CreateAST(Tokens& tokens, ASTNode* node, ASTNode* parent)
 			return;
 	}
 	else return;
+
+	if (!ParseScopeResolution(tokens, node))
+	{
+		if (HasError())
+			return;
+	}
+	else return; // TODO: Might cause trouble
 
 	// Single token nodes
 	if (tokens.size() == 1)
@@ -1019,6 +1091,22 @@ void Parser::CreateAST(Tokens& tokens, ASTNode* node, ASTNode* parent)
 
 bool Parser::ParseClassDeclaration(Tokens& tokens, ASTNode* node)
 {
+	auto GetParentClassname = [](ASTNode* node) {
+		ASTNode* it = node;
+		std::string parentClassName = "";
+
+		if (it->parent && it->parent->parent && it->parent->parent->type == ASTTypes::Class)
+			return it->parent->parent->stringValue + "::" + parentClassName;
+
+		/*while (it->parent && it->parent->parent && it->parent->parent->type == ASTTypes::Class)
+		{
+			parentClassName = it->parent->parent->stringValue + "::" + parentClassName;
+			it = it->parent->parent;
+		}*/
+
+		return parentClassName;
+	};
+
 	if (!IsValidClassDeclaration(tokens))
 		return false;
 
@@ -1028,6 +1116,10 @@ bool Parser::ParseClassDeclaration(Tokens& tokens, ASTNode* node)
 	if (endOfClass == -1)
 		return MakeError("Failed to find right curly bracket that closes class declaration");
 
+	// Add the class as a new type
+	name = GetParentClassname(node) + name;
+	m_TypeTable.Add(name, TypeTableType::Class);
+
 	std::vector<Token> classContent = SliceVector(tokens, 2, endOfClass + 1 /* include the right curly bracket */);
 
 	node->type = ASTTypes::Class;
@@ -1036,6 +1128,8 @@ bool Parser::ParseClassDeclaration(Tokens& tokens, ASTNode* node)
 	node->left = new ASTNode();
 
 	CreateAST(classContent, node->left, node);
+	
+	return true;
 }
 
 bool Parser::ParseElseStatement(Tokens& tokens, ASTNode* node)
@@ -1191,7 +1285,7 @@ bool Parser::ParseFunctionDeclaration(Tokens& tokens, ASTNode* node)
 // {returnType} {name} (...args)
 bool Parser::ParseFunctionPrototype(Tokens& tokens, ASTNode* node)
 {
-	if (!ElementExists(tokens, 0) || !tokens[0].IsVariableType())
+	if (!ElementExists(tokens, 0) || !m_TypeTable.HasType(tokens[0].m_Value))
 		return MakeError("Expected return type of the function at the start of the function prototype");
 
 	if (!ElementExists(tokens, 1) || tokens[1].m_Type != Token::FunctionName)
@@ -1200,7 +1294,7 @@ bool Parser::ParseFunctionPrototype(Tokens& tokens, ASTNode* node)
 	if (!ElementExists(tokens, 2) || tokens[2].m_Type != Token::LeftParentheses)
 		return MakeError("Expected left parentheses after function name in prototype");
 
-	// Return type
+	// Return typeEntry
 	ASTNode* returnType = new ASTNode(ASTTypes::VariableType);
 	returnType->stringValue = tokens[0].m_Value;
  	node->arguments.push_back(returnType);
@@ -1395,7 +1489,7 @@ bool Parser::ParseVariableDeclaration(Tokens& tokens, ASTNode* node)
 	if (!IsValidVariableDeclarationExpression(tokens))
 		return false;
 	
-	// Variable type
+	// Variable typeEntry
 	node->left = new ASTNode;
 	node->left->type = ASTTypes::VariableType;
 
@@ -1413,8 +1507,21 @@ bool Parser::ParseVariableDeclaration(Tokens& tokens, ASTNode* node)
 	else
 	{
 		node->type = ASTTypes::VariableDeclaration;
-		node->left->stringValue = tokens[0].m_Value;
-		node->right->stringValue = tokens[1].m_Value;
+
+		auto JoinTokens = [](Tokens& tokens) {
+			std::string acc;
+			for (auto& token : tokens)
+			{
+				acc += token.m_Value;
+			}
+			return acc;
+		};
+
+		auto typeTokens = SliceVector(tokens, 0, tokens.size() - 1);
+
+		node->left->stringValue = JoinTokens(typeTokens);
+
+		node->right->stringValue = tokens.back().m_Value;
 	}
 
 	return true;
@@ -1466,6 +1573,64 @@ bool Parser::ParseParentheses(Tokens& tokens, ASTNode* node)
 	}
 
 	return true;
+}
+
+// #{variable} or #{function}(...)
+bool Parser::ParseMemberAccessor(Tokens& tokens, ASTNode* node)
+{
+	if (tokens[0].m_Type != Token::MemberAccessor)
+		return false;
+
+	if (IsInsideBrackets(tokens, 0))
+		return false;
+
+	if (!ElementExists(tokens, 1))
+		return MakeError("Expected something after member accessor");
+
+	if (tokens[1].m_Type != Token::Variable && tokens[1].m_Type != Token::FunctionName)
+		return MakeError("Invalid code after member accessor. Only a member variable or function can be accessed");
+
+	node->type = ASTTypes::MemberAcessor;
+	node->left = new ASTNode;
+	std::vector<Token> newTokens = SliceVector(tokens, 1);
+
+	CreateAST(newTokens, node->left, node);
+
+	return true;
+}
+
+bool Parser::ParseScopeResolution(Tokens& tokens, ASTNode* node)
+{
+	return false;
+	for (int i = 0; i < tokens.size(); i++)
+	{
+		if (tokens[i].m_Type == Token::ScopeResultion)
+		{
+			if (IsInsideBrackets(tokens, i))
+				continue;
+
+			if (!IsValidScopeResolutionExpresion(tokens, i))
+				return false;
+
+			//if (tokens[i - 1].m_Type != Token::Variable && tokens[1].m_Type != Token::FunctionName)
+				//return MakeError("Invalid code after member accessor. Only a member variable or function can be accessed");
+
+			node->type = ASTTypes::ScopeResolution;
+			node->left = new ASTNode;
+			node->right = new ASTNode;
+			
+
+			std::vector<Token> lhs = SliceVector(tokens, 0, i);
+			std::vector<Token> rhs = SliceVector(tokens, i + 1);
+
+			CreateAST(lhs, node->left, node);
+			CreateAST(rhs, node->right, node);
+
+			return true;
+		}
+	}
+
+	return false;
 }
 
 bool Parser::ParseFunctionCall(Tokens& tokens, ASTNode* node)

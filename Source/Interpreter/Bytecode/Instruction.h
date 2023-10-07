@@ -11,46 +11,44 @@ namespace Ö::Bytecode
 		push_ibyte,
 		push_ishort,
 		push_sref,
+		push_objref,
+		push_arrayref,
+
+		// Store opcodes
+		store_i,
+		store_f,
+		store_sref,
+		store_objref,
+		store_arrayref,
+
+		// Load variable opcodes
+		load_i,
+		load_f,
+		load_sref,
+		load_objref,
+		load_arrayref,
 
 		// Load from constants pool
 		load_constant,
 		load_constant_wide_index,
 		load_wconstant,
 
-		// Store
-		store_i,
-		store_f,
-		store_sref,
+		// Class opcodes
+		instantiate_class,
 
-		// Store into class member
 		store_member,
 		load_member,
 
-		array_create,
-		array_create_empty, // Pushes a reference to a newly created empty array
+		// Array
+		create_array,
 
-		object_create,
-		object_create_empty,
-
-		pop, // Pops the top of the operand stack (discarding it)
-
-		store, // Pop the top operand (number or string reference) and store it in local variable at an index
-		store_property,
-		load, // Load a value from a local variable at index and push it onto the operand stack
-		load_property, // Loads a property from an object (index) onto the stack
-
-		add, // Pop the 2 values on the stack, add them, and push the result onto the stack
+		// Math
+		add,
 		sub,
-		sub_reverse, // Subtraction. n2 - n1
+		sub_reverse, // Subtraction, but the order the operands are popped is reversed
 		mul,
 		div,
 		div_reverse, // Division. n2 / n1
-		xr, // XOR
-		xr_rev,
-		pow, // base, exponent
-		pow_rev,
-		mod,
-		mod_rev,
 		post_inc, // Increments a local variable by 1
 		pre_inc,
 		post_dec, // Decrements a local variable by 1
@@ -59,7 +57,6 @@ namespace Ö::Bytecode
 		jmp, // Jumps to an instruction (sets the program counter)
 		ret, // Returns the top value on the stack, from a function back to where it was called from
 		ret_void, // Returns 'null' from a function back to where it was called from
-		thread_end, // Ends thread execution and returns
 		jmp_if_true, // Jumps to an instruction if the top of the stack is 1
 		jmp_if_false, // Jumps to an instruction if the top of the stack is 1
 		eq, // 1 if equals, 0 if not
@@ -74,17 +71,11 @@ namespace Ö::Bytecode
 
 		cmp, // 1 if equal, 0 if not
 
-		create_scope_frame,
-		pop_scope_frame,
-		create_function_frame,
-		pop_stack_frame,
-
 		loop_break,
 		loop_continue,
 
 		call, // Calls a function from a reference. Tha arguments must have been pushed to the stack
 		call_native, // {name}, {arg count}
-		skip_function, // Skips the function that is below. Used to skip functions that have not been called. x = end of function
 
 		no_op, // Does nothing
 		stop
@@ -96,28 +87,30 @@ namespace Ö::Bytecode
 			"push_ibyte",
 			"push_ishort",
 			"push_sref",
+			"push_objref",
+			"push_arrayref",
+
+			"store_i",
+			"store_f",
+			"store_sref",
+			"store_objref",
+			"store_arrayref",
+
+			"load_i",
+			"load_f",
+			"load_sref",
+			"load_objref",
+			"load_arrayref",
 
 			"load_constant",
 			"load_constant_wide_index",
 			"load_wconstant",
 
-			"store_i",
-			"store_f",
-			"store_sref",
-
+			"instantiate_class",
 			"store_member",
 			"load_member",
 
 			"array_create",
-			"array_create_empty",
-			"object_create",
-			"object_create_empty",
-
-			"pop",
-			"store",
-			"store_property",
-			"load",
-			"load_property",
 
 			"add",
 			"sub",
@@ -125,12 +118,6 @@ namespace Ö::Bytecode
 			"mul",
 			"div",
 			"div_reverse",
-			"xr",
-			"xr_rev",
-			"pow",
-			"pow_rev",
-			"mod",
-			"mod_rev",
 			"post_inc",
 			"pre_inc",
 			"post_dec",
@@ -139,7 +126,6 @@ namespace Ö::Bytecode
 			"jmp",
 			"ret",
 			"ret_void",
-			"thread_end",
 			"jmp_if_true",
 			"jmp_if_false",
 			"eq",
@@ -154,17 +140,11 @@ namespace Ö::Bytecode
 
 			"cmp",
 
-			"create_scope_frame",
-			"pop_scope_frame",
-			"create_function_frame",
-			"pop_stack_frame",
-
 			"loop_break",
 			"loop_continue",
 
 			"call",
 			"call_native",
-			"skip_function",
 
 			"no_op",
 			"stop"

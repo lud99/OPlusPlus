@@ -3,6 +3,7 @@
 #include "../Value.h"
 #include "BytecodeCompiler.h"
 #include "Debugger.h"
+#include "ConstantsPool.h"
 
 #include "Stack.h"
 
@@ -54,7 +55,9 @@ namespace Ö::Bytecode {
 	public:
 		static const int InitialFrameCount = 16;
 
-		std::unordered_map<uint16_t, EncodedInstructions> m_Functions;
+		//Ö :: Bytecode :: CompiledCallable c;
+
+		std::unordered_map<uint16_t, CompiledCallable> m_Functions;
 		RuntimeConstantsPool m_ConstantsPool;
 
 		int m_Id = 0;
@@ -94,8 +97,8 @@ namespace Ö::Bytecode {
 
 		std::string ExceptionError;
 
-		BytecodeCompiler m_Compiler;
-		CompiledFile m_CompiledFile;
+		Compiler::BytecodeCompiler m_Compiler;
+		Compiler::CompiledFile m_CompiledFile;
 
 		/*Console m_Console;*/
 		Debugger m_Debugger;

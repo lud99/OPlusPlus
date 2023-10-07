@@ -1,21 +1,27 @@
 #pragma once
 
+#include <cstdint>
+#include <string>
+
 namespace Ö
 {
 	enum ValueTypes
 	{
-		Void,
-		Integer,
-		Float,
-		String,
-		StringReference,
+		Void = 0,
+		Integer = 1,
+		Float = 2,
+		String = 3,
+		/*StringReference,
 		StringConstant,
-		Any,
+
+		Any,*/
 	};
+
+	typedef uint16_t ValueType;
 
 	static std::string ValueTypeToString(ValueTypes type)
 	{
-		std::string names[] = { "Empty", "Integer", "Float", "String", "StringReference", "StringConstant", "Any" };
+		std::string names[] = { "Void", "Integer", "Float", "String", /*"StringReference", "StringConstant", "Void", "Any"*/ };
 		return names[(int)type];
 	}
 }

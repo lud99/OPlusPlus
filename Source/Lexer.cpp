@@ -29,6 +29,7 @@ namespace Ö
 
 			"Variable",
 			"MemberAccessor",
+			"ScopeResultion",
 
 			"Semicolon",
 			"Comma",
@@ -676,6 +677,13 @@ namespace Ö
 				//	squareBracketsParsingDepth--;
 				//}
 				//
+
+				if (IsNext() && (Current() == ':' && Next() == ':'))
+				{
+					token = AddToken(Token(Token::ScopeResultion, m_Position, "::", TotalDepth()));
+					Skip();
+					continue;
+				}
 
 				// Check for conditions. ==, !=, <, >, <=, >= 
 				// TODO: seperate function with error checking

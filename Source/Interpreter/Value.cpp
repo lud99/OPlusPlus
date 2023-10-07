@@ -53,7 +53,7 @@ namespace Ö
 		m_HeapEntryPointer = &value;
 
 		if (value.m_Type == 0)
-			m_Type = ValueTypes::StringReference;
+			m_Type = ValueTypes::String;// StringReference;
 		/*else if (value.m_Type == 1)
 			m_Type = Value::Array;
 		else if (value.m_Type == 2)
@@ -215,7 +215,7 @@ namespace Ö
 		if (IsString())
 		{
 			// Delete the string, because strings aren't stored as a reference to each other. Don't delete constants!!!
-			if (m_Type == ValueTypes::StringReference)
+			if (m_Type == ValueTypes::String)
 				Bytecode::BytecodeInterpreter::Get().m_Heap.DeleteObject(m_HeapEntryPointer);
 		}
 
@@ -381,7 +381,7 @@ namespace Ö
 		ValueTypes& type = lhs.m_Type;
 
 		// If both left and right are null
-		/*if (type == Value::Null)
+		/*if (typeEntry == Value::Null)
 			return false;*/
 
 		if (type == ValueTypes::Integer)
@@ -405,7 +405,7 @@ namespace Ö
 		ValueTypes& type = lhs.m_Type;
 
 		// If both left and right are null
-		/*if (type == Value::Null)
+		/*if (typeEntry == Value::Null)
 			return false;*/
 
 		if (type == ValueTypes::Integer)
@@ -642,7 +642,7 @@ namespace Ö
 	//	return MakeRuntimeError("Cannot perform xor on types " + ValueTypeToString(lhs.m_Type) + " and " + ValueTypeToString(rhs.m_Type));
 	//}
 
-	//HeapEntry& Heap::CreateObject(int type, char* data)
+	//HeapEntry& Heap::CreateObject(int typeEntry, char* data)
 	//{
 	//	int id = m_NextFreeId;
 	//	m_Entries[id] = HeapEntry(0, id, data);

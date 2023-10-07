@@ -12,6 +12,7 @@
 #include "../../Utils.hpp"
 #include "../Functions.h"
 #include "../../Parser.h"
+#include "ClassInstance.h"
 
 namespace Ö::Bytecode {
 
@@ -23,8 +24,6 @@ namespace Ö::Bytecode {
 
 	Value BytecodeInterpreter::CreateAndRunProgram(std::string fileContent, std::string& error, bool verbose)
 	{
-		Functions::InitializeDefaultFunctions();
-
 		Lexer lexer;
 		error = lexer.CreateTokens(fileContent);
 		if (error != "")
@@ -55,7 +54,7 @@ namespace Ö::Bytecode {
 		if (verbose)
 			parser.PrintASTTree(&tree, 0);
 
-		m_CompiledFile = m_Compiler.CompileASTTree(&tree);
+		m_CompiledFile = m_Compiler.CompileASTTree(&tree, parser.GetGeneratedTypeTable());
 		if (m_Compiler.m_Error != "")
 			std::cout << "Bytecode compilation error: " << m_Compiler.m_Error << "\n";
 
@@ -67,36 +66,57 @@ namespace Ö::Bytecode {
 		// Print
 		if (verbose)
 		{
-			CompiledFile& file = m_CompiledFile;
+			Compiler::CompiledFile& file = m_CompiledFile;
 			// Constants pool
 			std::cout << "Constants pool:\n";
 			for (auto& entry : file.m_ConstantsPool.m_Integers)
 			{
-				std::cout << "#" << entry.second << " = Integer: " << entry.first << "\n";
+				std::cout << "#" << entry.first << " = Integer: " << entry.second << "\n";
 			}
 			for (auto& entry : file.m_ConstantsPool.m_Floats)
 			{
-				std::cout << "#" << entry.second << " = Float: " << entry.first << "\n";
+				std::cout << "#" << entry.first << " = Float: " << entry.second << "\n";
 			}
 			for (auto& entry : file.m_ConstantsPool.m_Strings)
 			{
-				std::cout << "#" << entry.second << " = String: " << entry.first << "\n";
+				std::cout << "#" << entry.first << " = String: " << entry.second << "\n";
 			}
 			for (auto& entry : file.m_ConstantsPool.m_FunctionReferences)
 			{
-				std::cout << "#" << entry.second << " = FunctionReference: " << entry.first << "\n";
+				std::cout << "#" << entry.first << " = FunctionReference: " << entry.second << "\n";
+			}
+			for (auto& entry : file.m_ConstantsPool.m_BuiltInFunctions)
+			{
+				std::cout << "#" << entry.first << " = BuiltInFunctionReference: " << entry.second.name << "\n";
 			}
 			for (auto& entry : file.m_ConstantsPool.m_ClassReferences)
 			{
-				std::cout << "#" << entry.second << " = ClassReference: " << entry.first << "\n";
+				std::cout << "#" << entry.first << " = ClassReference: " << entry.second << "\n";
 			}
 			std::cout << "\n";
 
-			std::cout << "Functions:\n";
-			for (auto& entry : file.m_Functions)
+			std::cout << "Type Table:\n";
+			for (auto& entry : m_Compiler.m_TypeTable.AllTypes())
 			{
-				std::cout << "#" << entry.first << ":\n";
-				BytecodeCompiler::PrintInstructions(entry.second);
+				auto PrintType = [](TypeTableEntry entry) -> void {
+					std::cout << "#" << entry.id << ": " << entry.name << ", "
+						<< TypeTableTypeToString(entry.type);
+
+					if (entry.redirect)
+						std::cout << " and is typedef";
+					std::cout << "\n";
+				};
+
+				PrintType(entry.second);
+			}
+			std::cout << "\n";
+
+			std::cout << "Top-level Symbol Table:\n";
+			for (auto& entry : m_Compiler.m_SymbolTable.GetSymbols())
+			{
+				SymbolTable::Symbol* s = entry.second;
+				std::cout << s->m_StorableValueType->name << " " <<
+					s->m_Name << ", " << SymbolTypeToString(s->m_SymbolType) << "\n";
 			}
 			std::cout << "\n";
 
@@ -108,25 +128,40 @@ namespace Ö::Bytecode {
 				std::cout << "  Class Member Variables:\n";
 				for (auto& memberEntry : entry.second.m_MemberVariables)
 				{
-					std::cout << "  []" << memberEntry.first << "\n";
+					auto& typeEntry = m_Compiler.m_TypeTable.GetEntryFromId(memberEntry.second.type);
+					std::cout << "  #" << memberEntry.first << ": " << typeEntry.name << "(" << typeEntry.id << ")" << "\n";
 				}
+				std::cout << "\n";
 
 				std::cout << "  Class Internal Constructor:\n";
-				BytecodeCompiler::PrintInstructions(entry.second.m_InternalConstructor, "  ");
+				Compiler::BytecodeCompiler::PrintInstructions(entry.second.m_InternalConstructor, "  ");
 
 				std::cout << "  Class Methods:\n";
 				for (auto& methodEntry : entry.second.m_Methods)
 				{
-					std::cout << "  #" << methodEntry.first << ":\n";
-					BytecodeCompiler::PrintInstructions(methodEntry.second, "  ");
-				}
+					auto& method = methodEntry.second;
+					std::string returnType = m_Compiler.m_TypeTable.GetEntryFromId(method.returnType).name;
 
+					std::cout << "  #" << methodEntry.first << " " << returnType << "(" << method.returnType << ")" << ":\n";
+					Compiler::BytecodeCompiler::PrintInstructions(method.body, "  ");
+				}
 				std::cout << "\n";
 			}
 			std::cout << "\n";
 
+			std::cout << "Functions:\n";
+			for (auto& entry : file.m_Functions)
+			{
+				auto& function = entry.second;
+				std::string returnType = m_Compiler.m_TypeTable.GetEntryFromId(function.returnType).name;
+
+				std::cout << "  #" << entry.first << " " << returnType << "(" << function.returnType << ")" << ":\n";
+				Compiler::BytecodeCompiler::PrintInstructions(function.body, "  ");
+			}
+			std::cout << "\n";
+
 			std::cout << "Main Body:\n";
-			BytecodeCompiler::PrintInstructions(file.m_TopLevelInstructions);
+			Compiler::BytecodeCompiler::PrintInstructions(file.m_TopLevelInstructions);
 
 			/*std::cout << "Encoded body\n";
 			for (uint8_t byte : file.m_EncodedTopLevelInstructions)
@@ -165,7 +200,7 @@ namespace Ö::Bytecode {
 		// Main thread
 		ExecutionContext* ctx = CreateContext();
 		ctx->m_ConstantsPool = m_CompiledFile.m_ConstantsPool;
-		ctx->m_Functions = m_CompiledFile.m_EncodedFunctions;
+		ctx->m_Functions = m_CompiledFile.m_Functions;
 		//ctx->m_Instructions = m_CompiledFile.m_EncodedTopLevelInstructions;
 		
 		// Because the entry point is not in a function, a frame has to be created
@@ -281,7 +316,7 @@ namespace Ö::Bytecode {
 				int8_t location = instructions[m_ProgramCounter + 1];
 
 				Frame functionFrame(this);
-				functionFrame.m_Instructions = &m_Functions[location];
+				functionFrame.m_Instructions = &m_Functions[location].encodedBody;
 
 				m_ProgramCounter += 2;
 
@@ -301,7 +336,7 @@ namespace Ö::Bytecode {
 					args.push_back(stackFrame.m_Stack.Pop());
 				}
 
-				Functions::print(args);
+				BuiltInFunctions::_print(args);
 
 				m_ProgramCounter += 1;
 

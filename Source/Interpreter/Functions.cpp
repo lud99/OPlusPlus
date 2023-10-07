@@ -8,267 +8,214 @@
 namespace Ö
 {
 
-	void Functions::InitializeDefaultFunctions()
-	{
-		//NativeFunctions["__print_stack"] = &__print_stack;
-		NativeFunctions["print"] = &_printf;
-		NativeFunctions["printf"] = &_printf;
-		NativeFunctions["rand"] = &_rand;
-		NativeFunctions["srand"] = &_srand;
-		NativeFunctions["time"] = &_time;
-		NativeFunctions["rand_range"] = &rand_range;
-		//NativeFunctions["rand_range_float"] = &rand_range_float;
+//BuiltInFunction* BuiltInFunctions::GetFunction(uint16_t id)
+//{
+//	// If the specified function doesn't exist
+//	if (id > m_BuiltInFunctions.size() - 1)
+//		return nullptr;
 
-		NativeFunctions["sin"] = &_sin;
-		NativeFunctions["cos"] = &_cos;
-		NativeFunctions["tan"] = &_tan;
-		NativeFunctions["sqrt"] = &_sqrt;
-		NativeFunctions["pow"] = &_pow;
+//	return &m_BuiltInFunctions[id];
+//}
 
-		NativeFunctions["to_int"] = &to_int;
-		NativeFunctions["to_float"] = &to_float;
+//CallableFunction BuiltInFunctions::GetFunctionPointer(uint16_t id)
+//{
+//	// If the specified function doesn't exist
+//	if (id > m_BuiltInFunctions.size() - 1)
+//		return nullptr;
 
-		NativeFunctions["abs_float"] = &abs_float;
+//	return m_BuiltInFunctions[id].functionPointer;
+//}
+//
+//void BuiltInFunctions::ThrowException(std::string error)
+//{
+//
+//}
+//
+//void BuiltInFunctions::AddFunction(std::string name, CallableFunction pointer, ValueType returnType)
+//{
+//	assert(m_FunctionNameToId.count(name) != 0); // Don't allow duplicate functions
+//
+//	uint16_t id = m_CurrentFreeId++;
+//	m_FunctionNameToId[name] = id;
+//
+//	m_BuiltInFunctions.emplace_back(id, name, pointer, returnType);
+//}
 
-		/*NativeFunctions["to_string"] = &to_string;
-		NativeFunctions["to_string_raw"] = &to_string_raw;
-		NativeFunctions["to_number"] = &to_number;
-		NativeFunctions["typeof"] = &typeof;
-		NativeFunctions["floor"] = &floor;
-		NativeFunctions["round"] = &round;
-		NativeFunctions["ceil"] = &ceil;
-		NativeFunctions["random"] = &random;
-		NativeFunctions["restart"] = &restart;
-		NativeFunctions["to_char"] = &to_char;
-		NativeFunctions["to_ascii_code"] = &to_ascii_code;
-		NativeFunctions["format_string"] = &format_string;
-		NativeFunctions["length"] = &length;
-		NativeFunctions["at"] = &at;
+//Value Functions::print(ARGS)
+//{
+//	//const std::string& base = args[0].GetString();
+//
+//	if (args.empty())
+//	{
+//		//ThrowException("Function 'print' cannot be called without arguments");
+//		return Value(ValueTypes::Void);
+//	}
+//
+//	/*if (args.size() == 1)
+//		printf(base.c_str());
+//	else if (args.size() == 2)
+//		printf(base.c_str(), args[1].ToFormattedString(false).c_str());
+//	else if (args.size() == 3)
+//		printf(base.c_str(), args[1].ToFormattedString(false), args[2].ToFormattedString(false));
+//	else if (args.size() == 4)
+//		printf(base.c_str(), args[1].ToFormattedString(false), args[2].ToFormattedString(false), args[3].ToFormattedString(false));
+//	else if (args.size() == 5)
+//		printf(base.c_str(), args[1].ToFormattedString(false), args[2].ToFormattedString(false), args[3].ToFormattedString(false), args[4].ToFormattedString(false));
+//	else
+//	{
+//		ThrowException("Function doesn't accept more than 5 arguments");
+//		return Value(ValueTypes::Void);
+//	}*/
+//
+//	std::string printed;
+//	for (int i = 0; i < args.size(); i++)
+//	{
+//		printed += args.at(i).ToFormattedString(false);
+//
+//		if (i < args.size() - 1) printed += " ";
+//	}
+//
+//	std::cout << printed;
+//
+//	return Value(ValueTypes::Void);
+//}
 
-		NativeFunctions["time_now"] = &time_now;*/
-		//NativeFunctions["exit"] = &exit;
+Value BuiltInFunctions::_print(ARGS)
+{
+	std::cout << args[0].ToFormattedString() << "\n";
 
-		//NativeFunctions["sleep_for"] = &sleep_for;
-		//NativeFunctions["get_next_arg"] = &get_next_arg;
+	return Value(ValueTypes::Void);
+}
 
-		///* Arrays */
-		//NativeFunctions["array_push"] = &array_push;
-		//NativeFunctions["array_concat"] = &array_concat;
-		//NativeFunctions["array_pop"] = &array_pop;
-		//NativeFunctions["array_at"] = &array_at;
-		//NativeFunctions["array_reverse"] = &array_reverse;
+Value BuiltInFunctions::_printf(ARGS)
+{
+	Value formatted;// = format_string(args);
+	std::cout << formatted.ToString();
 
-		///* Threads */
-		//NativeFunctions["thread_start"] = &thread_start;
+	// Cleanup
+	Bytecode::BytecodeInterpreter::Get().m_Heap.DeleteObject(formatted.m_HeapEntryPointer);
 
-		///*NativeFunctions["execute_program_source"] = &execute_program_source;*/
+	return Value(ValueTypes::Void);
+}
 
-		//NativeFunctions["console_read_line"] = &console_read_line;
-		//NativeFunctions["console_init_drawing"] = &console_init_drawing;
-		//NativeFunctions["console_write_pixel"] = &console_write_pixel;
-		//NativeFunctions["console_read_pixel"] = &console_read_pixel;
-		//NativeFunctions["console_fill"] = &console_fill;
-		//NativeFunctions["console_clear"] = &console_clear;
-		//NativeFunctions["console_update"] = &console_update;
-		//NativeFunctions["console_width"] = &console_width;
-		//NativeFunctions["console_height"] = &console_height;
+//Value BuiltInFunctions::format_string(ARGS)
+//{
+//	//EnsureTypeOfArg(args, 0, ValueTypes::String);
 
-		//NativeFunctions["read_file"] = &read_file;
-		//NativeFunctions["write_file"] = &write_file;
+//	std::string formatted = args.at(0).GetString();
 
-		///* Network */
-		//NativeFunctions["open_socket"] = &open_socket;
-		//NativeFunctions["send_socket"] = &send_socket;
-		//NativeFunctions["receive_socket"] = &receive_socket;
+//	if (args.size() == 1)
+//		return Bytecode::BytecodeInterpreter::Get().m_Heap.CreateString(formatted);
 
-		//NativeFunctions["get_key_down"] = &get_key_down;
+//	std::string formats[] = {
+//		"%f", "%i", "%s"
+//	};
 
-		srand(time(0));
-	}
+//	int argIndex = 1;
+//	for (int j = 0; j < 3; j++)
+//	{
+//		for (int i = 1; i < args.size(); i++)
+//		{
+//			std::size_t charPos = formatted.find(formats[j]);
 
-	CallableFunction Functions::GetFunctionByName(std::string name)
-	{
-		if (NativeFunctions.count(name) == 0)
-			return nullptr;
+//			if (charPos != std::string::npos) // Something to format
+//			{
+//				// Remove the '%.'
+//				formatted.erase(charPos, 2);
 
-		return (CallableFunction)NativeFunctions[name];
-	}
+//				// Insert the thing at that position
+//				formatted = formatted.insert(charPos, args.at(argIndex).ToString());
+//				argIndex++;
+//			}
+//		}
+//	}
 
-	void Functions::ThrowException(std::string error)
-	{
+//	return Bytecode::BytecodeInterpreter::Get().m_Heap.CreateString(formatted);
+//}
 
-	}
+//Value BuiltInFunctions::_rand(ARGS)
+//{
+//	return Value(rand(), ValueTypes::Integer);
+//}
 
-	Value Functions::print(ARGS)
-	{
-		//const std::string& base = args[0].GetString();
+//Value BuiltInFunctions::_srand(ARGS)
+//{
+//	srand(args[0].GetInt());
 
-		if (args.empty())
-		{
-			ThrowException("Function 'print' cannot be called without arguments");
-			return Value(ValueTypes::Void);
-		}
+//	return Value(ValueTypes::Void);
+//}
 
-		/*if (args.size() == 1)
-			printf(base.c_str());
-		else if (args.size() == 2)
-			printf(base.c_str(), args[1].ToFormattedString(false).c_str());
-		else if (args.size() == 3)
-			printf(base.c_str(), args[1].ToFormattedString(false), args[2].ToFormattedString(false));
-		else if (args.size() == 4)
-			printf(base.c_str(), args[1].ToFormattedString(false), args[2].ToFormattedString(false), args[3].ToFormattedString(false));
-		else if (args.size() == 5)
-			printf(base.c_str(), args[1].ToFormattedString(false), args[2].ToFormattedString(false), args[3].ToFormattedString(false), args[4].ToFormattedString(false));
-		else
-		{
-			ThrowException("Function doesn't accept more than 5 arguments");
-			return Value(ValueTypes::Void);
-		}*/
+//Value BuiltInFunctions::_time(ARGS)
+//{
+//	return Value((int)time(0), ValueTypes::Integer);
+//}
 
-		std::string printed;
-		for (int i = 0; i < args.size(); i++)
-		{
-			printed += args.at(i).ToFormattedString(false);
+//Value BuiltInFunctions::rand_range(ARGS)
+//{
+//	int min = args[0].GetInt();
+//	int max = args[1].GetInt();
 
-			if (i < args.size() - 1) printed += " ";
-		}
+//	int value = min + rand() / (RAND_MAX / (max - min + 1) + 1);
+//	return Value(value, ValueTypes::Integer);
+//}
 
-		std::cout << printed;
+//Value BuiltInFunctions::_sin(ARGS)
+//{
+//	float argument = args[0].GetFloat();
+//	return Value(std::sin(argument), ValueTypes::Float);
+//}
 
-		return Value(ValueTypes::Void);
-	}
+//Value BuiltInFunctions::_cos(ARGS)
+//{
+//	float argument = args[0].GetFloat();
+//	return Value(std::cos(argument), ValueTypes::Float);
+//}
 
-	Value Functions::_printf(ARGS)
-	{
-		Value formatted = format_string(args);
-		std::cout << formatted.ToString();
+//Value BuiltInFunctions::_tan(ARGS)
+//{
+//	float argument = args[0].GetFloat();
+//	return Value(std::tan(argument), ValueTypes::Float);
+//}
 
-		// Cleanup
-		Bytecode::BytecodeInterpreter::Get().m_Heap.DeleteObject(formatted.m_HeapEntryPointer);
+//Value BuiltInFunctions::_sqrt(ARGS)
+//{
+//	float argument = args[0].GetFloat();
+//	return Value(std::sqrt(argument), ValueTypes::Float);
+//}
 
-		return Value(ValueTypes::Void);
-	}
+//Value BuiltInFunctions::_pow(ARGS)
+//{
+//	float base = args[0].GetFloat();
+//	float exponent = args[1].GetFloat();
+//	return Value(std::pow(base, exponent), ValueTypes::Float);
+//}
 
-	Value Functions::format_string(ARGS)
-	{
-		//EnsureTypeOfArg(args, 0, ValueTypes::String);
+//Value BuiltInFunctions::abs_float(ARGS)
+//{
+//	float arg = args[0].GetFloat();
+//	return Value(fabs(arg), ValueTypes::Float);
+//}
 
-		std::string formatted = args.at(0).GetString();
+///*Value BuiltInFunctions::rand_range_float(ARGS)
+//{
+//	float min = args[0].GetFloat();
+//	float max = args[1].GetFloat();
 
-		if (args.size() == 1)
-			return Bytecode::BytecodeInterpreter::Get().m_Heap.CreateString(formatted);
+//	float value = min + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (max - min)));
+//	return Value(value, ValueTypes::Float);
+//}*/
 
-		std::string formats[] = {
-			"%f", "%i", "%s"
-		};
+//Value BuiltInFunctions::to_int(ARGS)
+//{
+//	assert(args[0].GetType() == ValueTypes::Float);
 
-		int argIndex = 1;
-		for (int j = 0; j < 3; j++)
-		{
-			for (int i = 1; i < args.size(); i++)
-			{
-				std::size_t charPos = formatted.find(formats[j]);
+//	return Value((int)args[0].GetFloat(), ValueTypes::Integer);
+//}
 
-				if (charPos != std::string::npos) // Something to format
-				{
-					// Remove the '%.'
-					formatted.erase(charPos, 2);
+//Value BuiltInFunctions::to_float(ARGS)
+//{
+//	assert(args[0].GetType() == ValueTypes::Integer);
 
-					// Insert the thing at that position
-					formatted = formatted.insert(charPos, args.at(argIndex).ToString());
-					argIndex++;
-				}
-			}
-		}
-
-		return Bytecode::BytecodeInterpreter::Get().m_Heap.CreateString(formatted);
-	}
-
-	Value Functions::_rand(ARGS)
-	{
-		return Value(rand(), ValueTypes::Integer);
-	}
-
-	Value Functions::_srand(ARGS)
-	{
-		srand(args[0].GetInt());
-
-		return Value(ValueTypes::Void);
-	}
-
-	Value Functions::_time(ARGS)
-	{
-		return Value((int)time(0), ValueTypes::Integer);
-	}
-
-	Value Functions::rand_range(ARGS)
-	{
-		int min = args[0].GetInt();
-		int max = args[1].GetInt();
-
-		int value = min + rand() / (RAND_MAX / (max - min + 1) + 1);
-		return Value(value, ValueTypes::Integer);
-	}
-
-	Value Functions::_sin(ARGS)
-	{
-		float argument = args[0].GetFloat();
-		return Value(std::sin(argument), ValueTypes::Float);
-	}
-
-	Value Functions::_cos(ARGS)
-	{
-		float argument = args[0].GetFloat();
-		return Value(std::cos(argument), ValueTypes::Float);
-	}
-
-	Value Functions::_tan(ARGS)
-	{
-		float argument = args[0].GetFloat();
-		return Value(std::tan(argument), ValueTypes::Float);
-	}
-
-	Value Functions::_sqrt(ARGS)
-	{
-		float argument = args[0].GetFloat();
-		return Value(std::sqrt(argument), ValueTypes::Float);
-	}
-
-	Value Functions::_pow(ARGS)
-	{
-		float base = args[0].GetFloat();
-		float exponent = args[1].GetFloat();
-		return Value(std::pow(base, exponent), ValueTypes::Float);
-	}
-
-	Value Functions::abs_float(ARGS)
-	{
-		float arg = args[0].GetFloat();
-		return Value(fabs(arg), ValueTypes::Float);
-	}
-
-	/*Value Functions::rand_range_float(ARGS)
-	{
-		float min = args[0].GetFloat();
-		float max = args[1].GetFloat();
-
-		float value = min + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (max - min)));
-		return Value(value, ValueTypes::Float);
-	}*/
-
-	Value Functions::to_int(ARGS)
-	{
-		assert(args[0].GetType() == ValueTypes::Float);
-
-		return Value((int)args[0].GetFloat(), ValueTypes::Integer);
-	}
-
-	Value Functions::to_float(ARGS)
-	{
-		assert(args[0].GetType() == ValueTypes::Integer);
-
-		return Value((float)args[0].GetInt(), ValueTypes::Float);
-	}
-
-	std::map<std::string, CallableFunction> Functions::NativeFunctions;
+//	return Value((float)args[0].GetInt(), ValueTypes::Float);
+//}
 }

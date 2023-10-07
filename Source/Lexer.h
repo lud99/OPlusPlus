@@ -32,6 +32,7 @@ namespace Ö
 
 			Variable,
 			MemberAccessor,
+			ScopeResultion,
 
 			Semicolon,
 			Comma,

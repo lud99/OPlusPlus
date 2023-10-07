@@ -5,11 +5,26 @@
 
 namespace Ö::Bytecode
 {
+	struct CompiledCallable
+	{
+		ValueType returnType;
+		std::vector<ValueType> parameters;
+
+		Instructions body;
+		EncodedInstructions encodedBody;
+	};
+
 	class ClassInstance
 	{
 	public:
 		ClassInstance() {};
 		ClassInstance(std::string name, uint16_t index) : m_Name(name), m_Index(index) {};
+
+		struct MemberVariable
+		{
+			ValueType type;
+			Value value;
+		};
 
 	public:
 		std::string m_Name;
@@ -17,9 +32,8 @@ namespace Ö::Bytecode
 
 		Instructions m_InternalConstructor;
 		EncodedInstructions m_InternalConstructorEncoded;
-		std::unordered_map<uint16_t, Instructions> m_Methods;
-		std::unordered_map<uint16_t, EncodedInstructions> m_MethodsEncoded;
 
-		std::unordered_map<uint16_t, Value> m_MemberVariables;
+		std::unordered_map<uint16_t, CompiledCallable> m_Methods;
+		std::unordered_map<uint16_t, MemberVariable> m_MemberVariables;
 	};
 }

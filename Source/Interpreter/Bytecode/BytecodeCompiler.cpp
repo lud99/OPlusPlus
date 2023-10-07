@@ -13,15 +13,15 @@
 //
 //ValueTypes NodeTypeToValueType(ASTNode* n)
 //{
-//	if (n->type == ASTTypes::IntLiteral) return ValueTypes::Number;
-//	if (n->type == ASTTypes::String) return ValueTypes::String;
-//	if (n->type == ASTTypes::Null) return ValueTypes::Empty;
+//	if (n->typeEntry == ASTTypes::IntLiteral) return ValueTypes::Number;
+//	if (n->typeEntry == ASTTypes::String) return ValueTypes::String;
+//	if (n->typeEntry == ASTTypes::Null) return ValueTypes::Empty;
 //	//if (n->stringValue == "array") return ValueTypes::Array;
 //	//if (n->stringValue == "function") return ValueTypes::Function;
 //
 //	return ValueTypes::Empty;
 //}
-namespace Ö::Bytecode {
+namespace Ö::Bytecode::Compiler {
 
 Opcodes ASTComparisonTypeToOpcode(ASTTypes type)
 {
@@ -41,7 +41,7 @@ Opcodes ASTComparisonTypeToOpcode(ASTTypes type)
 	return Opcodes::no_op;
 }
 
-Opcodes BytecodeCompiler::ResolveCorrectMathInstruction(ASTNode* n, bool reverse)
+Opcodes BytecodeCompiler::ResolveCorrectMathOpcode(ASTNode* n, bool reverse)
 {
 	if (n->type == ASTTypes::Add)
 		return Opcodes::add;
@@ -62,20 +62,22 @@ Opcodes BytecodeCompiler::ResolveCorrectMathInstruction(ASTNode* n, bool reverse
 		return Opcodes::div;
 	}
 
-	if (n->type == ASTTypes::ToThePower)
+	/*if (n->typeEntry == ASTTypes::ToThePower)
 		return (reverse ? Opcodes::pow_rev : Opcodes::pow);
-	if (n->type == ASTTypes::Modulus)
+	if (n->typeEntry == ASTTypes::Modulus)
 		return (reverse ? Opcodes::mod_rev : Opcodes::mod);
-	if (n->type == ASTTypes::Xor)
-		return (reverse ? Opcodes::xr_rev : Opcodes::xr);
+	if (n->typeEntry == ASTTypes::Xor)
+		return (reverse ? Opcodes::xr_rev : Opcodes::xr);*/
 
 	abort();
 
 	return Opcodes::no_op;
 };
 
-Opcodes BytecodeCompiler::ResolveCorrectStoreInstruction(ValueTypes type)
+Opcodes BytecodeCompiler::ResolveCorrectStoreOpcode(ValueType type)
 {
+	TypeTableEntry typeEntry = m_TypeTable.ResolveEntry(m_TypeTable.GetEntryFromId(type));
+
 	switch (type)
 	{
 	case ValueTypes::Integer:
@@ -84,16 +86,50 @@ Opcodes BytecodeCompiler::ResolveCorrectStoreInstruction(ValueTypes type)
 		return Opcodes::store_f;
 	case ValueTypes::String:
 		return Opcodes::store_sref;
+
+	// Handle user defined types
 	default:
+		if (typeEntry.type == TypeTableType::Class)
+			return Opcodes::store_objref;
+
 		abort();
 	}
 
 	return Opcodes::no_op;
 };
 
+Opcodes BytecodeCompiler::ResolveCorrectLoadOpcode(ValueType type)
+{
+	TypeTableEntry typeEntry = m_TypeTable.ResolveEntry(m_TypeTable.GetEntryFromId(type));
+
+	switch (type)
+	{
+	case ValueTypes::Integer:
+		return Opcodes::load_i;
+	case ValueTypes::Float:
+		return Opcodes::load_f;
+	case ValueTypes::String:
+		return Opcodes::load_sref;
+
+		// Handle user defined types
+	default:
+		if (typeEntry.type == TypeTableType::Class)
+			return Opcodes::load_objref;
+
+		abort();
+	}
+
+	return Opcodes::no_op;
+};
+
+ContextConstantsPool::ContextConstantsPool()
+{
+
+}
+
 uint16_t ContextConstantsPool::AddAndGetIntegerIndex(int32_t value)
 {
-	// If an index already exists for this type
+	// If an index already exists for this typeEntry
 	if (m_Integers.count(value) == 1)
 		return m_Integers[value];
 
@@ -106,7 +142,7 @@ uint16_t ContextConstantsPool::AddAndGetIntegerIndex(int32_t value)
 
 uint16_t ContextConstantsPool::AddAndGetFloatIndex(float value)
 {
-	// If an index already exists for this type
+	// If an index already exists for this typeEntry
 	if (m_Floats.count(value) == 1)
 		return m_Floats[value];
 
@@ -151,39 +187,6 @@ uint16_t ContextConstantsPool::AddAndGetClassIndex(std::string className)
 	return index;
 }
 
-
-ConstantPoolType RuntimeConstantsPool::GetTypeOfConstant(uint16_t index)
-{
-	if (m_Integers.count(index) == 1)
-		return ConstantPoolType::Integer;
-	if (m_Floats.count(index) == 1)
-		return ConstantPoolType::Float;
-	if (m_Strings.count(index) == 1)
-		return ConstantPoolType::String;
-
-	abort();
-	return ConstantPoolType::Integer;
-}
-
-int32_t RuntimeConstantsPool::GetInteger(uint16_t index)
-{
-	// TODO: ensure it exist might not be necessary
-	assert(m_Integers.count(index) == 1);
-	return m_Integers[index];
-}
-
-float RuntimeConstantsPool::GetFloat(uint16_t index)
-{
-	assert(m_Floats.count(index) == 1);
-	return m_Floats[index];
-}
-
-const std::string& RuntimeConstantsPool::GetString(uint16_t index)
-{
-	assert(m_Strings.count(index) == 1);
-	return m_Strings[index];
-}
-
 //uint32_t CompilerContext::AddStringConstant(ContextConstantsPool& constants, std::string string)
 //{
 //	char* stringConstant = CopyString(string.c_str());
@@ -202,158 +205,176 @@ const std::string& RuntimeConstantsPool::GetString(uint16_t index)
 //
 //	return index;
 //}
-
-CompilerContext::Variable CompilerContext::GetVariable(const std::string& variableName)
-{
-	// If an index already exists for this variable
-	if (m_Variables.count(variableName) == 1)
-		return m_Variables[variableName];
-
-	return Variable();
-}
-
-bool CompilerContext::HasVariable(const std::string& variableName)
-{
-	return m_Variables.count(variableName) == 1;
-}
-
-CompilerContext::Function& CompilerContext::CreateFunction(const std::string& functionName, ValueTypes returnType)
-{
-	assert(!HasFunction(functionName));
-
-	uint16_t index = m_ConstantsPool.AddAndGetFunctionReferenceIndex(functionName);
-
-	Function function = { functionName, returnType, index };
-
-	m_Functions[functionName] = function;
-
-	m_CompiledFile->m_Functions[function.m_Index] = function.m_Body;
-
-	return m_Functions[functionName];
-}
-
-CompilerContext::Function& CompilerContext::GetFunction(const std::string& functionName)
-{
-	assert(HasFunction(functionName));
-
-	return m_Functions[functionName];
-}
-
-bool CompilerContext::HasFunction(const std::string& functionName)
-{
-	return m_Functions.count(functionName) == 1;
-}
-
-CompilerContext::Class& CompilerContext::CreateClass(const std::string& className)
-{
-	assert(!HasClass(className));
-
-	uint16_t index = m_ConstantsPool.AddAndGetClassIndex(className);
-
-	Class cls = { className, index };
-	//cls.actualClass = Bytecode::Class(className, index);
-
-	m_Classes[className] = cls;
-
-	//m_CompiledFile->m_Classes[cls.m_Index] = cls.actualClass;
-
-	return m_Classes[className];
-}
-
-CompilerContext::Class& CompilerContext::GetClass(const std::string& className)
-{
-	assert(HasClass(className));
-
-	return m_Classes[className];
-}
-
-bool CompilerContext::HasClass(const std::string& className)
-{
-	return m_Classes.count(className) == 1;
-}
-
-CompilerContext::Function& CompilerContext::CreateMethod(Class& cls, const std::string& methodName, ValueTypes returnType)
-{
-	assert(!HasMethod(cls, methodName));
-
-	uint16_t index = m_ConstantsPool.AddAndGetFunctionReferenceIndex(methodName);
-
-	Function function = { methodName, returnType, index };
-
-	cls.m_Methods[methodName] = function;
-
-	//m_CompiledFile->m_Functions[function.m_Index] = function.m_Body;
-
-	return cls.m_Methods[methodName];
-}
-
-CompilerContext::Function& CompilerContext::GetMethod(Class& cls, const std::string& methodName)
-{
-	assert(HasMethod(cls, methodName));
-
-	return cls.m_Methods[methodName];
-}
-
-bool CompilerContext::HasMethod(Class& cls, const std::string& methodName)
-{
-	return cls.m_Methods.count(methodName) == 1;
-}
-
-bool CompilerContext::CreateVariableIndex(std::string& variableName, ValueTypes type, int& index)
-{
-	// If an index already exists for this variable
-	if (m_Variables.count(variableName) == 1)
-	{
-		index = m_Variables[variableName].m_Index;
-		return false;
-	}
-
-	// Use the next free slot
-	index = m_NextFreeVariableIndex++;
-	m_Variables[variableName] = Variable(index, variableName, type);
-	return true;
-}
-
-bool CompilerContext::CreateVariableIndex(Variable& variable)
-{
-	// If an index already exists for this variable
-	if (m_Variables.count(variable.m_Name) == 1)
-	{
-		variable.m_Index = m_Variables[variable.m_Name].m_Index;
-		return false;
-	}
-
-	// Use the next free slot
-	variable.m_Index = m_NextFreeVariableIndex++;
-	m_Variables[variable.m_Name] = Variable(variable.m_Index, variable.m_Name, variable.m_Type, variable.m_IsGlobal);
-	return true;
-}
-
-int CompilerContext::CreateVariableIndex(std::string& variableName, ValueTypes type)
-{
-	int index = 0;
-	CreateVariableIndex(variableName, type, index);
-	return index;
-}
-
-CompilerContext::Variable CompilerContext::CreateMemberVariable(Class& cls, Variable& variable)
-{
-	assert(!HasVariable(variable.m_Name));
-
-	// Use the next free slot
-	variable.m_Index = cls.m_CurrentFreeMemberIndex++;
-	m_Variables[variable.m_Name] = variable;
-
-	return m_Variables[variable.m_Name];
-}
+//
+//CompilerContext::Variable CompilerContext::GetVariable(const std::string& variableName)
+//{
+//	// If an index already exists for this variable
+//	if (m_Variables.count(variableName) == 1)
+//		return m_Variables[variableName];
+//
+//	return Variable();
+//}
+//
+//bool CompilerContext::HasVariable(const std::string& variableName)
+//{
+//	return m_Variables.count(variableName) == 1;
+//}
+//
+//CompilerContext::Function& CompilerContext::CreateFunction(const std::string& functionName, ValueTypes returnType)
+//{
+//	assert(!HasFunction(functionName));
+//
+//	uint16_t index = m_ConstantsPool.AddAndGetFunctionReferenceIndex(functionName);
+//
+//	Function function = { functionName, returnType, index };
+//
+//	m_Functions[functionName] = function;
+//
+//	m_CompiledFile->m_Functions[function.m_Index] = function.m_Body;
+//
+//	return m_Functions[functionName];
+//}
+//
+//CompilerContext::Function& CompilerContext::GetFunction(const std::string& functionName)
+//{
+//	assert(HasFunction(functionName));
+//
+//	return m_Functions[functionName];
+//}
+//
+//bool CompilerContext::HasFunction(const std::string& functionName)
+//{
+//	return m_Functions.count(functionName) == 1;
+//}
+//
+//CompilerContext::Class& CompilerContext::CreateClass(const std::string& className)
+//{
+//	assert(!HasClass(className));
+//
+//	uint16_t index = m_ConstantsPool.AddAndGetClassIndex(className);
+//
+//	Class cls = { className, index };
+//	//cls.actualClass = Bytecode::Class(className, index);
+//
+//	m_Classes[className] = cls;
+//
+//	//m_CompiledFile->m_Classes[cls.m_Index] = cls.actualClass;
+//
+//	return m_Classes[className];
+//}
+//
+//CompilerContext::Class& CompilerContext::GetClass(const std::string& className)
+//{
+//	assert(HasClass(className));
+//
+//	return m_Classes[className];
+//}
+//
+//bool CompilerContext::HasClass(const std::string& className)
+//{
+//	return m_Classes.count(className) == 1;
+//}
+//
+//CompilerContext::Function& CompilerContext::CreateMethod(Class& cls, const std::string& methodName, ValueTypes returnType)
+//{
+//	assert(!HasMethod(cls, methodName));
+//
+//	uint16_t index = m_ConstantsPool.AddAndGetFunctionReferenceIndex(methodName);
+//
+//	Function function = { methodName, returnType, index };
+//
+//	cls.m_Methods[methodName] = function;
+//
+//	//m_CompiledFile->m_Functions[function.m_Index] = function.m_Body;
+//
+//	return cls.m_Methods[methodName];
+//}
+//
+//CompilerContext::Function& CompilerContext::GetMethod(Class& cls, const std::string& methodName)
+//{
+//	assert(HasMethod(cls, methodName));
+//
+//	return cls.m_Methods[methodName];
+//}
+//
+//bool CompilerContext::HasMethod(Class& cls, const std::string& methodName)
+//{
+//	return cls.m_Methods.count(methodName) == 1;
+//}
+//
+//bool CompilerContext::CreateVariableIndex(std::string& variableName, ValueTypes typeEntry, int& index)
+//{
+//	// If an index already exists for this variable
+//	if (m_Variables.count(variableName) == 1)
+//	{
+//		index = m_Variables[variableName].m_Index;
+//		return false;
+//	}
+//
+//	// Use the next free slot
+//	index = m_NextFreeVariableIndex++;
+//	m_Variables[variableName] = Variable(index, variableName, typeEntry);
+//	return true;
+//}
+//
+//bool CompilerContext::CreateVariableIndex(Variable& variable)
+//{
+//	// If an index already exists for this variable
+//	if (m_Variables.count(variable.m_Name) == 1)
+//	{
+//		variable.m_Index = m_Variables[variable.m_Name].m_Index;
+//		return false;
+//	}
+//
+//	// Use the next free slot
+//	variable.m_Index = m_NextFreeVariableIndex++;
+//	m_Variables[variable.m_Name] = Variable(variable.m_Index, variable.m_Name, variable.m_Type, variable.m_IsGlobal);
+//	return true;
+//}
+//
+//int CompilerContext::CreateVariableIndex(std::string& variableName, ValueTypes typeEntry)
+//{
+//	int index = 0;
+//	CreateVariableIndex(variableName, typeEntry, index);
+//	return index;
+//}
+//
+//CompilerContext::Variable CompilerContext::CreateMemberVariable(Class& cls, Variable& variable)
+//{
+//	assert(!HasVariable(variable.m_Name));
+//
+//	// Use the next free slot
+//	variable.m_Index = cls.m_CurrentFreeMemberIndex++;
+//	m_Variables[variable.m_Name] = variable;
+//
+//	return m_Variables[variable.m_Name];
+//}
 
 BytecodeCompiler::BytecodeCompiler()
 {
-	m_Context.m_CompiledFile = &m_CompiledFile;
+	auto AddFunction = [&](std::string name, BuiltInFunctions::BuiltInFunctionCallable pointer, ValueType returnType)
+	{
+		uint16_t id = ++m_ConstantsPool.m_CurrentFreeSlot;
+
+		assert(m_ConstantsPool.m_BuiltInFunctions.count(name) == 0);
+
+		m_ConstantsPool.m_BuiltInFunctions[name] = BuiltInFunctions::Prototype(id, name, pointer, returnType);
+
+		auto function = m_SymbolTable.InsertFunction(0, name, &m_TypeTable.GetEntryFromId(returnType), id);
+		// TODO: function->m_Parameters
+		function->m_IsBuiltIn = true;
+	};
+
+	using namespace BuiltInFunctions;
+	AddFunction("print", _print, ValueTypes::Void);
+	AddFunction("printf", _printf, ValueTypes::Void);
 }
 
-CompiledFile BytecodeCompiler::CompileASTTree(ASTNode* root)
+CompiledFile BytecodeCompiler::CompileASTTree(ASTNode* root, TypeTable typeTable)
 {
+	//m_Context.m_TypeTable = typeTable;
+	m_TypeTable = typeTable;
+
 	// 1. Compile
 	Compile(root, m_CompiledFile.m_TopLevelInstructions);
 
@@ -361,23 +382,25 @@ CompiledFile BytecodeCompiler::CompileASTTree(ASTNode* root)
 	OptimzeInstructions(m_CompiledFile.m_TopLevelInstructions);
 	for (auto& entry : m_CompiledFile.m_Functions)
 	{
-		OptimzeInstructions(entry.second); // Function body
+		OptimzeInstructions(entry.second.body); // Function body
 	}
 
 	// 3. Encode to a proper bytecode buffer
 	EncodeCompiledInstructions();
 
 	// 4. Convert the context constants pool to the runtime version
-	for (auto& entry : m_Context.m_ConstantsPool.m_Integers)
+	for (auto& entry : m_ConstantsPool.m_Integers)
 		m_CompiledFile.m_ConstantsPool.m_Integers[entry.second] = entry.first;
-	for (auto& entry : m_Context.m_ConstantsPool.m_Floats)
+	for (auto& entry : m_ConstantsPool.m_Floats)
 		m_CompiledFile.m_ConstantsPool.m_Floats[entry.second] = entry.first;
-	for (auto& entry : m_Context.m_ConstantsPool.m_Strings)
+	for (auto& entry : m_ConstantsPool.m_Strings)
 		m_CompiledFile.m_ConstantsPool.m_Strings[entry.second] = entry.first;
-	for (auto& entry : m_Context.m_ConstantsPool.m_Functions)
+	for (auto& entry : m_ConstantsPool.m_Functions)
 		m_CompiledFile.m_ConstantsPool.m_FunctionReferences[entry.second] = entry.first;
-	for (auto& entry : m_Context.m_ConstantsPool.m_Integers)
+	for (auto& entry : m_ConstantsPool.m_Classes)
 		m_CompiledFile.m_ConstantsPool.m_ClassReferences[entry.second] = entry.first;
+	for (auto& entry : m_ConstantsPool.m_BuiltInFunctions)
+		m_CompiledFile.m_ConstantsPool.m_BuiltInFunctions[entry.second.id] = entry.second;
 
 	return m_CompiledFile;
 }
@@ -406,29 +429,65 @@ void BytecodeCompiler::PrintInstructions(EncodedInstructions& instructions)
 	
 }
 
-void BytecodeCompiler::CompileClass(ASTNode* node)
+void BytecodeCompiler::CompileClass(ASTNode* node, SymbolTable::ClassSymbol* parentClass)
 {
 	std::string className = node->stringValue;
 
-	if (m_Context.HasClass(className))
+	if (m_SymbolTable.Has(className))
 		return MakeError("Class " + className + " has already been declared");
 
-	CompilerContext::Class& classDeclaration = m_Context.CreateClass(className);
+	auto& classType = m_TypeTable.GetTypeEntry(className);
+	uint16_t classId = m_ConstantsPool.AddAndGetClassIndex(className);
 
+	// A class can be nested inside another. If that is the case that information should be saved to the inner class
+	SymbolTable::ClassSymbol* classSymbol = nullptr;
+	if (parentClass)
+		classSymbol = m_SymbolTable.InsertInnerClass(m_CurrentScope, className, &classType, parentClass);
+	else
+		classSymbol = m_SymbolTable.InsertClass(m_CurrentScope, className, &classType);
+
+	// Create the object that holds the information used when the bytecode is interpreted
+	ClassInstance classInstance(className, classId);
+
+	uint16_t methodId = 0;
+	
 	// Iterate the declaration
 	for (ASTNode* line : node->left->arguments)
 	{
-		if (line->type == ASTTypes::Assign || line->type == ASTTypes::VariableDeclaration)
+		if (line->type == ASTTypes::Class)
 		{
-			Compile(line, classDeclaration.m_InternalConstructor);
+			m_CurrentScope++;
+
+			Instructions nestedClass;
+			Compile(line, nestedClass);
+
+			m_SymbolTable.Remove(m_CurrentScope);
+			m_CurrentScope--;
+		}
+		else if (line->type == ASTTypes::Assign || line->type == ASTTypes::VariableDeclaration)
+		{
+			Compile(line, classInstance.m_InternalConstructor);
 		}
 		else if (line->type == ASTTypes::FunctionDefinition)
 		{
-			auto method = CompileClassMethod(line, classDeclaration);
+			m_CurrentScope++;
 
+			Instructions methodBody;
+			auto methodSymbol = CompileClassMethod(line, *classSymbol, methodBody);
 			if (HasError())
 				return;
-			assert(method != nullptr);
+
+			CompiledCallable method = {
+				methodSymbol->m_StorableValueType->Resolve().id,
+				{},
+				methodBody,
+				EncodeInstructions(methodBody)
+			};
+
+			classInstance.m_Methods[methodId] = method;
+			methodId++;
+
+			m_CurrentScope--;
 		}
 		else
 		{
@@ -436,44 +495,29 @@ void BytecodeCompiler::CompileClass(ASTNode* node)
 		}
 	}
 
-	// Create the object that holds the information used when the bytecode is interpreted
-	ClassInstance classInstance(className, classDeclaration.m_Index);
-
-	// Internal constructor
-	classInstance.m_InternalConstructor = classDeclaration.m_InternalConstructor;
-	classInstance.m_InternalConstructorEncoded = EncodeInstructions(classDeclaration.m_InternalConstructor);
-	
-	// Methods
-	for (auto& entry : classDeclaration.m_Methods)
-	{
-		CompilerContext::Function& method = entry.second;
-
-		classInstance.m_Methods[method.m_Index] = method.m_Body;
-		classInstance.m_MethodsEncoded[method.m_Index] = EncodeInstructions(method.m_Body);
-	}
-
 	// Member variables
-	classInstance.m_MemberVariables.reserve(classDeclaration.m_MemberVariables.size());
-	for (auto& entry : classDeclaration.m_MemberVariables)
+	classInstance.m_MemberVariables.reserve(classSymbol->m_MemberVariables->GetSymbols().size());
+	for (auto& entry : classSymbol->m_MemberVariables->GetSymbols())
 	{
-		CompilerContext::Variable& variable = entry.second;
+		//CompilerContext::Variable& variable = entry.second;
+		SymbolTable::VariableSymbol& variableSymbol = *(SymbolTable::VariableSymbol*)entry.second;
 
-		classInstance.m_MemberVariables[variable.m_Index] = Value();
+		classInstance.m_MemberVariables[variableSymbol.m_Index] = { variableSymbol.GetTypeTableEntry().Resolve().id, Value() };
 	}
 
-
-
-	//classInstance.m_MemberVariables = EncodeInstructions(classDeclaration.m_InternalConstructor);
-
-	m_CompiledFile.m_Classes[classDeclaration.m_Index] = classInstance;
+	m_CompiledFile.m_Classes[classInstance.m_Index] = classInstance;
 }
 
-CompilerContext::Function* BytecodeCompiler::CompileClassMethod(ASTNode* node, CompilerContext::Class& classDeclaration)
+SymbolTable::FunctionSymbol* BytecodeCompiler::CompileClassMethod(ASTNode* node, SymbolTable::ClassSymbol& classSymbol, Instructions& instructions)
 {
-	std::string methodName = node->left->arguments[1]->stringValue;
-	std::string fullName = classDeclaration.m_Name + "::" + methodName;
+	//const std::string& className = node->parent->stringValue;
 
-	if (m_Context.HasMethod(classDeclaration, methodName))
+	//SymbolTable::ClassSymbol& classSymbol = *(SymbolTable::ClassSymbol*)m_SymbolTable.Lookup(className);
+
+	std::string methodName = node->left->arguments[1]->stringValue;
+	std::string fullName = classSymbol.m_Name + "::" + methodName;
+
+	if (classSymbol.m_Methods->Has(methodName))
 	{
 		MakeError("Method " + fullName + " has already been defined");
 		return nullptr;
@@ -490,14 +534,18 @@ CompilerContext::Function* BytecodeCompiler::CompileClassMethod(ASTNode* node, C
 	//if (m_CurrentScope != 0)
 		//return MakeError("Function " + functionName + " is not in the global scope");
 
-	auto& method = m_Context.CreateMethod(classDeclaration, methodName, ValueTypes::Void);
+	// TODO: method return typeEntry
+	auto& returnType = m_TypeTable.GetTypeEntry("void");
+	auto methodSymbol = classSymbol.m_Methods->InsertMethod(m_CurrentScope, methodName, &returnType);
+	
+	//auto& method = m_Context.CreateMethod(classDeclaration, methodName, ValueTypes::Void);
 
 	m_CurrentScope++;
 
 	// Compile function
 	if (node->right)
 	{
-		CompilerContext initialContext = m_Context;
+		//CompilerContext initialContext = m_Context;
 
 		// TODO: Compile arguments
 		/*if (node->left->arguments.size() >= 3)
@@ -506,7 +554,7 @@ CompilerContext::Function* BytecodeCompiler::CompileClassMethod(ASTNode* node, C
 			{
 				ASTNode* n = node->left->arguments[i];
 
-				if (n->type == ASTTypes::VariableDeclaration)
+				if (n->typeEntry == ASTTypes::VariableDeclaration)
 				{
 					Compile(n, instructions, false);
 					instructions.erase(instructions.end() - 2);
@@ -514,32 +562,32 @@ CompilerContext::Function* BytecodeCompiler::CompileClassMethod(ASTNode* node, C
 			}
 		}*/
 
-		Compile(node->right, method.m_Body, false);
+		Compile(node->right, instructions, false);
 		if (HasError())
 			return nullptr;
 
-		m_Context.m_Variables = initialContext.m_Variables;
+		//m_Context.m_Variables = initialContext.m_Variables;
 	}
 
 	// Some method definitions has a manual return statement, but if none exists then create one automatically
-	if (method.m_Body.back().GetOpcode() != Opcodes::ret && method.m_Body.back().GetOpcode() != Opcodes::ret_void)
+	if (instructions.back().GetOpcode() != Opcodes::ret && instructions.back().GetOpcode() != Opcodes::ret_void)
 	{
-		method.m_Body.emplace_back(Opcodes::ret_void);
+		instructions.emplace_back(Opcodes::ret_void);
 	}
 
 
-	classDeclaration.m_Methods[methodName] = method;
+	//classSymbol.m_Methods[methodName] = method;
 
 	m_CurrentScope--;
 
-	return &method;
+	return methodSymbol;
 }
 
 void BytecodeCompiler::CompileFunction(ASTNode* node)
 {
 	std::string functionName = node->left->arguments[1]->stringValue;
 
-	if (m_Context.HasFunction(functionName))
+	if (m_SymbolTable.Has(functionName))
 		return MakeError("Function " + functionName + " has already been defined");
 
 	if (!IsFunctionNameValid(functionName))
@@ -549,8 +597,11 @@ void BytecodeCompiler::CompileFunction(ASTNode* node)
 	if (m_CurrentScope != 0)
 		return MakeError("Function " + functionName + " is not in the global scope");
 
-	auto& function = m_Context.CreateFunction(functionName, ValueTypes::Void);
+	uint16_t functionId = m_ConstantsPool.AddAndGetFunctionReferenceIndex(functionName);
 
+	auto functionSymbol = m_SymbolTable.InsertFunction(m_CurrentScope, functionName, &m_TypeTable.GetEntryFromId(ValueTypes::Void), functionId); // TODO: function return type
+	//Function function = { functionSymbol };
+	//m_Functions[*functionSymbol] = function;
 
 	m_CurrentScope++;
 
@@ -561,9 +612,10 @@ void BytecodeCompiler::CompileFunction(ASTNode* node)
 	//m_Context.m_ShouldExportVariable = false;
 
 	// Compile function
+	Instructions functionBody;
 	if (node->right)
 	{
-		CompilerContext initialContext = m_Context;
+		//CompilerContext initialContext = m_Context;
 
 		// TODO: Compile arguments
 		/*if (node->left->arguments.size() >= 3)
@@ -572,7 +624,7 @@ void BytecodeCompiler::CompileFunction(ASTNode* node)
 			{
 				ASTNode* n = node->left->arguments[i];
 
-				if (n->type == ASTTypes::VariableDeclaration)
+				if (n->typeEntry == ASTTypes::VariableDeclaration)
 				{
 					Compile(n, instructions, false);
 					instructions.erase(instructions.end() - 2);
@@ -580,19 +632,19 @@ void BytecodeCompiler::CompileFunction(ASTNode* node)
 			}
 		}*/
 
-		Compile(node->right, function.m_Body, false);
+		Compile(node->right, functionBody, false);
 		if (m_Error != "")
 			return;
 
-		m_Context.m_Variables = initialContext.m_Variables;
+		//m_Context.m_Variables = initialContext.m_Variables;
 	}
 
 	//m_Context.m_ShouldExportVariable = shouldExport;
 
-	// Some function defenitions has a manual return statement, but if none exists then create one automatically
-	if (function.m_Body.back().GetOpcode() != Opcodes::ret && function.m_Body.back().GetOpcode() != Opcodes::ret_void)
+	// Some function definitions has a manual return statement, but if none exists then create one automatically
+	if (functionBody.back().GetOpcode() != Opcodes::ret && functionBody.back().GetOpcode() != Opcodes::ret_void)
 	{
-		function.m_Body.emplace_back(Opcodes::ret_void);
+		functionBody.emplace_back(Opcodes::ret_void);
 	}
 
 	// Function before
@@ -619,9 +671,17 @@ void BytecodeCompiler::CompileFunction(ASTNode* node)
 		//instructions.push_back(Instruction(Opcodes::store_property).Arg(variable.m_Name));
 	}
 
-	m_CompiledFile.m_Functions[function.m_Index] = function.m_Body;
+	CompiledCallable function = {
+		functionSymbol->m_StorableValueType->Resolve().id,
+		{},
+		functionBody,
+		EncodeInstructions(functionBody)
+	};
+
+	m_CompiledFile.m_Functions[functionId] = function;
 	//m_CompiledFile.m_Functions[function.m_Index] = ;
 
+	m_SymbolTable.Remove(m_CurrentScope);
 	m_CurrentScope--;
 }
 
@@ -630,21 +690,25 @@ void BytecodeCompiler::CompileAssignment(ASTNode* node, Instructions& instructio
 {
 	std::string propertyName = "";
 
-	CompilerContext::Variable variable(-1, node->left->stringValue/*, NodeTypeToValueType(node->right)*/);
+	//m_SymbolTable.Insert(m_CurrentScope, )
+
+	//CompilerContext::Variable variable(-1, node->left->stringValue/*, NodeTypeToValueType(node->right)*/);
 
 	bool assigningToProperty = false;
 	bool isClassMemberVariable = false;
 
-	// Resolve if variable decleration on the left. Should create a new variable
-	if (node->left->type == ASTTypes::VariableDeclaration)
-	{
-		variable.m_Name = node->left->right->stringValue;
-		variable.m_Type = node->left->left->VariableTypeToValueType();
-		//if (variable.m_Type == ValueTypes::String)
-		//	variable.m_Type = ValueTypes::StringConstant;
+	std::string variableName = node->left->stringValue;
+	ValueType variableType;
 
-		bool isGlobal = m_CurrentScope == 0;
-		variable.m_IsGlobal = isGlobal;
+	SymbolTable::VariableSymbol* variableSymbol = nullptr;
+
+
+	auto CompileDeclaration = [&]() {
+		variableName = node->left->right->stringValue;
+		variableType = m_TypeTable.GetType(node->left->left->stringValue);
+
+		//bool isGlobal = m_CurrentScope == 0;
+		//variable.m_IsGlobal = isGlobal;
 
 		// Create a variable and store it to the module object
 		//if (m_Context.m_ShouldExportVariable)
@@ -652,93 +716,108 @@ void BytecodeCompiler::CompileAssignment(ASTNode* node, Instructions& instructio
 		//else
 		//{
 
+		// Typecheck
+		ValueType rhs = GetValueTypeOfNode(node->right);
+		if (variableType != rhs)
+			return MakeError("Variable type of '" + variableName + "' doesn't match type of right hand side");
+
 		// Check if declared inside a class declaration, then it should be a member variable
 		if (node->parent && node->parent->parent && node->parent->parent->type == ASTTypes::Class)
 		{
 			isClassMemberVariable = true;
 
 			const std::string& className = node->parent->parent->stringValue;
-			auto& classDeclaration = m_Context.GetClass(className);
+			SymbolTable::ClassSymbol& classSymbol = *(SymbolTable::ClassSymbol*)m_SymbolTable.Lookup(className);
 
 			// If member variable has already been declared
-			if (classDeclaration.m_MemberVariables.count(variable.m_Name) != 0)
-			{
-				return MakeError("Member variable " + variable.m_Name + " has already been declared");
-			}
+			if (classSymbol.m_MemberVariables->HasAndIs(variableName, SymbolType::Variable))
+				return MakeError("Member variable " + variableName + " has already been declared");
 
-			m_Context.CreateMemberVariable(classDeclaration, variable);
-
-			classDeclaration.m_MemberVariables[variable.m_Name] = variable;
+			variableSymbol = classSymbol.m_MemberVariables->InsertVariable(m_CurrentScope, variableName, &m_TypeTable.GetEntryFromId(variableType));
+			return;
 		}
-		else if (!m_Context.CreateVariableIndex(variable))
-			return MakeError("Variable " + variable.m_Name + " has already been declared");
 
-		// Error if the type of the value on the right couldn't be evaluated, because it's not a constant
-		if (variable.m_Type == ValueTypes::Void && node->right->type != ASTTypes::Null)
-			return MakeError("Variable " + variable.m_Name + " doesn't have a type");
+		// Ensure it has not been declared before
+		if (m_SymbolTable.HasAndIs(variableName, SymbolType::Variable))
+			return MakeError("Variable " + variableName + " has already been declared");
 
-		// Typecheck
-		ValueTypes rhs = GetValueTypeOfNode(node->right);
-		if (variable.m_Type != rhs)
-			return MakeError("Variable type of " + variable.m_Name + " doesn't match type of right hand side");
+		// Invalid type of variable
+		if (variableType == ValueTypes::Void)
+			return MakeError("Variable " + variableName + " doesn't have a type");
+
+		// Create it
+		variableSymbol = m_SymbolTable.InsertVariable(m_CurrentScope, variableName, &m_TypeTable.GetEntryFromId(variableType));
+		return;
+	};
+
+
+	// Resolve if variable decleration on the left. Should create a new variable
+	if (node->left->type == ASTTypes::VariableDeclaration)
+	{
+		CompileDeclaration();
+
+		if (HasError()) 
+			return;
 	}
 	// Assigning to a property
-	else if (node->left->type == ASTTypes::PropertyAccess)
-	{
-		assigningToProperty = true;
-		propertyName = node->left->right->stringValue;
+	//else if (node->left->type == ASTTypes::PropertyAccess)
+	//{
+	//	assigningToProperty = true;
+	//	propertyName = node->left->right->stringValue;
 
-		ASTNode* n = node->left;
-		while (true)
-		{
-			if (n->left == nullptr)
-			{
-				variable.m_Name = n->stringValue;
-				break;
-			}
+	//	ASTNode* n = node->left;
+	//	while (true)
+	//	{
+	//		if (n->left == nullptr)
+	//		{
+	//			variable.m_Name = n->stringValue;
+	//			break;
+	//		}
 
-			n = n->left;
-		}
+	//		n = n->left;
+	//	}
 
-		// Assigning to an existing variable
-		std::string name = variable.m_Name;
-		variable = m_Context.GetVariable(variable.m_Name);
-		if (variable.m_Index == -1)
-			return MakeError("Variable " + name + " cannot be assigned to, because it hasn't been declared");
+	//	// Assigning to an existing variable
+	//	std::string name = variable.m_Name;
+	//	variable = m_Context.GetVariable(variable.m_Name);
+	//	if (variable.m_Index == -1)
+	//		return MakeError("Variable " + name + " cannot be assigned to, because it hasn't been declared");
 
-		Compile(node->left, instructions);
-		instructions.pop_back();
-	}
+	//	Compile(node->left, instructions);
+	//	instructions.pop_back();
+	//}
 	else
 	{
 		// Assigning to an existing variable
-		std::string name = variable.m_Name;
 
-		if (!m_Context.HasVariable(name))
+		if (!m_SymbolTable.HasAndIs(variableName, SymbolType::Variable))
 		{
-			return MakeError("Undeclared variable " + name);
-			//if (node->right->type == ASTTypes::FunctionDefinition)
+			return MakeError("Undeclared variable " + variableName);
+		}
+			//if (node->right->typeEntry == ASTTypes::FunctionDefinition)
 			//	return MakeError("Cannot assign a function declaration with a name, to a variable");
 
-			////if (node->right->type != ASTTypes::AnonymousFunction)
+			////if (node->right->typeEntry != ASTTypes::AnonymousFunction)
 			//	//return MakeError("Variable " + name + " cannot be assigned to, because it hasn't been declared");
 
 			//// Function declarations creates the variable
 			//variable.m_Type = ValueTypes::FunctionPointer;
 			//if (!m_Context.CreateVariableIndex(variable.m_Name, variable.m_Type, variable.m_Index))
 			//	return MakeError("Variable " + name + " has already been declared");
-		}
+		
 
-		variable = m_Context.GetVariable(variable.m_Name);
+		//variable = m_Context.GetVariable(variable.m_Name);
+		variableSymbol = (SymbolTable::VariableSymbol*)m_SymbolTable.Lookup(variableName);
+		variableType = variableSymbol->GetTypeTableEntry().id;
 
 		// Typecheck
-		ValueTypes rhs = GetValueTypeOfNode(node->right);
-		if (variable.m_Type != rhs)
-			return MakeError("Variable type of " + variable.m_Name + " doesn't match type of right hand side");
+		ValueType rhs = GetValueTypeOfNode(node->right);
+		if (variableType != rhs)
+			return MakeError("Variable type of " + variableName + " doesn't match type of right hand side");
 	}
 
 	// Cant export normal assignments
-	//if (node->left->type != ASTTypes::VariableDeclaration && m_Context.m_ShouldExportVariable)
+	//if (node->left->typeEntry != ASTTypes::VariableDeclaration && m_Context.m_ShouldExportVariable)
 		//return MakeError("Can only export variable declarations, not normal assignments");
 
 	Compile(node->right, instructions);
@@ -747,21 +826,12 @@ void BytecodeCompiler::CompileAssignment(ASTNode* node, Instructions& instructio
 
 	if (!isClassMemberVariable)
 	{
-		auto ResolveCorrectStoreOpcode = [](ValueTypes type)
-		{
-			if (type == ValueTypes::Integer)
-				return Opcodes::store_i;
-			if (type == ValueTypes::Float)
-				return Opcodes::store_f;
-			if (type == ValueTypes::String)
-				return Opcodes::store_sref;
-		};
-
-		instructions.push_back(Instruction(ResolveCorrectStoreOpcode(GetValueTypeOfNode(node->left)), { (uint8_t)variable.m_Index }));
+		instructions.push_back(Instruction(ResolveCorrectStoreOpcode(GetValueTypeOfNode(node->left)), { (uint8_t)variableSymbol->m_Index }));
 	}
 	else
 	{
-		instructions.push_back(Instruction(Opcodes::store_member, { (uint8_t)variable.m_Index }));
+		
+		instructions.push_back(Instruction(Opcodes::store_member, { (uint8_t)variableSymbol->m_Index }));
 		//instructions.push_back(Instruction(Opcodes::store_property).Arg(node->left->right->stringValue));
 	}
 
@@ -775,64 +845,64 @@ void BytecodeCompiler::CompileAssignment(ASTNode* node, Instructions& instructio
 
 void BytecodeCompiler::CompileMathOperation(ASTNode* node, Instructions& instructions)
 {
+	auto TypecheckLeftAndRightNode = [&](ASTNode* lhs, ASTNode* rhs) -> void
+	{
+		// Typechecking
+		ValueType typeLhs = GetValueTypeOfNode(lhs);
+		if (HasError()) return;
+		ValueType typeRhs = GetValueTypeOfNode(rhs);
+		if (HasError()) return;
+
+		if (typeLhs != typeRhs)
+		{
+			const std::string& typeLhsString = m_TypeTable.GetEntryFromId(typeLhs).name;
+			const std::string& typeRhsString = m_TypeTable.GetEntryFromId(typeRhs).name;
+
+			return MakeError("Non-match matching types for " + node->right->ToString(false) + " (" + typeLhsString + " and " + typeRhsString + ")");
+		}
+	};
+
 	ASTNode* left = node->left;
 	ASTNode* right = node->right;
 
 	// Recursivly perform the operations, do the inner ones first
 	if (right->IsMathOperator())
 	{
-		// Typechecking
-		ValueTypes typeRhs = GetValueTypeOfNode(right);
+		TypecheckLeftAndRightNode(right, left);
 		if (HasError()) return;
-		ValueTypes typeLhs = GetValueTypeOfNode(left);
-		if (HasError()) return;
-		if (typeLhs != typeRhs)
-			return MakeError("Non-match matching types for " + node->right->ToString(false) + " (" + ValueTypeToString(typeLhs) + " and " + ValueTypeToString(typeRhs) + ")");
 
 		Compile(right, instructions);
 		Compile(left, instructions);
 
-		instructions.emplace_back(ResolveCorrectMathInstruction(node));
+		instructions.emplace_back(ResolveCorrectMathOpcode(node));
 
 		return;
 	}
 	if (left->IsMathOperator())
 	{
-		// Typechecking
-		ValueTypes typeRhs = GetValueTypeOfNode(right);
+		TypecheckLeftAndRightNode(right, left);
 		if (HasError()) return;
-		ValueTypes typeLhs = GetValueTypeOfNode(left);
-		if (HasError()) return;
-		if (typeLhs != typeRhs)
-			return MakeError("Non-match matching types for " + node->right->ToString(false) + " (" + ValueTypeToString(typeLhs) + " and " + ValueTypeToString(typeRhs) + ")");
 
 		Compile(left, instructions);
 		Compile(right, instructions);
 
-		instructions.emplace_back(ResolveCorrectMathInstruction(node, true));
+		instructions.emplace_back(ResolveCorrectMathOpcode(node, true));
 
 		return;
 	}
 
-	// Typechecking
-	ValueTypes typeRhs = GetValueTypeOfNode(right);
+	TypecheckLeftAndRightNode(left, right);
 	if (HasError()) return;
-	ValueTypes typeLhs = GetValueTypeOfNode(left);
-	if (HasError()) return;
-	if (typeLhs != typeRhs)
-		return MakeError("Non-match matching types for " + node->right->ToString(false) + " (" + ValueTypeToString(typeLhs) + " and " + ValueTypeToString(typeRhs) + ")");
 
 	Compile(right, instructions);
 	Compile(left, instructions);
 
 	if (node->IsMathOperator())
-		instructions.emplace_back(ResolveCorrectMathInstruction(node));
+		instructions.emplace_back(ResolveCorrectMathOpcode(node));
 }
 
-void BytecodeCompiler::CompileIntLiteral(ASTNode* node, Instructions& instructions)
+void BytecodeCompiler::CompileIntLiteral(int64_t value, Instructions& instructions)
 {
-	int64_t value = node->numberValue;
-
 	// 8 bit signed int
 	if (value >= SCHAR_MIN && value <= SCHAR_MAX)
 	{
@@ -854,7 +924,7 @@ void BytecodeCompiler::CompileIntLiteral(ASTNode* node, Instructions& instructio
 	else if (value >= INT_MIN && value <= INT_MAX)
 	{
 		// Create or get an entry in the constants pool
-		uint16_t constantsIndex = m_Context.m_ConstantsPool.AddAndGetIntegerIndex(node->numberValue);
+		uint16_t constantsIndex = m_ConstantsPool.AddAndGetIntegerIndex(value);
 
 		instructions.push_back(LoadFromConstantsPool(constantsIndex));
 	}
@@ -866,18 +936,18 @@ void BytecodeCompiler::CompileIntLiteral(ASTNode* node, Instructions& instructio
 	}
 }
 
-void BytecodeCompiler::CompileDoubleLiteral(ASTNode* node, Instructions& instructions)
+void BytecodeCompiler::CompileDoubleLiteral(float value, Instructions& instructions)
 {
 	// Create or get an entry in the constants pool
-	uint16_t constantsIndex = m_Context.m_ConstantsPool.AddAndGetFloatIndex(node->numberValue);
+	uint16_t constantsIndex = m_ConstantsPool.AddAndGetFloatIndex(value);
 
 	instructions.push_back(LoadFromConstantsPool(constantsIndex));
 }
 
-void BytecodeCompiler::CompileStringLiteral(ASTNode* node, Instructions& instructions)
+void BytecodeCompiler::CompileStringLiteral(std::string value, Instructions& instructions)
 {
 	// Create or get an entry in the constants pool
-	uint16_t constantsIndex = m_Context.m_ConstantsPool.AddAndGetStringIndex(node->stringValue);
+	uint16_t constantsIndex = m_ConstantsPool.AddAndGetStringIndex(value);
 
 	instructions.push_back(LoadFromConstantsPool(constantsIndex));
 }
@@ -935,9 +1005,9 @@ void BytecodeCompiler::Compile(ASTNode* node, Instructions& instructions, bool c
 	case ASTTypes::ProgramBody:
 	case ASTTypes::Scope:
 	{
-		CompilerContext initialContext = m_Context;
+		//CompilerContext initialContext = m_Context;
 
-		if (canCreateScope)
+		if (node->type == ASTTypes::Scope && canCreateScope)
 		{
 			m_CurrentScope++;
 			//instructions.push_back({ Opcodes::create_scope_frame.Arg(m_CurrentScope));
@@ -947,7 +1017,7 @@ void BytecodeCompiler::Compile(ASTNode* node, Instructions& instructions, bool c
 		for (int i = 0; i < node->arguments.size(); i++)
 		{
 			ASTNode* n = node->arguments[i];
-			/*if (n->type == ASTTypes::FunctionDefinition)
+			/*if (n->typeEntry == ASTTypes::FunctionDefinition)
 				continue;
 			if (IsAnonFunctionDef(n))
 				continue;*/
@@ -961,14 +1031,18 @@ void BytecodeCompiler::Compile(ASTNode* node, Instructions& instructions, bool c
 		// Reset so the local variables created in the scope are discarded
 		if (canMakeVariablesLocal)
 		{
-			m_Context.m_Variables = initialContext.m_Variables;
+			//m_Context.m_Variables = initialContext.m_Variables;
 			//m_Context.m_NextFreeVariableIndex = initialContext.m_NextFreeVariableIndex;
 		}
 
-		if (canCreateScope)
+		if (node->type == ASTTypes::Scope && canCreateScope)
 		{
+			// Delete the symbol table for the local scope as it is no longer needed
+			m_SymbolTable.Remove(m_CurrentScope);
+
 			//instructions.push_back(Instruction(Opcodes::pop_scope_frame).Arg(m_CurrentScope));
 			m_CurrentScope--;
+
 		}
 
 		break;
@@ -1066,47 +1140,47 @@ void BytecodeCompiler::Compile(ASTNode* node, Instructions& instructions, bool c
 		// Format: check condition, jmp_if_false, scope code
 		// The if statement is inversed, so if the condition is true then it just increments the pc and keeps running.
 		// If it's false, then it jumps over the code for that statement 
-		m_CurrentScope++;
+		//m_CurrentScope++;
 
-		//instructions.push_back(Instruction(Opcodes::create_scope_frame).Arg(m_CurrentScope));
+		////instructions.push_back(Instruction(Opcodes::create_scope_frame).Arg(m_CurrentScope));
 
-		uint32_t positionForCondition = instructions.size();
+		//uint32_t positionForCondition = instructions.size();
 
-		// Generate bytecode for the scope, but only to know the amount of instructions
-		std::vector<Instruction> tempInst = instructions;
-		BytecodeCompiler temp;
-		temp.m_Context = m_Context;
-		temp.m_CompiledFile.m_ConstantsPool = m_CompiledFile.m_ConstantsPool;
+		//// Generate bytecode for the scope, but only to know the amount of instructions
+		//std::vector<Instruction> tempInst = instructions;
+		//BytecodeCompiler temp;
+		//temp.m_Context = m_Context;
+		//temp.m_CompiledFile.m_ConstantsPool = m_CompiledFile.m_ConstantsPool;
 
-		// Temp compilations
-		// Main scope
-		temp.Compile(node->left, tempInst);
-		temp.Compile(node->right, tempInst);
-		uint32_t scopeEnd = tempInst.size() + 2; // The position of the pop_frame opcode, which is the end of the scope
+		//// Temp compilations
+		//// Main scope
+		//temp.Compile(node->left, tempInst);
+		//temp.Compile(node->right, tempInst);
+		//uint32_t scopeEnd = tempInst.size() + 2; // The position of the pop_frame opcode, which is the end of the scope
 
-		m_Context.m_LoopInfo.m_End = scopeEnd;
-		m_Context.m_LoopInfo.m_Reset = positionForCondition;
-		m_Context.m_LoopInfo.m_BodyDepth = m_CurrentScope + 1;
+		//m_Context.m_LoopInfo.m_End = scopeEnd;
+		//m_Context.m_LoopInfo.m_Reset = positionForCondition;
+		//m_Context.m_LoopInfo.m_BodyDepth = m_CurrentScope + 1;
 
-		// Create bytecode for the condition
-		Compile(node->left, instructions);
+		//// Create bytecode for the condition
+		//Compile(node->left, instructions);
 
-		// Insert a dummy jump opcode that will be removed
-		
-		instructions.push_back({ Opcodes::jmp_if_false, { (uint8_t)scopeEnd } });
-		
+		//// Insert a dummy jump opcode that will be removed
+		//
+		//instructions.push_back({ Opcodes::jmp_if_false, { (uint8_t)scopeEnd } });
+		//
 
-		// Create bytecode for the scope
-		Compile(node->right, instructions);
+		//// Create bytecode for the scope
+		//Compile(node->right, instructions);
 
-		// Jump back to the condition
-		instructions.push_back({ Opcodes::jmp, { (uint8_t)positionForCondition } });
-		//instructions.push_back(Instruction(Opcodes::pop_scope_frame).Arg(m_CurrentScope));
+		//// Jump back to the condition
+		//instructions.push_back({ Opcodes::jmp, { (uint8_t)positionForCondition } });
+		////instructions.push_back(Instruction(Opcodes::pop_scope_frame).Arg(m_CurrentScope));
 
-		// Reset the loop information
-		m_Context.m_LoopInfo = CompilerContext::LoopInfo();
+		//// Reset the loop information
+		//m_Context.m_LoopInfo = CompilerContext::LoopInfo();
 
-		m_CurrentScope--;
+		//m_CurrentScope--;
 
 		break;
 	}
@@ -1182,45 +1256,53 @@ void BytecodeCompiler::Compile(ASTNode* node, Instructions& instructions, bool c
 		break;
 	}
 
-	//case ASTTypes::VariableDeclaration:
-	//{
-	//	bool isGlobalVariable = m_CurrentScope == 0;
-	//	CompilerContext::Variable variable(-1, right->stringValue, left->VariableTypeToValueType(), isGlobalVariable);
-	//	if (variable.m_Type == ValueTypes::String)
-	//		variable.m_Type = ValueTypes::StringConstant;
 
-	//	//if (m_Context.m_ShouldExportVariable)
-	//		//ExportVariable(node, variable, instructions);
-	//	//else
-	//		m_Context.CreateVariableIndex(variable);
 
-	//	// Assign a default value to it
-	//	if (variable.m_Type == ValueTypes::Integer) // 0
-	//		instructions.push_back(Instruction(Opcodes::push_number).Arg(int(0)));
-	//	if (variable.m_Type == ValueTypes::Float) // 0
-	//		instructions.push_back(Instruction(Opcodes::push_number).Arg(double(0.0), ValueTypes::Float));
-	//	else if (variable.m_Type == ValueTypes::String) // ""
-	//		instructions.push_back(Instruction(Opcodes::push_stringconst).Arg(m_Context.AddStringConstant(m_Constants, "")));
-	//	//else if (variable.m_Type == ValueTypes::Array) // []
-	//	//	instructions.emplace_back(Opcodes::array_create_empty);
-	//	//else if (variable.m_Type == ValueTypes::Object) // {}
-	//	//	instructions.emplace_back(Opcodes::object_create_empty);
+	case ASTTypes::VariableDeclaration:
+	{
+		bool isGlobalVariable = m_CurrentScope == 0;
+		const std::string& typeName = left->stringValue;
+		const std::string& variableName = right->stringValue;
 
-	//	instructions.push_back(Instruction(Opcodes::store).
-	//		Arg(variable.m_Index)
-	//		.Arg((int)variable.m_Type)
-	//		.Arg(variable.m_Name)
-	//		.Arg(variable.m_IsGlobal));
+		if (!m_TypeTable.HasType(typeName))
+			return MakeError("Type '" + typeName + "' has not been defined");
 
-	//	// Store the variable value to the module property, but also as a variable
-	//	if (m_Context.m_ShouldExportVariable)
-	//	{
-	//		instructions.push_back(Instruction(Opcodes::load).Arg(variable.m_Index));
-	//		instructions.push_back(Instruction(Opcodes::store_property).Arg(variable.m_Name));
-	//	}
+		TypeTableEntry& typeEntry = m_TypeTable.GetTypeEntry(typeName);
 
-	//	break;
-	//}
+		//CompilerContext::Variable variable(-1, right->stringValue, m_Context.m_TypeTable.GetType(left->stringValue), isGlobalVariable);
+		//if (variable.m_Type == ValueTypes::String)
+			//variable.m_Type = ValueTypes::StringConstant;
+
+		//if (m_Context.m_ShouldExportVariable)
+			//ExportVariable(node, variable, instructions);
+		//else
+
+		//if (m_SymbolTable.Has(variableName))
+			//return MakeError("Symbol with name '" + variableName + "' has already been declared");
+
+		SymbolTable::VariableSymbol* variableSymbol = m_SymbolTable.InsertVariable(m_CurrentScope, variableName, &typeEntry);
+
+		// Assign a default value to it
+		if (typeEntry.id == ValueTypes::Integer)
+			CompileIntLiteral(0, instructions);
+		else if (typeEntry.id == ValueTypes::Float)
+			CompileDoubleLiteral(0.0f, instructions);
+		else if (typeEntry.id == ValueTypes::String)
+			CompileStringLiteral("", instructions);
+
+		// Instantiate class
+		// TODO: if class, run code for constructor?
+		if (typeEntry.type == TypeTableType::Class)
+		{
+			//assert(.HasClass(typeEntry.name));
+
+			instructions.push_back({ Opcodes::instantiate_class, { (uint8_t)typeEntry.id } });
+		}
+
+		instructions.push_back({ ResolveCorrectStoreOpcode(typeEntry.id), {(uint8_t)variableSymbol->m_Index }});
+
+		break;
+	}
 
 	case ASTTypes::Assign:
 	{
@@ -1237,9 +1319,9 @@ void BytecodeCompiler::Compile(ASTNode* node, Instructions& instructions, bool c
 	//	if (index == -1)
 	//		return MakeError("Variable " + node->stringValue + " doesn't exist");
 
-	//	if (node->type == ASTTypes::PostIncrement)
+	//	if (node->typeEntry == ASTTypes::PostIncrement)
 	//		instructions.push_back(Instruction(Opcodes::post_inc, ResultCanBeDiscarded(node)).Arg(index));
-	//	if (node->type == ASTTypes::PostDecrement)
+	//	if (node->typeEntry == ASTTypes::PostDecrement)
 	//		instructions.push_back(Instruction(Opcodes::post_dec, ResultCanBeDiscarded(node)).Arg(index));
 
 	//	break;
@@ -1259,7 +1341,7 @@ void BytecodeCompiler::Compile(ASTNode* node, Instructions& instructions, bool c
 
 	//case ASTTypes::PropertyAccess:
 	//{
-	//	if (right->type == ASTTypes::FunctionCall)
+	//	if (right->typeEntry == ASTTypes::FunctionCall)
 	//	{
 	//		// Compile the function call
 	//		// Push all the arguments onto the stack backwards
@@ -1295,6 +1377,8 @@ void BytecodeCompiler::Compile(ASTNode* node, Instructions& instructions, bool c
 	{
 		// Push all the arguments onto the stack
 
+		// TODO: validation for arguments
+
 		// Push the arguments backwards
 		for (int i = node->arguments.size() - 1; i >= 0; i--)
 		{
@@ -1304,21 +1388,22 @@ void BytecodeCompiler::Compile(ASTNode* node, Instructions& instructions, bool c
 		const std::string& functionName = node->stringValue;
 
 		// TODO: Calling native functions
-		if (Functions::GetFunctionByName(functionName))
+		//if (m_Context.m_ConstantsPool.(functionName))
 		{
+			//CompileStringLiteral(functionName, instructions);
 			//instructions.push_back({ Opcodes::call_native, ResultCanBeDiscarded(node)).Arg(functionName).Arg(node->arguments.size()));
-			instructions.push_back({ Opcodes::call_native });
-			break;
+			//instructions.push_back({ Opcodes::call_native, { (uint8_t)});
+			//break;
 		}
 
-		if (!m_Context.HasFunction(functionName))
+		if (!m_SymbolTable.HasAndIs(functionName, SymbolType::Function))
 			return MakeError("Function " + functionName + " not defined");
 
-		auto& function = m_Context.GetFunction(functionName);
+		SymbolTable::FunctionSymbol* function = (SymbolTable::FunctionSymbol*)m_SymbolTable.Lookup(functionName);
 
 		//instructions.push_back(Instruction(Opcodes::load).Arg(variable.m_Index));
 		//instructions.push_back(Instruction(Opcodes::call, ResultCanBeDiscarded(node)).Arg(node->arguments.size()).Arg(node->stringValue));
-		instructions.push_back(Instruction(Opcodes::call, { (uint8_t)function.m_Index })); // TODO: support large index
+		instructions.push_back(Instruction(Opcodes::call, { (uint8_t)function->m_Id })); // TODO: support large index
 
 		break;
 	}
@@ -1344,7 +1429,7 @@ void BytecodeCompiler::Compile(ASTNode* node, Instructions& instructions, bool c
 
 	case ASTTypes::Break:
 	{
-		if (!m_Context.m_LoopInfo.m_InLoop)
+		//if (!m_Context.m_LoopInfo.m_InLoop)
 			return MakeError("A break statement needs to be inside a loop");
 
 		//instructions.push_back({ Opcodes::jmp, { Value(m_Context.m_LoopInfo.m_End, ValueTypes::Integer) } });
@@ -1352,7 +1437,7 @@ void BytecodeCompiler::Compile(ASTNode* node, Instructions& instructions, bool c
 	}
 	case ASTTypes::Continue:
 	{
-		if (!m_Context.m_LoopInfo.m_InLoop)
+		//if (!m_Context.m_LoopInfo.m_InLoop)
 			return MakeError("A continue statement needs to be inside a loop");
 
 		//instructions.push_back(Instruction(Opcodes::pop_scope_frame).Arg(m_Context.m_LoopInfo.m_BodyDepth));
@@ -1381,9 +1466,9 @@ void BytecodeCompiler::Compile(ASTNode* node, Instructions& instructions, bool c
 		Compile(node->right, instructions);
 		Compile(node->left, instructions);
 
-		if (node->type == ASTTypes::And)
+		if (node->typeEntry == ASTTypes::And)
 			instructions.emplace_back(Opcodes::logical_and);
-		if (node->type == ASTTypes::Or)
+		if (node->typeEntry == ASTTypes::Or)
 			instructions.emplace_back(Opcodes::logical_or);
 
 		break;
@@ -1398,20 +1483,24 @@ void BytecodeCompiler::Compile(ASTNode* node, Instructions& instructions, bool c
 		break;
 	}*/
 
+	case ASTTypes::MemberAcessor:
+	{
+		break;
+	}
+
 	case ASTTypes::Variable:
 	{
 		const std::string& variableName = node->stringValue;
-
-		if (!m_Context.HasVariable(variableName))
+		if (!m_SymbolTable.HasAndIs(variableName, SymbolType::Variable))
 			return MakeError("Variable " + variableName + " doesn't exist");
 
-		auto variable = m_Context.GetVariable(variableName);
+		SymbolTable::VariableSymbol& variable = *(SymbolTable::VariableSymbol*)m_SymbolTable.Lookup(variableName);
 		uint16_t index = variable.m_Index;
 
 		// Index is less than 1 byte
 		if (index <= UCHAR_MAX)
 		{
-			instructions.push_back({ ResolveCorrectStoreInstruction(variable.m_Type), {(uint8_t)index}});
+			instructions.push_back({ ResolveCorrectLoadOpcode(variable.m_StorableValueType->id), { (uint8_t)index} });
 		}
 		else
 		{
@@ -1436,19 +1525,19 @@ void BytecodeCompiler::Compile(ASTNode* node, Instructions& instructions, bool c
 
 	case ASTTypes::IntLiteral:
 	{
-		CompileIntLiteral(node, instructions);
+		CompileIntLiteral(node->numberValue, instructions);
 		break;
 	}
 
 	case ASTTypes::DoubleLiteral:
 	{
-		CompileDoubleLiteral(node, instructions);
+		CompileDoubleLiteral(node->numberValue, instructions);
 		break;
 	}
 
 	case ASTTypes::StringLiteral:
 	{
-		CompileStringLiteral(node, instructions);
+		CompileStringLiteral(node->stringValue, instructions);
 		break;
 	}
 
@@ -1460,11 +1549,11 @@ void BytecodeCompiler::Compile(ASTNode* node, Instructions& instructions, bool c
 	//	{
 	//		Compile(node->arguments[i], instructions);
 
-	//		if (node->arguments[i]->type == ASTTypes::PropertyAssign)
+	//		if (node->arguments[i]->typeEntry == ASTTypes::PropertyAssign)
 	//			isObject = true;
 	//	}
 
-	//	bool discardValue = node->parent->type == ASTTypes::Scope;
+	//	bool discardValue = node->parent->typeEntry == ASTTypes::Scope;
 
 	//	// Check if the initializer is an object. Specify how many operand to add to the array, to be able to have nested arrays
 	//	if (isObject)
@@ -1486,7 +1575,7 @@ void BytecodeCompiler::EncodeCompiledInstructions()
 
 	for (auto& entry : m_CompiledFile.m_Functions)
 	{
-		m_CompiledFile.m_EncodedFunctions[entry.first] = EncodeInstructions(entry.second);
+		//m_CompiledFile.m_EncodedFunctions[entry.first] = EncodeInstructions(entry.second);
 	}
 
 	for (auto& classEntry : m_CompiledFile.m_Classes)
@@ -1524,7 +1613,7 @@ EncodedInstructions BytecodeCompiler::EncodeInstructions(Instructions& instructi
 }
 
 
-ValueTypes BytecodeCompiler::GetValueTypeOfNode(ASTNode* node)
+ValueType BytecodeCompiler::GetValueTypeOfNode(ASTNode* node)
 {
 	switch (node->type)
 	{
@@ -1538,7 +1627,7 @@ ValueTypes BytecodeCompiler::GetValueTypeOfNode(ASTNode* node)
 	case ASTTypes::GlobalVariableDeclaration:
 		return GetValueTypeOfNode(node->left);
 	case ASTTypes::VariableType:
-		return node->VariableTypeToValueType();
+		return m_TypeTable.GetType(node->stringValue);
 	case ASTTypes::Assign:
 	{
 		abort();
@@ -1586,13 +1675,13 @@ ValueTypes BytecodeCompiler::GetValueTypeOfNode(ASTNode* node)
 	case ASTTypes::Variable:
 	{
 		const std::string& variableName = node->stringValue;
-		if (!m_Context.HasVariable(variableName))
+		if (!m_SymbolTable.HasAndIs(variableName, SymbolType::Variable))
 		{
 			MakeError("Variable '" + variableName + "' has not been declared in this scope");
 			return ValueTypes::Void;
 		}
 
-		m_Context.GetVariable(variableName).m_Type;
+		return m_SymbolTable.Lookup(variableName)->m_StorableValueType->id;
 		break;
 	}
 
@@ -1604,8 +1693,8 @@ ValueTypes BytecodeCompiler::GetValueTypeOfNode(ASTNode* node)
 		// Recursivly perform the operations, do the inner ones first
 		if (node->right->IsMathOperator())
 		{
-			ValueTypes right = GetValueTypeOfNode(node->right);
-			ValueTypes left = GetValueTypeOfNode(node->left);
+			uint16_t right = GetValueTypeOfNode(node->right);
+			uint16_t left = GetValueTypeOfNode(node->left);
 
 			if (left != right)
 			{
@@ -1617,8 +1706,8 @@ ValueTypes BytecodeCompiler::GetValueTypeOfNode(ASTNode* node)
 		}
 		if (node->left->IsMathOperator())
 		{
-			ValueTypes left = GetValueTypeOfNode(node->left);
-			ValueTypes right = GetValueTypeOfNode(node->right);
+			ValueType left = GetValueTypeOfNode(node->left);
+			ValueType right = GetValueTypeOfNode(node->right);
 
 			if (left != right)
 			{
@@ -1629,8 +1718,8 @@ ValueTypes BytecodeCompiler::GetValueTypeOfNode(ASTNode* node)
 			return right;
 		}
 
-		ValueTypes left = GetValueTypeOfNode(node->left);
-		ValueTypes right = GetValueTypeOfNode(node->right);
+		ValueType left = GetValueTypeOfNode(node->left);
+		ValueType right = GetValueTypeOfNode(node->right);
 
 		if (left != right)
 		{
@@ -1651,13 +1740,13 @@ ValueTypes BytecodeCompiler::GetValueTypeOfNode(ASTNode* node)
 			assert(node->parent->type == ASTTypes::Scope);
 
 		const std::string& variableName = node->left->stringValue;
-		if (!m_Context.HasVariable(variableName))
+		if (!m_SymbolTable.HasAndIs(variableName, SymbolType::Variable))
 		{
 			MakeError("Variable '" + variableName + "' has not been declared in this scope");
 			return ValueTypes::Void;
 		}
 
-		return m_Context.GetVariable(variableName).m_Type;
+		return m_SymbolTable.Lookup(variableName)->m_StorableValueType->id;
 	}
 	case ASTTypes::PreIncrement:
 	case ASTTypes::PreDecrement:

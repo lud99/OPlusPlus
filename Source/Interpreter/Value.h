@@ -11,7 +11,7 @@
 namespace Ö
 {
 
-	extern "C" class Value
+	class Value
 	{
 	public:
 		Value();
@@ -35,7 +35,7 @@ namespace Ö
 		ValueTypes GetType() const;
 		void SetType(ValueTypes type);
 
-		inline bool IsString() { return m_Type == ValueTypes::String || m_Type == ValueTypes::StringReference || m_Type == ValueTypes::StringConstant; };
+		inline bool IsString() { return m_Type == ValueTypes::String; /* || m_Type == ValueTypes::StringReference || m_Type == ValueTypes::StringConstant;*/ };
 		bool IsTruthy();
 
 		// Same as ToFormattedString, but without extra quotes for use internally

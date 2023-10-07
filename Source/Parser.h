@@ -3,9 +3,12 @@
 #include "macro.h"
 
 #include <vector>
+#include <set>
+#include <unordered_map>
 #include <assert.h>
 
 #include "Lexer.h"
+#include "TypeTable.h"
 #include "Interpreter/ValueTypes.h"
 
 namespace Ö
@@ -39,6 +42,8 @@ namespace Ö
 		ObjectType,
 		Class,
 		Variable,
+		MemberAcessor,
+		ScopeResolution,
 		PropertyAccess,
 		ListInitializer,
 		MathExpression,
@@ -101,12 +106,12 @@ namespace Ö
 		inline bool IsPrimitiveType()
 		{
 			abort();
-			return false;// return type == ASTTypes::Number || type == ASTTypes::String || type == ASTTypes::ArrayType || type == ASTTypes::FunctionType;
+			return false;// return typeEntry == ASTTypes::Number || typeEntry == ASTTypes::String || typeEntry == ASTTypes::ArrayType || typeEntry == ASTTypes::FunctionType;
 		}
 
-		inline ValueTypes VariableTypeToValueType()
+		/*inline ValueTypes VariableTypeToValueType()
 		{
-			assert(type == ASTTypes::VariableType);
+			assert(typeEntry == ASTTypes::VariableType);
 
 			if (stringValue == "int") return ValueTypes::Integer;
 			if (stringValue == "float") return ValueTypes::Float;
@@ -114,7 +119,7 @@ namespace Ö
 			if (stringValue == "string") return ValueTypes::String;
 
 			return ValueTypes::Void;
-		}
+		}*/
 	};
 
 	class Parser
@@ -128,6 +133,8 @@ namespace Ö
 
 		EXPORT bool HasError() { return m_Error != ""; }
 		EXPORT const std::string& GetError() { return m_Error; };
+
+		TypeTable GetGeneratedTypeTable() { return m_TypeTable; };
 
 	private:
 		bool MakeError(const std::string& message);
@@ -143,6 +150,7 @@ namespace Ö
 		//bool IsValidPropertyAssignmentExpression(Tokens tokens);
 		bool IsValidPostIncDecExpression(Tokens tokens, int position);
 		bool IsValidPreIncDecExpression(Tokens tokens, int position);
+		bool IsValidScopeResolutionExpresion(Tokens tokens, int position);
 		bool IsValidFunctionCallExpression(Tokens tokens);
 		bool IsValidVariableDeclarationExpression(Tokens tokens);
 
@@ -158,6 +166,8 @@ namespace Ö
 		bool ParseMathExpression(Tokens& tokens, ASTNode* node);
 		bool ParseVariableDeclaration(Tokens& tokens, ASTNode* node);
 		bool ParseParentheses(Tokens& tokens, ASTNode* node);
+		bool ParseMemberAccessor(Tokens& tokens, ASTNode* node);
+		bool ParseScopeResolution(Tokens& tokens, ASTNode* node);
 		bool ParseFunctionCall(Tokens& tokens, ASTNode* node);
 		bool ParseIncrementDecrement(Tokens& tokens, ASTNode* node);
 
@@ -165,6 +175,8 @@ namespace Ö
 		std::string m_Error = "";
 
 		ASTNode root;
+
+		TypeTable m_TypeTable;
 	};
 
 }

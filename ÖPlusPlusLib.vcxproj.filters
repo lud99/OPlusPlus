@@ -63,6 +63,15 @@
     <ClInclude Include="Source\Interpreter\Bytecode\ClassInstance.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Source\TypeTable.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Interpreter\Bytecode\SymbolTable.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Interpreter\Bytecode\ConstantsPool.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source\ÖPlusPlusLib.cpp">
@@ -75,9 +84,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Source\Interpreter\Bytecode\Heap.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Interpreter\Functions.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Source\Interpreter\Value.cpp">
@@ -93,6 +99,18 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Source\Interpreter\Bytecode\Instruction.h">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\TypeTable.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Interpreter\Functions.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Interpreter\Bytecode\SymbolTable.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Interpreter\Bytecode\ConstantsPool.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

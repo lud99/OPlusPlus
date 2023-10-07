@@ -28,12 +28,12 @@ private:
 
 
 template <class T>
-Stack<T>::Stack<T>()
+Stack<T>::Stack()
 {
 }
 
 template <class T>
-Stack<T>::Stack<T>(int startingSize)
+Stack<T>::Stack(int startingSize)
 {
 	m_Data.resize(startingSize);
 }
