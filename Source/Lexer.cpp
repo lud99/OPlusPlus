@@ -5,6 +5,8 @@
 
 namespace Ö
 {
+	bool IsValidVariablePart(std::string string, int index, std::string& error);
+
 	std::string Token::ToString()
 	{
 		std::string names[] = {
@@ -156,9 +158,19 @@ namespace Ö
 
 			if (current == '.')
 			{
-				if (string[index + 1] == '.' || !IsValidNumberPart(string, index + 1, error))
+				if (string[index + 1] == '.')
+				{					
+					error = "Expected a number after the decimal point, not " + std::string(1, string[index + 1]);
+					return false;
+				}					
+				
+				// Found a property access (or closing parenthesis), return with no error
+				if (IsValidVariablePart(string, index - 1, error) || string[index - 1] == ')')
+					return false;
+
+				if (IsValidVariablePart(string, index + 1, error))
 				{
-					error = "Expected a number after the decimal point";
+					error = "Expected a number after the decimal point, not " + std::string(1, string[index + 1]);
 					return false;
 				}
 
@@ -435,7 +447,7 @@ namespace Ö
 				lineIndex -= m_Lines[i].length() + 1;
 		}
 
-		return std::to_string(m_CurrentLine) + ":" + std::to_string(lineIndex + 1) + " " + message;
+		return std::to_string(m_CurrentLine + 1) + ":" + std::to_string(lineIndex + 1) + " " + message;
 	}
 
 	std::string Lexer::CreateTokens(const std::string& source, bool createCommentTokens)
@@ -484,6 +496,8 @@ namespace Ö
 
 				if (createCommentTokens)
 					AddToken(Token(Token::NewLine, m_Position));
+				
+				continue;
 			}
 
 			std::string error;
