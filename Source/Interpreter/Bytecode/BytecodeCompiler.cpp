@@ -540,7 +540,7 @@ void BytecodeCompiler::CompileClass(ASTNode* node, SymbolTable::ClassSymbol* par
 	m_CurrentParsingClass = classSymbol;
 
 	// Symbol that refers to the current instance of the class. Declared to avoid errors, might fix.
-	m_SymbolTable.InsertVariable(m_CurrentScope + 1, "this", &classType);
+	//m_SymbolTable.InsertVariable(m_CurrentScope + 1, "this", &classType);
 
 	// Create the object that holds the information used when the bytecode is interpreted
 	ClassInstance classInstance(className, classId);
@@ -699,6 +699,12 @@ void BytecodeCompiler::CompileAssignment(ASTNode* node, Instructions& instructio
 
 		if (HasError()) 
 			return;
+	}
+
+	else if (node->left->type == ASTTypes::PropertyAccess)
+	{
+		Compile(node->left, instructions);
+		return;
 	}
 
 	// Assigning to a property
@@ -1442,16 +1448,41 @@ void BytecodeCompiler::Compile(ASTNode* node, Instructions& instructions, bool c
 		break;
 	}*/
 
-	case ASTTypes::MemberAcessor:
+	//case ASTTypes::MemberAcessor:
+	//{
+	//	// Slot 0 should always contain the 'this' value
+	//	instructions.push_back({ Opcodes::load_objref, { (uint8_t)0} });
+
+	//	//m_CurrentParsingClass.
+
+	//	instructions.push_back({ Opcodes::load_member, { (uint8_t)0 } });
+	//	
+	//	Compile(left, instructions);
+
+	//	break;
+	//}
+
+	case ASTTypes::PropertyAccess:
 	{
-		// Slot 0 should always contain the 'this' value
-		instructions.push_back({ Opcodes::load_objref, { (uint8_t)0} });
+		// Must resolve the type of the lhs 
+		ValueType lhs = GetValueTypeOfNode(left);
+		//ValueType rhs = GetValueTypeOfNode(right);
 
-		//m_CurrentParsingClass.
-
-		instructions.push_back({ Opcodes::load_member, { (uint8_t)0 } });
-		
 		Compile(left, instructions);
+
+		const std::string typeName = m_TypeTable.GetEntryFromId(lhs).name;
+
+		auto classSymbol = m_SymbolTable.LookupClassByType(lhs);
+		if (!classSymbol)
+			return MakeError("Failed to do property access on lhs with type " + std::to_string(lhs) + ", it is not a class");
+
+		SymbolTable::VariableSymbol* prop = (SymbolTable::VariableSymbol*)classSymbol->m_MemberVariables->Lookup(right->stringValue);
+		if (!prop)
+			return MakeError("Failed to find property on variable");
+
+		uint8_t index = prop->m_Index;
+
+		instructions.push_back({ Opcodes::store_member, { (uint8_t)index } });
 
 		break;
 	}

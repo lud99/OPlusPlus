@@ -127,6 +127,30 @@ namespace Ö
 		return nullptr;
 	}
 
+	SymbolTable::ClassSymbol* SymbolTable::LookupClassByType(ValueType type)
+	{
+		// First search in the current symbol table
+		for (auto& entry : m_Symbols)
+		{
+			if (entry.second->m_StorableValueType->Resolve().id == type && entry.second->m_SymbolType == SymbolType::Class)
+				return (SymbolTable::ClassSymbol*)entry.second;
+		}
+			
+		// Otherwise, resursively search the nested symbol tables
+		SymbolTable* table = this;
+		while (table->m_NextSymbolTable != nullptr)
+		{
+			table = table->m_NextSymbolTable;
+			Symbol* symbol = table->LookupClassByType(type);
+			if (symbol != nullptr)
+				return (SymbolTable::ClassSymbol*)symbol;
+
+			//table = table->m_NextSymbolTable;
+		}
+
+		return nullptr;
+	}
+
 	void SymbolTable::Remove(int scopeToRemove)
 	{
 		assert(scopeToRemove != 0);

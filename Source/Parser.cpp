@@ -661,8 +661,8 @@ bool Parser::IsValidAssignmentExpression(Tokens tokens, int equalsSignPosition)
 	if (ElementExists(tokens, equalsSignPosition - 2))
 	{
 		// For this to be valid the token i - 2 has to be a typeEntry decleration
-		if (!m_TypeTable.HasType(tokens[equalsSignPosition - 2].m_Value))// && tokens[equalsSignPosition - 2].m_Type != Token::PropertyAccess)
-			return MakeError("Expected variable type to the left of variable in assignment, not a " + tokens[equalsSignPosition - 2].ToString());
+		//if (!m_TypeTable.HasType(tokens[equalsSignPosition - 2].m_Value))// && tokens[equalsSignPosition - 2].m_Type != Token::PropertyAccess)
+			//return MakeError("Expected variable type to the left of variable in assignment, not a " + tokens[equalsSignPosition - 2].ToString());
 	}
 
 	if (!ElementExists(tokens, equalsSignPosition + 1))
@@ -1366,6 +1366,13 @@ bool Parser::ParseAssignment(Tokens& tokens, ASTNode* node)
 
 			CreateAST(lhs, node->left, node);
 			CreateAST(rhs, node->right, node);
+
+			if (node->left->type != ASTTypes::VariableDeclaration &&
+				node->left->type != ASTTypes::Variable &&
+				node->left->type != ASTTypes::PropertyAccess)
+			{
+				return MakeError("Invalid tokens to the left of assignment. " + node->left->ToString(false));
+			}
 
 			return true;
 		}
