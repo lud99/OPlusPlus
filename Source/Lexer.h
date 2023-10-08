@@ -31,8 +31,11 @@ namespace Ö
 			NewLine,
 
 			Variable,
+
 			MemberAccessor,
 			ScopeResultion,
+
+			PropertyAccess,
 
 			Semicolon,
 			Comma,

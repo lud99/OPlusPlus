@@ -28,8 +28,11 @@ namespace Ö
 			"NewLine",
 
 			"Variable",
+			
 			"MemberAccessor",
 			"ScopeResultion",
+
+			"PropertyAccess",
 
 			"Semicolon",
 			"Comma",
@@ -159,7 +162,7 @@ namespace Ö
 					return false;
 				}
 
-				if (string[index - 1] == ' ' || string[index - 1] == '-' || IsValidNumberPart(string, index - 1, error))
+				if (string[index - 1] == ' ' || string[index - 1] == '\n' || string[index - 1] == '-' || IsValidNumberPart(string, index - 1, error))
 				{
 					// Check for more decimal points
 					for (int i = index - 1; i >= 0; i--)
@@ -255,7 +258,7 @@ namespace Ö
 		}
 		else
 		{
-			if (current == ' ')
+			if (current == ' ' || current == '\n')
 				return false;
 
 			if (IsValidVariableChar(current))
@@ -637,6 +640,10 @@ namespace Ö
 				}
 
 				if (error != "") return MakeError(error);
+
+				// Check for property access
+				if (Current() == '.')
+					AddToken(Token(Token::PropertyAccess, m_Position, "."));
 
 				// Check for curly brackets
 				if (Current() == '{')
