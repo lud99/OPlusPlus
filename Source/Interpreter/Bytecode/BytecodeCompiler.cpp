@@ -439,12 +439,7 @@ void BytecodeCompiler::CompileClass(ASTNode* node, SymbolTable::ClassSymbol* par
 	auto& classType = m_TypeTable.GetTypeEntry(className);
 	uint16_t classId = m_ConstantsPool.AddAndGetClassIndex(className);
 
-	// A class can be nested inside another. If that is the case that information should be saved to the inner class
-	SymbolTable::ClassSymbol* classSymbol = nullptr;
-	if (parentClass)
-		classSymbol = m_SymbolTable.InsertInnerClass(m_CurrentScope, className, &classType, parentClass);
-	else
-		classSymbol = m_SymbolTable.InsertClass(m_CurrentScope, className, &classType);
+	SymbolTable::ClassSymbol* classSymbol = m_SymbolTable.InsertClass(m_CurrentScope, className, &classType);
 
 	// Create the object that holds the information used when the bytecode is interpreted
 	ClassInstance classInstance(className, classId);
@@ -585,6 +580,7 @@ SymbolTable::FunctionSymbol* BytecodeCompiler::CompileClassMethod(ASTNode* node,
 
 void BytecodeCompiler::CompileFunction(ASTNode* node)
 {
+	std::string returnType = node->left->arguments[0]->stringValue;
 	std::string functionName = node->left->arguments[1]->stringValue;
 
 	if (m_SymbolTable.Has(functionName))
@@ -593,13 +589,18 @@ void BytecodeCompiler::CompileFunction(ASTNode* node)
 	if (!IsFunctionNameValid(functionName))
 		return MakeError("Function " + functionName + " is not valid");
 
+	if (!m_TypeTable.HasType(returnType))
+		return MakeError("Type '" + returnType + "' has not been defined'");
+
+	auto& returnTypeEntry = m_TypeTable.GetTypeEntry(returnType);
+
 	// A function declaration has to be global
-	if (m_CurrentScope != 0)
-		return MakeError("Function " + functionName + " is not in the global scope");
+	//if (m_CurrentScope != 0)
+		//return MakeError("Function " + functionName + " is not in the global scope");
 
 	uint16_t functionId = m_ConstantsPool.AddAndGetFunctionReferenceIndex(functionName);
 
-	auto functionSymbol = m_SymbolTable.InsertFunction(m_CurrentScope, functionName, &m_TypeTable.GetEntryFromId(ValueTypes::Void), functionId); // TODO: function return type
+	auto functionSymbol = m_SymbolTable.InsertFunction(m_CurrentScope, functionName, &returnTypeEntry, functionId); // TODO: function return type
 	//Function function = { functionSymbol };
 	//m_Functions[*functionSymbol] = function;
 
@@ -701,6 +702,11 @@ void BytecodeCompiler::CompileAssignment(ASTNode* node, Instructions& instructio
 	ValueType variableType;
 
 	SymbolTable::VariableSymbol* variableSymbol = nullptr;
+
+	// Compile rhs first to catch errors
+	Compile(node->right, instructions);
+	if (HasError())
+		return;
 
 
 	auto CompileDeclaration = [&]() {
@@ -813,14 +819,15 @@ void BytecodeCompiler::CompileAssignment(ASTNode* node, Instructions& instructio
 		// Typecheck
 		ValueType rhs = GetValueTypeOfNode(node->right);
 		if (variableType != rhs)
-			return MakeError("Variable type of " + variableName + " doesn't match type of right hand side");
+			return MakeError("Variable '" + variableName + "' (" + m_TypeTable.GetEntryFromId(variableType).name +
+				") cannot be assigned something of type '" + m_TypeTable.GetEntryFromId(rhs).name + "'");
 	}
 
 	// Cant export normal assignments
 	//if (node->left->typeEntry != ASTTypes::VariableDeclaration && m_Context.m_ShouldExportVariable)
 		//return MakeError("Can only export variable declarations, not normal assignments");
 
-	Compile(node->right, instructions);
+	//Compile(node->right, instructions);
 
 
 
@@ -1291,12 +1298,15 @@ void BytecodeCompiler::Compile(ASTNode* node, Instructions& instructions, bool c
 			CompileStringLiteral("", instructions);
 
 		// Instantiate class
+		// TODO: Wide indecies
 		// TODO: if class, run code for constructor?
 		if (typeEntry.type == TypeTableType::Class)
 		{
 			//assert(.HasClass(typeEntry.name));
 
-			instructions.push_back({ Opcodes::instantiate_class, { (uint8_t)typeEntry.id } });
+			uint16_t classId = m_ConstantsPool.AddAndGetClassIndex(typeName);
+
+			instructions.push_back({ Opcodes::instantiate_class, { (uint8_t)classId } });
 		}
 
 		instructions.push_back({ ResolveCorrectStoreOpcode(typeEntry.id), {(uint8_t)variableSymbol->m_Index }});
@@ -1396,14 +1406,27 @@ void BytecodeCompiler::Compile(ASTNode* node, Instructions& instructions, bool c
 			//break;
 		}
 
-		if (!m_SymbolTable.HasAndIs(functionName, SymbolType::Function))
-			return MakeError("Function " + functionName + " not defined");
+		if (!m_SymbolTable.Has(functionName))
+			return MakeError("Function " + functionName + " has not been defined");
 
-		SymbolTable::FunctionSymbol* function = (SymbolTable::FunctionSymbol*)m_SymbolTable.Lookup(functionName);
+		auto symbol = m_SymbolTable.Lookup(functionName);
+		if (symbol->m_SymbolType == SymbolType::Function)
+		{
+			SymbolTable::FunctionSymbol* function = (SymbolTable::FunctionSymbol*)symbol;
 
-		//instructions.push_back(Instruction(Opcodes::load).Arg(variable.m_Index));
-		//instructions.push_back(Instruction(Opcodes::call, ResultCanBeDiscarded(node)).Arg(node->arguments.size()).Arg(node->stringValue));
-		instructions.push_back(Instruction(Opcodes::call, { (uint8_t)function->m_Id })); // TODO: support large index
+			//instructions.push_back(Instruction(Opcodes::load).Arg(variable.m_Index));
+			//instructions.push_back(Instruction(Opcodes::call, ResultCanBeDiscarded(node)).Arg(node->arguments.size()).Arg(node->stringValue));
+			instructions.push_back(Instruction(Opcodes::call, { (uint8_t)function->m_Id })); // TODO: support large index
+
+		} else if (symbol->m_SymbolType == SymbolType::Variable)
+		{
+			SymbolTable::VariableSymbol* variable = (SymbolTable::VariableSymbol*)symbol;
+
+			//instructions.push_back(Instruction(Opcodes::load).Arg(variable.m_Index));
+			//instructions.push_back(Instruction(Opcodes::call, ResultCanBeDiscarded(node)).Arg(node->arguments.size()).Arg(node->stringValue));
+			instructions.push_back(Instruction(Opcodes::call_fromstack)); // TODO: support large index
+		}
+
 
 		break;
 	}
@@ -1491,9 +1514,18 @@ void BytecodeCompiler::Compile(ASTNode* node, Instructions& instructions, bool c
 	case ASTTypes::Variable:
 	{
 		const std::string& variableName = node->stringValue;
-		if (!m_SymbolTable.HasAndIs(variableName, SymbolType::Variable))
+		if (m_SymbolTable.Has(variableName))
+		{
+			auto symbol = m_SymbolTable.Lookup(variableName);
+			if (symbol->m_SymbolType == SymbolType::Function)
+			{
+				SymbolTable::FunctionSymbol* f = (SymbolTable::FunctionSymbol*)symbol;
+				instructions.push_back({ ResolveCorrectLoadOpcode(ValueTypes::Integer), { (uint8_t)f->m_Id} });
+				return;
+			}
+		} else
 			return MakeError("Variable " + variableName + " doesn't exist");
-
+			
 		SymbolTable::VariableSymbol& variable = *(SymbolTable::VariableSymbol*)m_SymbolTable.Lookup(variableName);
 		uint16_t index = variable.m_Index;
 
@@ -1675,13 +1707,23 @@ ValueType BytecodeCompiler::GetValueTypeOfNode(ASTNode* node)
 	case ASTTypes::Variable:
 	{
 		const std::string& variableName = node->stringValue;
-		if (!m_SymbolTable.HasAndIs(variableName, SymbolType::Variable))
+		if (!m_SymbolTable.Has(variableName))
 		{
 			MakeError("Variable '" + variableName + "' has not been declared in this scope");
 			return ValueTypes::Void;
 		}
 
-		return m_SymbolTable.Lookup(variableName)->m_StorableValueType->id;
+		auto symbol = m_SymbolTable.Lookup(variableName);
+		if (symbol->m_SymbolType == SymbolType::Variable)
+			return symbol->m_StorableValueType->id;
+		else if (symbol->m_SymbolType == SymbolType::Function)
+			return ValueTypes::Integer;
+		else
+		{
+			MakeError("Symbol '" + variableName + "' is not a variable");
+			return ValueTypes::Void;
+		}
+
 		break;
 	}
 
@@ -1753,8 +1795,12 @@ ValueType BytecodeCompiler::GetValueTypeOfNode(ASTNode* node)
 		abort();
 	case ASTTypes::FunctionCall:
 	{
-		abort();
-		//const std::string& functionName = node->stringValue;
+		const std::string& functionName = node->stringValue;
+
+		assert(m_SymbolTable.HasAndIs(functionName, SymbolType::Function));
+
+		SymbolTable::FunctionSymbol* symbol = (SymbolTable::FunctionSymbol*)m_SymbolTable.Lookup(functionName);
+		return symbol->m_StorableValueType->Resolve().id;
 
 		//// Check user defined functions
 		//if (!m_Context.HasFunction(functionName))

@@ -56,7 +56,11 @@ namespace Ö::Bytecode {
 
 		m_CompiledFile = m_Compiler.CompileASTTree(&tree, parser.GetGeneratedTypeTable());
 		if (m_Compiler.m_Error != "")
-			std::cout << "Bytecode compilation error: " << m_Compiler.m_Error << "\n";
+		{
+			std::cout << "\nBytecode compilation error: " << m_Compiler.m_Error << "\n\n";
+			return Value();
+		}
+			
 
 		
 

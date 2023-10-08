@@ -75,6 +75,7 @@ namespace Ö::Bytecode
 		loop_continue,
 
 		call, // Calls a function from a reference. Tha arguments must have been pushed to the stack
+		call_fromstack,
 		call_native, // {name}, {arg count}
 
 		no_op, // Does nothing
@@ -144,6 +145,7 @@ namespace Ö::Bytecode
 			"loop_continue",
 
 			"call",
+			"call_fromstack",
 			"call_native",
 
 			"no_op",

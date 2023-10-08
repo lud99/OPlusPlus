@@ -1241,8 +1241,8 @@ bool Parser::ParseFunctionDeclaration(Tokens& tokens, ASTNode* node)
 			if (tokens[i].m_Depth != 0)
 			{
 				// Function declarations in a scope are okay if they are in a class
-				if (!(node->parent && node->parent->parent && node->parent->parent->type == ASTTypes::Class))
-					return MakeError("Function declaration has to be at the global scope");
+				//if (!(node->parent && node->parent->parent && node->parent->parent->type == ASTTypes::Class))
+					//return MakeError("Function declaration has to be at the global scope");
 			}
 				
 				
