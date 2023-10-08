@@ -429,6 +429,103 @@ void BytecodeCompiler::PrintInstructions(EncodedInstructions& instructions)
 	
 }
 
+
+std::optional<SymbolTable::VariableSymbol*> BytecodeCompiler::CreateSymbolForVariableDeclaration(ASTNode* node, ASTNode* parent, bool& isClassMemberVariable)
+{
+	const std::string& variableName = node->right->stringValue;
+	TypeTableEntry& variableType = m_TypeTable.GetTypeEntry(node->left->stringValue);
+
+	//bool isGlobal = m_CurrentScope == 0;
+	//variable.m_IsGlobal = isGlobal;
+
+	// Create a variable and store it to the module object
+	//if (m_Context.m_ShouldExportVariable)
+		//ExportVariable(node, variable, instructions);
+	//else
+	//{
+
+	// Check if declared inside a class declaration, then it should be a member variable
+	if (parent && parent->parent && parent->parent->type == ASTTypes::Class)
+	{
+		isClassMemberVariable = true;
+
+		const std::string& className = parent->parent->stringValue;
+		SymbolTable::ClassSymbol& classSymbol = *(SymbolTable::ClassSymbol*)m_SymbolTable.Lookup(className);
+
+		// If member variable has already been declared
+		if (classSymbol.m_MemberVariables->Has(variableName))
+		{
+			MakeError("Symbol " + variableName + " has already been declared");
+			return std::nullopt;
+		}
+
+		return classSymbol.m_MemberVariables->InsertVariable(m_CurrentScope, variableName, &variableType);
+	}
+
+	// Ensure it has not been declared before
+	if (m_SymbolTable.Has(variableName))
+	{
+		MakeError("Symbol " + variableName + " has already been declared");
+		return std::nullopt;
+	}
+
+	// Invalid type of variable
+	if (variableType.id == ValueTypes::Void)
+	{
+		MakeError("Variable " + variableName + " doesn't have a type");
+		return std::nullopt;
+	}
+
+	return m_SymbolTable.InsertVariable(m_CurrentScope, variableName, &variableType);
+}
+
+std::optional<CompiledCallable> BytecodeCompiler::CompileCallable(ASTNode* node, SymbolTable::FunctionSymbol& symbol)
+{
+	// Compile callable (function or method)
+	Instructions body;
+	m_CurrentScope++;
+
+	// Compile the parameters
+	for (int i = 2; i < node->left->arguments.size(); i++)
+	{
+		ASTNode* parameter = node->left->arguments[i];
+
+		if (parameter->type == ASTTypes::VariableDeclaration)
+		{
+			bool isInClass = false;
+			auto parameterSymbol = CreateSymbolForVariableDeclaration(parameter, parameter->parent, isInClass);
+
+			if (!parameterSymbol.has_value() || HasError())
+				return std::nullopt;
+
+			symbol.m_ParameterTypes.push_back(parameterSymbol.value()->m_StorableValueType->Resolve().id);
+		}
+		else
+		{
+			MakeError("Invalid code in function parameters for funtion " + symbol.m_Name);
+			return std::nullopt;
+		}
+	}
+
+	// Compile body
+	Compile(node->right, body, false);
+	if (m_Error != "")
+		return std::nullopt;
+
+	// Some bodies has a manual return statement, but if none exists then create one automatically
+	if (body.back().GetOpcode() != Opcodes::ret && body.back().GetOpcode() != Opcodes::ret_void)
+		body.emplace_back(Opcodes::ret_void);
+
+	CompiledCallable callable = {
+		symbol.m_StorableValueType->Resolve().id,
+		symbol.m_ParameterTypes,
+		body,
+		EncodeInstructions(body)
+	};
+
+	return callable;
+}
+
 void BytecodeCompiler::CompileClass(ASTNode* node, SymbolTable::ClassSymbol* parentClass)
 {
 	std::string className = node->stringValue;
@@ -440,6 +537,10 @@ void BytecodeCompiler::CompileClass(ASTNode* node, SymbolTable::ClassSymbol* par
 	uint16_t classId = m_ConstantsPool.AddAndGetClassIndex(className);
 
 	SymbolTable::ClassSymbol* classSymbol = m_SymbolTable.InsertClass(m_CurrentScope, className, &classType);
+	m_CurrentParsingClass = classSymbol;
+
+	// Symbol that refers to the current instance of the class. Declared to avoid errors, might fix.
+	m_SymbolTable.InsertVariable(m_CurrentScope + 1, "this", &classType);
 
 	// Create the object that holds the information used when the bytecode is interpreted
 	ClassInstance classInstance(className, classId);
@@ -465,30 +566,19 @@ void BytecodeCompiler::CompileClass(ASTNode* node, SymbolTable::ClassSymbol* par
 		}
 		else if (line->type == ASTTypes::FunctionDefinition)
 		{
-			m_CurrentScope++;
-
-			Instructions methodBody;
-			auto methodSymbol = CompileClassMethod(line, *classSymbol, methodBody);
-			if (HasError())
+			auto compiledMethod = CompileClassMethod(line, *classSymbol);
+			if (!compiledMethod.has_value() || HasError())
 				return;
 
-			CompiledCallable method = {
-				methodSymbol->m_StorableValueType->Resolve().id,
-				{},
-				methodBody,
-				EncodeInstructions(methodBody)
-			};
-
-			classInstance.m_Methods[methodId] = method;
+			classInstance.m_Methods[methodId] = compiledMethod.value();
 			methodId++;
-
-			m_CurrentScope--;
 		}
 		else
 		{
 			return MakeError("Unsupported code in class declaration");
 		}
 	}
+	m_CurrentParsingClass = nullptr;
 
 	// Member variables
 	classInstance.m_MemberVariables.reserve(classSymbol->m_MemberVariables->GetSymbols().size());
@@ -503,85 +593,54 @@ void BytecodeCompiler::CompileClass(ASTNode* node, SymbolTable::ClassSymbol* par
 	m_CompiledFile.m_Classes[classInstance.m_Index] = classInstance;
 }
 
-SymbolTable::FunctionSymbol* BytecodeCompiler::CompileClassMethod(ASTNode* node, SymbolTable::ClassSymbol& classSymbol, Instructions& instructions)
+std::optional<CompiledCallable> BytecodeCompiler::CompileClassMethod(ASTNode* node, SymbolTable::ClassSymbol& classSymbol)
 {
-	//const std::string& className = node->parent->stringValue;
-
-	//SymbolTable::ClassSymbol& classSymbol = *(SymbolTable::ClassSymbol*)m_SymbolTable.Lookup(className);
-
+	std::string returnType = node->left->arguments[0]->stringValue;
 	std::string methodName = node->left->arguments[1]->stringValue;
 	std::string fullName = classSymbol.m_Name + "::" + methodName;
 
+	if (!node->right)
+	{
+		MakeError("Function " + methodName + " is missing a body");
+		return std::nullopt;
+	}
+
+	if (!m_TypeTable.HasType(returnType))
+	{
+		MakeError("Type '" + returnType + "' has not been defined'");
+		return std::nullopt;
+	}
 	if (classSymbol.m_Methods->Has(methodName))
 	{
-		MakeError("Method " + fullName + " has already been defined");
-		return nullptr;
+		MakeError("Symbol " + fullName + " has already been defined");
+		return std::nullopt;
 	}
 
 	if (!IsFunctionNameValid(methodName))
 	{
 		MakeError("Method " + methodName + " is not valid");
-		return nullptr;
-	}
-		
-
-	// A function declaration has to be global
-	//if (m_CurrentScope != 0)
-		//return MakeError("Function " + functionName + " is not in the global scope");
-
-	// TODO: method return typeEntry
-	auto& returnType = m_TypeTable.GetTypeEntry("void");
-	auto methodSymbol = classSymbol.m_Methods->InsertMethod(m_CurrentScope, methodName, &returnType);
-	
-	//auto& method = m_Context.CreateMethod(classDeclaration, methodName, ValueTypes::Void);
-
-	m_CurrentScope++;
-
-	// Compile function
-	if (node->right)
-	{
-		//CompilerContext initialContext = m_Context;
-
-		// TODO: Compile arguments
-		/*if (node->left->arguments.size() >= 3)
-		{
-			for (int i = 2; i < node->left->arguments.size(); i++)
-			{
-				ASTNode* n = node->left->arguments[i];
-
-				if (n->typeEntry == ASTTypes::VariableDeclaration)
-				{
-					Compile(n, instructions, false);
-					instructions.erase(instructions.end() - 2);
-				}
-			}
-		}*/
-
-		Compile(node->right, instructions, false);
-		if (HasError())
-			return nullptr;
-
-		//m_Context.m_Variables = initialContext.m_Variables;
+		return std::nullopt;
 	}
 
-	// Some method definitions has a manual return statement, but if none exists then create one automatically
-	if (instructions.back().GetOpcode() != Opcodes::ret && instructions.back().GetOpcode() != Opcodes::ret_void)
-	{
-		instructions.emplace_back(Opcodes::ret_void);
-	}
+	// TODO: Check so no methods are created inside each other
 
+	auto& returnTypeEntry = m_TypeTable.GetTypeEntry(returnType);
+	auto& methodSymbol = *classSymbol.m_Methods->InsertMethod(m_CurrentScope, methodName, &returnTypeEntry);
 
-	//classSymbol.m_Methods[methodName] = method;
+	// Add the hidden 'this' parameter
+	//auto thisSymbol = m_SymbolTable.InsertVariable(m_CurrentScope + 1, "this", classSymbol.m_StorableValueType);
+	methodSymbol.m_ParameterTypes.push_back(classSymbol.m_StorableValueType->id);
 
-	m_CurrentScope--;
-
-	return methodSymbol;
+	return CompileCallable(node, methodSymbol);
 }
 
 void BytecodeCompiler::CompileFunction(ASTNode* node)
 {
 	std::string returnType = node->left->arguments[0]->stringValue;
 	std::string functionName = node->left->arguments[1]->stringValue;
+
+	if (!node->right)
+		return MakeError("Function " + functionName + " is missing a body");
 
 	if (m_SymbolTable.Has(functionName))
 		return MakeError("Function " + functionName + " has already been defined");
@@ -592,100 +651,23 @@ void BytecodeCompiler::CompileFunction(ASTNode* node)
 	if (!m_TypeTable.HasType(returnType))
 		return MakeError("Type '" + returnType + "' has not been defined'");
 
-	auto& returnTypeEntry = m_TypeTable.GetTypeEntry(returnType);
-
 	// A function declaration has to be global
 	//if (m_CurrentScope != 0)
 		//return MakeError("Function " + functionName + " is not in the global scope");
 
+	auto& returnTypeEntry = m_TypeTable.GetTypeEntry(returnType);
 	uint16_t functionId = m_ConstantsPool.AddAndGetFunctionReferenceIndex(functionName);
+	auto& functionSymbol = *m_SymbolTable.InsertFunction(m_CurrentScope, functionName, &returnTypeEntry, functionId);
 
-	auto functionSymbol = m_SymbolTable.InsertFunction(m_CurrentScope, functionName, &returnTypeEntry, functionId); // TODO: function return type
-	//Function function = { functionSymbol };
-	//m_Functions[*functionSymbol] = function;
+	auto compiledFunction = CompileCallable(node, functionSymbol);
+	if (!compiledFunction.has_value() || HasError())
+		return;
 
-	m_CurrentScope++;
-
-	int functionStart = 0;
-
-	// Reset export variable so the local function variables don't get exported
-	//bool shouldExport = m_Context.m_ShouldExportVariable;
-	//m_Context.m_ShouldExportVariable = false;
-
-	// Compile function
-	Instructions functionBody;
-	if (node->right)
-	{
-		//CompilerContext initialContext = m_Context;
-
-		// TODO: Compile arguments
-		/*if (node->left->arguments.size() >= 3)
-		{
-			for (int i = 2; i < node->left->arguments.size(); i++)
-			{
-				ASTNode* n = node->left->arguments[i];
-
-				if (n->typeEntry == ASTTypes::VariableDeclaration)
-				{
-					Compile(n, instructions, false);
-					instructions.erase(instructions.end() - 2);
-				}
-			}
-		}*/
-
-		Compile(node->right, functionBody, false);
-		if (m_Error != "")
-			return;
-
-		//m_Context.m_Variables = initialContext.m_Variables;
-	}
-
-	//m_Context.m_ShouldExportVariable = shouldExport;
-
-	// Some function definitions has a manual return statement, but if none exists then create one automatically
-	if (functionBody.back().GetOpcode() != Opcodes::ret && functionBody.back().GetOpcode() != Opcodes::ret_void)
-	{
-		functionBody.emplace_back(Opcodes::ret_void);
-	}
-
-	// Function before
-	//instructions[functionStart - 1].m_Arguments[0] = InstructionArgument(int(instructions.size()), ValueTypes::Integer);
-
-	// Insert the function instructions at the start of the bytecode
-	//instructions = ConcatVectors(instructions, function);
-
-	//if (m_Context.m_ShouldExportVariable)
-		//instructions.push_back(Instruction(Opcodes::load).Arg(m_Context.m_ModuleIndex));
-
-	// The variable for the function stores the adress of the function
-	//instructions.push_back(Instruction(Opcodes::push_functionpointer).Arg(functionStart));
-
-	/*instructions.push_back(Instruction(Opcodes::store)
-		.Arg(variable.m_Index)
-		.Arg((int)variable.m_Type)
-		.Arg(variable.m_Name)
-		.Arg(variable.m_IsGlobal));*/
-
-	//if (m_Context.m_ShouldExportVariable)
-	{
-		//instructions.push_back(Instruction(Opcodes::load).Arg(variable.m_Index));
-		//instructions.push_back(Instruction(Opcodes::store_property).Arg(variable.m_Name));
-	}
-
-	CompiledCallable function = {
-		functionSymbol->m_StorableValueType->Resolve().id,
-		{},
-		functionBody,
-		EncodeInstructions(functionBody)
-	};
-
-	m_CompiledFile.m_Functions[functionId] = function;
-	//m_CompiledFile.m_Functions[function.m_Index] = ;
+	m_CompiledFile.m_Functions[functionId] = compiledFunction.value();
 
 	m_SymbolTable.Remove(m_CurrentScope);
 	m_CurrentScope--;
 }
-
 
 void BytecodeCompiler::CompileAssignment(ASTNode* node, Instructions& instructions)
 {
@@ -708,63 +690,17 @@ void BytecodeCompiler::CompileAssignment(ASTNode* node, Instructions& instructio
 	if (HasError())
 		return;
 
-
-	auto CompileDeclaration = [&]() {
-		variableName = node->left->right->stringValue;
-		variableType = m_TypeTable.GetType(node->left->left->stringValue);
-
-		//bool isGlobal = m_CurrentScope == 0;
-		//variable.m_IsGlobal = isGlobal;
-
-		// Create a variable and store it to the module object
-		//if (m_Context.m_ShouldExportVariable)
-			//ExportVariable(node, variable, instructions);
-		//else
-		//{
-
-		// Typecheck
-		ValueType rhs = GetValueTypeOfNode(node->right);
-		if (variableType != rhs)
-			return MakeError("Variable type of '" + variableName + "' doesn't match type of right hand side");
-
-		// Check if declared inside a class declaration, then it should be a member variable
-		if (node->parent && node->parent->parent && node->parent->parent->type == ASTTypes::Class)
-		{
-			isClassMemberVariable = true;
-
-			const std::string& className = node->parent->parent->stringValue;
-			SymbolTable::ClassSymbol& classSymbol = *(SymbolTable::ClassSymbol*)m_SymbolTable.Lookup(className);
-
-			// If member variable has already been declared
-			if (classSymbol.m_MemberVariables->HasAndIs(variableName, SymbolType::Variable))
-				return MakeError("Member variable " + variableName + " has already been declared");
-
-			variableSymbol = classSymbol.m_MemberVariables->InsertVariable(m_CurrentScope, variableName, &m_TypeTable.GetEntryFromId(variableType));
-			return;
-		}
-
-		// Ensure it has not been declared before
-		if (m_SymbolTable.HasAndIs(variableName, SymbolType::Variable))
-			return MakeError("Variable " + variableName + " has already been declared");
-
-		// Invalid type of variable
-		if (variableType == ValueTypes::Void)
-			return MakeError("Variable " + variableName + " doesn't have a type");
-
-		// Create it
-		variableSymbol = m_SymbolTable.InsertVariable(m_CurrentScope, variableName, &m_TypeTable.GetEntryFromId(variableType));
-		return;
-	};
-
-
 	// Resolve if variable decleration on the left. Should create a new variable
 	if (node->left->type == ASTTypes::VariableDeclaration)
 	{
-		CompileDeclaration();
+		auto variableSymbolOptional = CreateSymbolForVariableDeclaration(node->left, node->parent, isClassMemberVariable);
+		if (variableSymbolOptional.has_value())
+			variableSymbol = variableSymbolOptional.value();
 
 		if (HasError()) 
 			return;
 	}
+
 	// Assigning to a property
 	//else if (node->left->type == ASTTypes::PropertyAccess)
 	//{
@@ -1284,8 +1220,8 @@ void BytecodeCompiler::Compile(ASTNode* node, Instructions& instructions, bool c
 			//ExportVariable(node, variable, instructions);
 		//else
 
-		//if (m_SymbolTable.Has(variableName))
-			//return MakeError("Symbol with name '" + variableName + "' has already been declared");
+		if (m_SymbolTable.Has(variableName))
+			return MakeError("Symbol with name '" + variableName + "' has already been declared");
 
 		SymbolTable::VariableSymbol* variableSymbol = m_SymbolTable.InsertVariable(m_CurrentScope, variableName, &typeEntry);
 
@@ -1508,6 +1444,15 @@ void BytecodeCompiler::Compile(ASTNode* node, Instructions& instructions, bool c
 
 	case ASTTypes::MemberAcessor:
 	{
+		// Slot 0 should always contain the 'this' value
+		instructions.push_back({ Opcodes::load_objref, { (uint8_t)0} });
+
+		//m_CurrentParsingClass.
+
+		instructions.push_back({ Opcodes::load_member, { (uint8_t)0 } });
+		
+		Compile(left, instructions);
+
 		break;
 	}
 

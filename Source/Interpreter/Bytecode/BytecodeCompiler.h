@@ -2,6 +2,7 @@
 
 #include <string>
 #include <unordered_map>
+#include <optional>
 
 #include "../../Lexer.h"
 #include "../../Parser.h"
@@ -179,9 +180,15 @@ namespace Ö::Bytecode::Compiler {
 		Opcodes ResolveCorrectLoadOpcode(ValueType type);
 		ValueType GetValueTypeOfNode(ASTNode* node);
 
+		std::optional<SymbolTable::VariableSymbol*> CreateSymbolForVariableDeclaration(ASTNode* node, ASTNode* parent, bool& isClassMemberVariable);
+
+		std::optional<CompiledCallable> CompileCallable(ASTNode* node, SymbolTable::FunctionSymbol& symbol);
+
 		void CompileClass(ASTNode* node, SymbolTable::ClassSymbol* parentClass = nullptr);
-		SymbolTable::FunctionSymbol* CompileClassMethod(ASTNode* node, SymbolTable::ClassSymbol& classSymbol, Instructions& instructions);
+		std::optional<CompiledCallable> CompileClassMethod(ASTNode* node, SymbolTable::ClassSymbol& classSymbol);
+
 		void CompileFunction(ASTNode* node);
+
 		void CompileAssignment(ASTNode* node, Instructions& instructions);
 		void CompileMathOperation(ASTNode* node, Instructions& instructions);
 		void CompileIntLiteral(int64_t value, Instructions& instructions);
@@ -205,6 +212,8 @@ namespace Ö::Bytecode::Compiler {
 		SymbolTable m_SymbolTable;
 		TypeTable m_TypeTable;
 		ContextConstantsPool m_ConstantsPool;
+
+		SymbolTable::ClassSymbol* m_CurrentParsingClass = nullptr;
 
 		/*std::unordered_map<SymbolTable::Symbol, Variable> m_Variables;
 		std::unordered_map<SymbolTable::Symbol, Function> m_Functions;

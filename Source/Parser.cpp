@@ -728,6 +728,11 @@ bool Parser::IsValidLogicalAndOrExpression(Tokens tokens, int position)
 	return true;
 }
 
+bool Parser::IsValidPropertyAccessExpression(Tokens tokens)
+{
+	return true;
+}
+
 bool Parser::IsValidComparisonExpression(Tokens tokens, int position)
 {
 	if (!ElementExists(tokens, position - 1))
@@ -741,7 +746,7 @@ bool Parser::IsValidComparisonExpression(Tokens tokens, int position)
 // {variable}++
 bool Parser::IsValidPostIncDecExpression(Tokens tokens, int position)
 {
-	if (tokens[position].m_Type != Token::Variable)
+	if (!ElementExists(tokens, position) || tokens[position].m_Type != Token::Variable)
 		return MakeError("Expected variable to the left of Increment or decrement");
 
 	if (!ElementExists(tokens, position + 1))
@@ -1009,6 +1014,13 @@ void Parser::CreateAST(Tokens& tokens, ASTNode* node, ASTNode* parent)
 	}
 
 	if (!ParseMathExpression(tokens, node))
+	{
+		if (HasError())
+			return;
+	}
+	else return;
+
+	if (!ParsePropertyAccessExpression(tokens, node))
 	{
 		if (HasError())
 			return;
@@ -1525,6 +1537,60 @@ bool Parser::ParseVariableDeclaration(Tokens& tokens, ASTNode* node)
 	}
 
 	return true;
+}
+
+bool Parser::ParsePropertyAccessExpression(Tokens& tokens, ASTNode* node)
+{
+	// symbol.a
+	for (int i = 0; i < tokens.size(); i++)
+	{
+		if (tokens[i].m_Type == Token::PropertyAccess)
+		{
+			if (!IsValidPropertyAccessExpression(tokens))
+				return false;
+
+			if (IsInsideBrackets(tokens, i))
+				continue;
+
+			std::vector<Token> lhs = SliceVector(tokens, 0, i);
+			std::vector<Token> rhs = SliceVector(tokens, i + 1);
+
+			if (lhs.empty())
+				return MakeError("Expected something to the left of property access");
+			if (rhs.empty())
+				return MakeError("Expected something to the right of property access");
+
+			node->type = ASTTypes::PropertyAccess;
+			node->left = new ASTNode;
+			node->right = new ASTNode;
+
+			CreateAST(lhs, node->left, node);
+			CreateAST(rhs, node->right, node);
+
+			// Only valid node types are:
+			// - Nested propertyAccess
+			// - Final variable
+			// - Function call
+			if (node->left->type != ASTTypes::PropertyAccess &&
+				node->left->type != ASTTypes::Variable && 
+				node->left->type != ASTTypes::FunctionCall)
+			{
+				return MakeError("Invalid property access. Cannot access property of " + node->left->ToString(false));
+			}
+
+			if (node->right->type != ASTTypes::PropertyAccess &&
+				node->right->type != ASTTypes::Variable &&
+				node->right->type != ASTTypes::FunctionCall)
+			{
+				return MakeError("Invalid property access. " + node->right->ToString(false) + " is not a valid property");
+			}
+
+
+			return true;
+		}
+	}
+
+	return false;
 }
 
 bool Parser::ParseParentheses(Tokens& tokens, ASTNode* node)

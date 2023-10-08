@@ -146,7 +146,16 @@ namespace Ö::Bytecode {
 					auto& method = methodEntry.second;
 					std::string returnType = m_Compiler.m_TypeTable.GetEntryFromId(method.returnType).name;
 
-					std::cout << "  #" << methodEntry.first << " " << returnType << "(" << method.returnType << ")" << ":\n";
+					std::cout << "  #" << methodEntry.first << " (" << returnType << ") (";
+
+					for (int i = 0; i < method.parameters.size(); i++)
+					{
+						std::cout << m_Compiler.m_TypeTable.GetEntryFromId(method.parameters[i]).name;
+						if (i < method.parameters.size() - 1)
+							std::cout << ", ";
+					}
+					std::cout << "):\n";
+
 					Compiler::BytecodeCompiler::PrintInstructions(method.body, "  ");
 				}
 				std::cout << "\n";
@@ -159,7 +168,16 @@ namespace Ö::Bytecode {
 				auto& function = entry.second;
 				std::string returnType = m_Compiler.m_TypeTable.GetEntryFromId(function.returnType).name;
 
-				std::cout << "  #" << entry.first << " " << returnType << "(" << function.returnType << ")" << ":\n";
+				std::cout << "  #" << entry.first << " " << returnType << " (";
+				
+				for (int i = 0; i < function.parameters.size(); i++)
+				{
+					std::cout << m_Compiler.m_TypeTable.GetEntryFromId(function.parameters[i]).name;
+					if (i < function.parameters.size() - 1)
+						std::cout << ", ";
+				}
+				
+				std::cout << "):\n";
 				Compiler::BytecodeCompiler::PrintInstructions(function.body, "  ");
 			}
 			std::cout << "\n";
@@ -326,6 +344,8 @@ namespace Ö::Bytecode {
 
 				functionFrame.m_Stack.Push(Value(m_ProgramCounter, ValueTypes::Integer));
 				m_Frames.Push(functionFrame);
+
+				// TODO: should store the function arguments in the variable stack
 
 				m_ProgramCounter = 0;
 

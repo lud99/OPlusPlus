@@ -147,7 +147,7 @@ namespace Ö
 		bool IsValidCompoundAssignmentExpression(Tokens tokens, int position);
 		bool IsValidComparisonExpression(Tokens tokens, int position);
 		bool IsValidLogicalAndOrExpression(Tokens tokens, int position);
-		//bool IsValidPropertyAssignmentExpression(Tokens tokens);
+		bool IsValidPropertyAccessExpression(Tokens tokens);
 		bool IsValidPostIncDecExpression(Tokens tokens, int position);
 		bool IsValidPreIncDecExpression(Tokens tokens, int position);
 		bool IsValidScopeResolutionExpresion(Tokens tokens, int position);
@@ -165,6 +165,7 @@ namespace Ö
 		bool ParseCompoundAssignment(Tokens& tokens, ASTNode* node);
 		bool ParseMathExpression(Tokens& tokens, ASTNode* node);
 		bool ParseVariableDeclaration(Tokens& tokens, ASTNode* node);
+		bool ParsePropertyAccessExpression(Tokens& tokens, ASTNode* node);
 		bool ParseParentheses(Tokens& tokens, ASTNode* node);
 		bool ParseMemberAccessor(Tokens& tokens, ASTNode* node);
 		bool ParseScopeResolution(Tokens& tokens, ASTNode* node);

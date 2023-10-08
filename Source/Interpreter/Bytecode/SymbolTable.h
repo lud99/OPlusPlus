@@ -74,7 +74,7 @@ namespace Ö
 
 			uint16_t m_Id;
 
-			std::vector<Symbol> m_Parameters;
+			std::vector<ValueType> m_ParameterTypes;
 			bool m_IsBuiltIn = false;
 		};
 
