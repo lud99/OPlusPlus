@@ -39,6 +39,7 @@ namespace Ö::Bytecode::Compiler {
 		uint16_t AddAndGetFloatIndex(float value);
 		uint16_t AddAndGetStringIndex(std::string value);
 		uint16_t AddAndGetFunctionReferenceIndex(std::string functionName);
+		uint16_t AddAndGetMethodReferenceIndex(std::string functionName);
 		uint16_t AddAndGetClassIndex(std::string className);
 		uint16_t AddAndGetBuiltInFunction(BuiltInFunctions::Prototype functionPrototype);
 		//uint16_t AddOrGetClassReferenceIndex(std::string className);
@@ -53,103 +54,12 @@ namespace Ö::Bytecode::Compiler {
 		std::unordered_map<std::string, uint16_t> m_Strings; // TODO: use char* instead for saving memory?
 
 		std::unordered_map<std::string, uint16_t> m_Functions;
+		std::unordered_map<std::string, uint16_t> m_Methods; // TODO: store type information?
 		std::unordered_map<std::string, uint16_t> m_Classes;
 
 		std::unordered_map<std::string, BuiltInFunctions::Prototype> m_BuiltInFunctions;
 
 		uint16_t m_CurrentFreeSlot = 0;
-	};
-
-	class _CompilerContext
-	{
-	public:
-		struct Variable
-		{
-			std::string m_Name = "";
-			uint16_t m_Index = 0;
-
-			bool m_IsGlobal = false;
-
-			ValueType m_Type = ValueTypes::Void;
-
-			Variable(uint32_t index = 0, std::string name = "", ValueType type = ValueTypes::Void, bool isGlobal = false) : m_Name(name), m_Index(index), m_Type(type), m_IsGlobal(isGlobal) {};
-		};
-
-		struct Function
-		{
-			std::string m_Name = "";
-			ValueTypes m_ReturnType = ValueTypes::Void;
-
-			uint16_t m_Index = 0;
-
-			// TODO: Parameters
-
-			Instructions m_Body;
-		};
-
-		struct Class
-		{
-			std::string m_Name = "";
-			uint16_t m_Index = 0;
-
-			uint16_t m_CurrentFreeMemberIndex = 0;
-
-			Instructions m_InternalConstructor;
-			std::unordered_map<std::string, Function> m_Methods;
-
-			std::unordered_map<std::string, Variable> m_MemberVariables;
-		};
-
-		struct LoopInfo
-		{
-			bool m_InLoop = false;
-			int m_Reset = -1;
-			int m_End = -1;
-			int m_BodyDepth = -1;
-		};
-
-	public:
-		bool CreateVariableIndex(std::string& variableName, ValueTypes type, int& index); // Returns false if the variable exists, true if it was created
-		bool CreateVariableIndex(Variable& variable); // Returns false if the variable exists, true if it was created. Sets the index on the variable object
-		int CreateVariableIndex(std::string& variableName, ValueTypes type);
-
-		Variable CreateMemberVariable(Class& cls, Variable& variable);
-
-		Variable GetVariable(const std::string& variableName);
-		bool HasVariable(const std::string& variableName);
-
-		Function& CreateFunction(const std::string& functionName, ValueTypes returnType);
-		Function& GetFunction(const std::string& functionName);
-		bool HasFunction(const std::string& functionName);
-
-		Class& CreateClass(const std::string& className);
-		Class& GetClass(const std::string& className);
-		bool HasClass(const std::string& className);
-
-		Function& CreateMethod(Class& cls, const std::string& methodName, ValueTypes returnType);
-		Function& GetMethod(Class& cls, const std::string& methodName);
-		bool HasMethod(Class& cls, const std::string& methodName);
-
-	public:
-		std::unordered_map<std::string, Variable> m_Variables;
-		std::unordered_map<std::string, Function> m_Functions;
-		std::unordered_map<std::string, Class> m_Classes;
-		//std::unordered_map<std::string, uint32_t> m_IndiciesForStringConstants;
-
-
-
-		uint32_t m_NextFreeVariableIndex = 0;
-		//uint32_t m_NextFreeFunctionIndex = 0;
-		//uint32_t m_NextFreeStringConstantIndex = 0;
-
-		//bool m_IsModule = false;
-		//bool m_ShouldExportVariable = false;
-		//int m_ModuleIndex = -1;
-		//bool m_IsThreadedFunction = false;
-
-		CompiledFile* m_CompiledFile = nullptr;
-
-		LoopInfo m_LoopInfo;
 	};
 
 	class BytecodeCompiler
@@ -181,8 +91,10 @@ namespace Ö::Bytecode::Compiler {
 		ValueType GetValueTypeOfNode(ASTNode* node);
 
 		std::optional<SymbolTable::VariableSymbol*> CreateSymbolForVariableDeclaration(ASTNode* node, ASTNode* parent, bool& isClassMemberVariable);
+		std::optional<SymbolTable::VariableSymbol*> CompilePropertyAccess(ASTNode* node, Instructions& instructions);
 
 		std::optional<CompiledCallable> CompileCallable(ASTNode* node, SymbolTable::FunctionSymbol& symbol);
+		void CompileCallableCall(ASTNode* node, Instructions& instructions, SymbolTable& symbolTableContext);
 
 		void CompileClass(ASTNode* node, SymbolTable::ClassSymbol* parentClass = nullptr);
 		std::optional<CompiledCallable> CompileClassMethod(ASTNode* node, SymbolTable::ClassSymbol& classSymbol);

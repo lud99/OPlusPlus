@@ -40,9 +40,9 @@ namespace Ö
 		return (FunctionSymbol*)Insert(scope, name, returnType, SymbolType::Function, id);
 	}
 
-	SymbolTable::FunctionSymbol* SymbolTable::InsertMethod(int scope, std::string name, TypeTableEntry* returnType)
+	SymbolTable::FunctionSymbol* SymbolTable::InsertMethod(int scope, std::string name, TypeTableEntry* returnType, uint16_t id)
 	{
-		return (FunctionSymbol*)Insert(scope, name, returnType, SymbolType::Method);
+		return (FunctionSymbol*)Insert(scope, name, returnType, SymbolType::Method, id);
 	}
 
 	SymbolTable::ClassSymbol* SymbolTable::InsertClass(int scope, std::string name, TypeTableEntry* valueType)
@@ -73,7 +73,7 @@ namespace Ö
 			}
 
 			// Insert at the correct table
-			return table->Insert(scope, name, valueType, symbolType);
+			return table->Insert(scope, name, valueType, symbolType, id);
 		}
 
 		if (symbolType == SymbolType::Variable)
@@ -94,7 +94,7 @@ namespace Ö
 		else if (symbolType == SymbolType::Method)
 		{
 			auto symbol = new FunctionSymbol(name, symbolType, valueType);
-			symbol->m_Id = GetLargestMethodIndex();
+			symbol->m_Id = id; // GetLargestMethodIndex() + 1;
 
 			m_Symbols[name] = symbol;
 		}

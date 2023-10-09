@@ -93,6 +93,10 @@ namespace Ö::Bytecode {
 			{
 				std::cout << "#" << entry.first << " = BuiltInFunctionReference: " << entry.second.name << "\n";
 			}
+			for (auto& entry : file.m_ConstantsPool.m_MethodReferences)
+			{
+				std::cout << "#" << entry.first << " = MethodReference: " << entry.second << "\n";
+			}
 			for (auto& entry : file.m_ConstantsPool.m_ClassReferences)
 			{
 				std::cout << "#" << entry.first << " = ClassReference: " << entry.second << "\n";

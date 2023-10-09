@@ -9,6 +9,7 @@ namespace Ö::Bytecode
 	{
 		ValueType returnType;
 		std::vector<ValueType> parameters;
+		uint16_t constantsPoolIndex;
 
 		Instructions body;
 		EncodedInstructions encodedBody;

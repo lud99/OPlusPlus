@@ -40,6 +40,7 @@ namespace Ö
 		std::unordered_map<uint16_t, std::string> m_Strings;
 
 		std::unordered_map<uint16_t, std::string> m_FunctionReferences;
+		std::unordered_map<uint16_t, std::string> m_MethodReferences;
 		std::unordered_map<uint16_t, std::string> m_ClassReferences;
 
 		std::unordered_map<uint16_t, BuiltInFunctions::Prototype> m_BuiltInFunctions;

@@ -100,7 +100,7 @@ namespace Ö
 
 		VariableSymbol* InsertVariable(int scope, std::string name, TypeTableEntry* storeType);
 		FunctionSymbol* InsertFunction(int scope, std::string name, TypeTableEntry* returnType, uint16_t id);
-		FunctionSymbol* InsertMethod(int scope, std::string name, TypeTableEntry* returnType);
+		FunctionSymbol* InsertMethod(int scope, std::string name, TypeTableEntry* returnType, uint16_t id);
 		ClassSymbol* InsertClass(int scope, std::string name, TypeTableEntry* valueType);
 
 		Symbol* Insert(int scope, std::string name, TypeTableEntry* valueType, SymbolType symbolType, uint16_t id = 0);
