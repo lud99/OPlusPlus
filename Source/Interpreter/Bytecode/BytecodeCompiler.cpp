@@ -190,7 +190,7 @@ uint16_t ContextConstantsPool::AddAndGetClassIndex(std::string className)
 
 BytecodeCompiler::BytecodeCompiler()
 {
-	auto AddFunction = [&](std::string name, BuiltInFunctions::BuiltInFunctionCallable pointer, ValueType returnType)
+	auto AddFunction = [&](std::string name, BuiltInFunctions::BuiltInFunctionCallable pointer, ValueType returnType, std::vector<ValueType> parameters)
 	{
 		uint16_t id = ++m_ConstantsPool.m_CurrentFreeSlot;
 
@@ -199,13 +199,13 @@ BytecodeCompiler::BytecodeCompiler()
 		m_ConstantsPool.m_BuiltInFunctions[name] = BuiltInFunctions::Prototype(id, name, pointer, returnType);
 
 		auto function = m_SymbolTable.InsertFunction(0, name, &m_TypeTable.GetEntryFromId(returnType), id);
-		// TODO: function->m_Parameters
+		function->m_ParameterTypes = parameters;
 		function->m_IsBuiltIn = true;
 	};
 
 	using namespace BuiltInFunctions;
-	AddFunction("print", _print, ValueTypes::Void);
-	AddFunction("printf", _printf, ValueTypes::Void);
+	AddFunction("print", _print, ValueTypes::Void, { ValueTypes::String });
+	AddFunction("printf", _printf, ValueTypes::Void, { ValueTypes::String });
 }
 
 CompiledFile BytecodeCompiler::CompileASTTree(ASTNode* root, TypeTable typeTable)
@@ -383,15 +383,44 @@ std::optional<CompiledCallable> BytecodeCompiler::CompileCallable(ASTNode* node,
 
 void BytecodeCompiler::CompileCallableCall(ASTNode* node, Instructions& instructions, SymbolTable& symbolTableContext)
 {
-	// Push all the arguments onto the stack
-	// Push the arguments backwards
-	// TODO: validation for arguments
+	const std::string& functionName = node->stringValue;
+	if (!symbolTableContext.Has(functionName))
+		return MakeError("Function " + functionName + " has not been defined");
+
+	SymbolTable::FunctionSymbol* callableSymbol = (SymbolTable::FunctionSymbol*)symbolTableContext.Lookup(functionName);
+
+	if (callableSymbol->m_SymbolType != SymbolType::Function && callableSymbol->m_SymbolType != SymbolType::Method)
+		return MakeError("Symbol " + functionName + " cannot be called, is not a function or a method");
+
+	std::vector<ValueType> parametersToCheck = callableSymbol->m_ParameterTypes;
+
+	// A method has a hidden this paramater at the beginning. Pretend it doesn't exist when
+	// typechecking as it is not provided by the sourcecode.
+	if (callableSymbol->m_SymbolType == SymbolType::Method)
+		parametersToCheck = std::vector<ValueType>(parametersToCheck.begin() + 1, parametersToCheck.end());
+
+	if (parametersToCheck.size() != node->arguments.size())
+		return MakeError("Missmatch in number of arguments for " + functionName + ". The function expects " +
+			std::to_string(parametersToCheck.size()) + " but " + std::to_string(node->arguments.size())
+			+ " where provided.");
+
+	for (int i = 0; i < parametersToCheck.size(); i++)
+	{
+		ValueType expectedType = parametersToCheck[i];
+		ValueType actualType = GetValueTypeOfNode(node->arguments[i]);
+
+		if (actualType != expectedType)
+			return MakeError("Missmatch in type of argument at position " + std::to_string(i) + " for " + functionName);
+	}
+
+	// Push all the arguments onto the stack backwards
 	for (int i = node->arguments.size() - 1; i >= 0; i--)
 	{
 		Compile(node->arguments[i], instructions);
 	}
 
-	const std::string& functionName = node->stringValue;
+	instructions.push_back(Instruction(Opcodes::call, { (uint8_t)callableSymbol->m_Id })); // TODO: support large index
+
 
 	// TODO: Calling native functions
 	//if (m_Context.m_ConstantsPool.(functionName))
@@ -402,23 +431,20 @@ void BytecodeCompiler::CompileCallableCall(ASTNode* node, Instructions& instruct
 		//break;
 	}
 
-	if (!symbolTableContext.Has(functionName))
-		return MakeError("Function " + functionName + " has not been defined");
+	//auto symbol = symbolTableContext.Lookup(functionName);
+	//if (symbol->m_SymbolType == SymbolType::Function || symbol->m_SymbolType == SymbolType::Method)
+	//{
+	//	SymbolTable::FunctionSymbol* function = (SymbolTable::FunctionSymbol*)symbol;
 
-	auto symbol = symbolTableContext.Lookup(functionName);
-	if (symbol->m_SymbolType == SymbolType::Function || symbol->m_SymbolType == SymbolType::Method)
-	{
-		SymbolTable::FunctionSymbol* function = (SymbolTable::FunctionSymbol*)symbol;
+	//	instructions.push_back(Instruction(Opcodes::call, { (uint8_t)function->m_Id })); // TODO: support large index
+	// TODO: fix
+	//}
+	//else if (symbol->m_SymbolType == SymbolType::Variable)
+	//{
+	//	SymbolTable::VariableSymbol* variable = (SymbolTable::VariableSymbol*)symbol;
 
-		instructions.push_back(Instruction(Opcodes::call, { (uint8_t)function->m_Id })); // TODO: support large index
-
-	}
-	else if (symbol->m_SymbolType == SymbolType::Variable)
-	{
-		SymbolTable::VariableSymbol* variable = (SymbolTable::VariableSymbol*)symbol;
-
-		instructions.push_back(Instruction(Opcodes::call_fromstack)); // TODO: support large index
-	}
+	//	instructions.push_back(Instruction(Opcodes::call_fromstack)); // TODO: support large index
+	//}
 }
 
 std::optional<SymbolTable::VariableSymbol*> BytecodeCompiler::CompilePropertyAccess(ASTNode* node, Instructions& instructions)
@@ -1664,10 +1690,33 @@ ValueType BytecodeCompiler::GetValueTypeOfNode(ASTNode* node)
 		}
 
 		SymbolTable::VariableSymbol* prop = (SymbolTable::VariableSymbol*)classSymbol->m_MemberVariables->Lookup(propertyName);
-		if (!prop)
+		SymbolTable::FunctionSymbol* method = (SymbolTable::FunctionSymbol*)classSymbol->m_Methods->Lookup(propertyName);
+		if (!prop && !method)
 		{
-			MakeError("Failed to find property on variable");
+			MakeError("Symbol '" + propertyName + "' doesn't exist on type '" + typeName + "'");
 			return ValueTypes::Void;
+		}
+
+
+
+		// If trying to call the property. Make sure it is not a class member and a valid method.
+		// Because the object the method is on is on the stack from a previous iteration, just compile the function as the 
+		// 'this' parameter is already there and a method is a function (with this as first parameter).
+		if (node->right->type == ASTTypes::FunctionCall)
+		{
+			if (prop)
+			{
+				MakeError("Symbol '" + propertyName + "' on '" + classSymbol->m_Name + "' is not a method, but a " + SymbolTypeToString(prop->m_SymbolType));
+				return ValueTypes::Void;
+			}
+
+			if (!method)
+			{
+				MakeError("Symbol '" + propertyName + "' on '" + classSymbol->m_Name + "' doesn't exist");
+				return ValueTypes::Void;
+			}
+
+			return method->m_StorableValueType->id;
 		}
 
 		return prop->m_StorableValueType->id;

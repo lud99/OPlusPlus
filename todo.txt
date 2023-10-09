@@ -8,10 +8,23 @@ What is needed:
 
 	- Structs
 	- Classes
+		- Polymorphism?
+		- Custom constructors, destructors
+	
+	- Lambda functions
+		- Functions as arguments
+
+	- Heap
+
+	- Strong types and typechecking
+		Done
+	- Type inference
+
+	Far into the future:
 
 	- FileIO
 	- Optimizations
-	- Strong types and typechecking
+	
 
 	Parsing
 	- Curly brackets on next line for if-statements etc.
