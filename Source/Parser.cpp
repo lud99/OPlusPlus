@@ -708,8 +708,8 @@ bool Parser::IsValidCompoundAssignmentExpression(Tokens tokens, int operatorPosi
 		return MakeError("Expected a variable before " + opToken.ToString() + " but got a " + tokens[operatorPosition - 1].ToString());
 
 	// If more things before variable
-	if (ElementExists(tokens, operatorPosition - 2))
-		return MakeError("Expected only a variable on the left side of " + opToken.ToString() + " but got" + tokens[operatorPosition - 2].ToString());
+	//if (ElementExists(tokens, operatorPosition - 2))
+		//return MakeError("Expected only a variable on the left side of " + opToken.ToString() + " but got" + tokens[operatorPosition - 2].ToString());
 
 	if (!ElementExists(tokens, operatorPosition + 1))
 		return MakeError("Expected an expression after " + opToken.ToString());
@@ -979,12 +979,12 @@ void Parser::CreateAST(Tokens& tokens, ASTNode* node, ASTNode* parent)
 	}
 	else return;
 
-	if (!ParseCompoundAssignment(tokens, node))
+	/*if (!ParseCompoundAssignment(tokens, node))
 	{
 		if (HasError())
 			return;
 	}
-	else return;
+	else return;*/
 
 	// parse else 
 
@@ -1348,7 +1348,9 @@ bool Parser::ParseAssignment(Tokens& tokens, ASTNode* node)
 {
 	for (int i = 0; i < tokens.size(); i++)
 	{
-		if (tokens[i].m_Type == Token::SetEquals)
+		if (tokens[i].m_Type == Token::SetEquals || 
+			tokens[i].m_Type == Token::PlusEquals ||
+			tokens[i].m_Type == Token::MinusEquals)
 		{
 			if (IsInsideBrackets(tokens, i))
 				continue;
@@ -1356,7 +1358,12 @@ bool Parser::ParseAssignment(Tokens& tokens, ASTNode* node)
 			if (!IsValidAssignmentExpression(tokens, i))
 				return false;
 
-			node->type = ASTTypes::Assign;
+			if (tokens[i].m_Type == Token::SetEquals)
+				node->type = ASTTypes::Assign;
+			if (tokens[i].m_Type == Token::PlusEquals)
+				node->type = ASTTypes::PlusEquals;
+			if (tokens[i].m_Type == Token::MinusEquals)
+				node->type = ASTTypes::MinusEquals;
 
 			std::vector<Token> lhs = SliceVector(tokens, 0, i);
 			std::vector<Token> rhs = SliceVector(tokens, i + 1);
@@ -1548,8 +1555,8 @@ bool Parser::ParseVariableDeclaration(Tokens& tokens, ASTNode* node)
 
 bool Parser::ParsePropertyAccessExpression(Tokens& tokens, ASTNode* node)
 {
-	// symbol.a
-	for (int i = 0; i < tokens.size(); i++)
+	// symbol.a.b
+	for (int i = tokens.size() - 1; i >= 0; i--)
 	{
 		if (tokens[i].m_Type == Token::PropertyAccess)
 		{
@@ -1585,8 +1592,7 @@ bool Parser::ParsePropertyAccessExpression(Tokens& tokens, ASTNode* node)
 				return MakeError("Invalid property access. Cannot access property of " + node->left->ToString(false));
 			}
 
-			if (node->right->type != ASTTypes::PropertyAccess &&
-				node->right->type != ASTTypes::Variable &&
+			if (node->right->type != ASTTypes::Variable &&
 				node->right->type != ASTTypes::FunctionCall)
 			{
 				return MakeError("Invalid property access. " + node->right->ToString(false) + " is not a valid property");

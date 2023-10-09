@@ -39,6 +39,8 @@ namespace Ö::Bytecode
 		store_member,
 		load_member,
 
+		dup,
+
 		// Array
 		create_array,
 
@@ -110,6 +112,8 @@ namespace Ö::Bytecode
 			"instantiate_class",
 			"store_member",
 			"load_member",
+
+			"dup",
 
 			"array_create",
 

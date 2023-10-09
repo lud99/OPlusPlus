@@ -103,6 +103,15 @@ namespace Ö
 				type == ASTTypes::Modulus || type == ASTTypes::Xor || type == ASTTypes::ToThePower;
 		}
 
+		inline bool IsCompoundAssignment()
+		{
+			return type == ASTTypes::PlusEquals || type == ASTTypes::MinusEquals;
+		}
+		inline bool IsAssignment()
+		{
+			return IsCompoundAssignment() || type == ASTTypes::Assign;
+		}
+
 		inline bool IsPrimitiveType()
 		{
 			abort();
