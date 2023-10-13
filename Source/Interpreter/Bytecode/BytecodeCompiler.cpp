@@ -273,42 +273,34 @@ void BytecodeCompiler::PrintInstructions(EncodedInstructions& instructions)
 std::optional<SymbolTable::VariableSymbol*> BytecodeCompiler::CreateSymbolForVariableDeclaration(ASTNode* node, ASTNode* parent, bool& isClassMemberVariable)
 {
 	const std::string& variableName = node->right->stringValue;
-	const std::string& variableTypename = node->left->stringValue;
 
-	if (!m_TypeTable.HasType(variableTypename))
-	{
-		MakeError("Type '" + variableTypename + "' has not been defined");
+	auto variableTypeOpt = ResolveVariableType(node->left);
+	if (!variableTypeOpt.has_value() || HasError())
 		return std::nullopt;
-	}
 
-	TypeTableEntry& variableType = m_TypeTable.GetTypeEntry(node->left->stringValue);
+	TypeTableEntry* variableType = variableTypeOpt.value();
 
 	//bool isGlobal = m_CurrentScope == 0;
 	//variable.m_IsGlobal = isGlobal;
 
-	// Create a variable and store it to the module object
-	//if (m_Context.m_ShouldExportVariable)
-		//ExportVariable(node, variable, instructions);
-	//else
-	//{
-
-
 	// Check if declared inside a class declaration, then it should be a member variable
 	if (parent && parent->parent && parent->parent->type == ASTTypes::Class)
 	{
+		assert(m_CurrentParsingClass != nullptr);
+
 		isClassMemberVariable = true;
 
-		const std::string& className = parent->parent->stringValue;
-		SymbolTable::ClassSymbol& classSymbol = *(SymbolTable::ClassSymbol*)m_SymbolTable.Lookup(className);
+		//const std::string& className = parent->parent->stringValue;
+		//SymbolTable::ClassSymbol& classSymbol = *(SymbolTable::ClassSymbol*)m_SymbolTable.Lookup(className);
 
 		// If member variable has already been declared
-		if (classSymbol.m_MemberVariables->Has(variableName))
+		if (m_CurrentParsingClass->m_MemberVariables->Has(variableName))
 		{
 			MakeError("Symbol " + variableName + " has already been declared");
 			return std::nullopt;
 		}
 
-		return classSymbol.m_MemberVariables->InsertVariable(0, variableName, &variableType);
+		return m_CurrentParsingClass->m_MemberVariables->InsertVariable(m_CurrentScope, variableName, variableType);
 	}
 
 	// Ensure it has not been declared before
@@ -319,13 +311,13 @@ std::optional<SymbolTable::VariableSymbol*> BytecodeCompiler::CreateSymbolForVar
 	}
 
 	// Invalid type of variable
-	if (variableType.id == ValueTypes::Void)
+	if (variableType->id == ValueTypes::Void)
 	{
 		MakeError("Variable " + variableName + " doesn't have a type");
 		return std::nullopt;
 	}
 
-	return m_SymbolTable.InsertVariable(m_CurrentScope, variableName, &variableType);
+	return m_SymbolTable.InsertVariable(m_CurrentScope, variableName, variableType);
 }
 
 std::optional<CompiledCallable> BytecodeCompiler::CompileCallable(ASTNode* node, SymbolTable::FunctionSymbol& symbol)
@@ -447,32 +439,58 @@ void BytecodeCompiler::CompileCallableCall(ASTNode* node, Instructions& instruct
 	//}
 }
 
-std::optional<SymbolTable::VariableSymbol*> BytecodeCompiler::CompilePropertyAccess(ASTNode* node, Instructions& instructions)
+std::optional<SymbolTable::Symbol*> BytecodeCompiler::CompilePropertyAccess(ASTNode* node, Instructions& instructions)
 {
+	// Returns the symbol of the class with the same type as the variable
+	auto GetClassSymbolOfVariable = [&](SymbolTable::Symbol* symbol)
+	{
+		ValueType variableStoredType = symbol->m_StorableValueType->id;
+		return (SymbolTable::ClassSymbol*)m_SymbolTable.LookupClassByType(variableStoredType);
+	};
+
 	// Left is a propertyAccess, a variable or functionCall
 	// Right is a variable or functionCall
 
-	Compile(node->left, instructions);
-
-	// Must resolve the type of the lhs 
-	ValueType lhs = GetValueTypeOfNode(node->left);
-	//ValueType rhs = GetValueTypeOfNode(right);
-
-	const std::string& typeName = m_TypeTable.GetEntryFromId(lhs).name;
-	const std::string& propertyName = node->right->stringValue;
-
-	auto classSymbol = m_SymbolTable.LookupClassByType(lhs);
-	if (!classSymbol)
+	if (node->type == ASTTypes::Variable)
 	{
-		MakeError("Failed to do property access on lhs with type " + std::to_string(lhs) + ", it is not a class");
+		Compile(node, instructions);
+		if (HasError())
+			return std::nullopt;
+
+		return (SymbolTable::Symbol*)GetClassSymbolOfVariable(m_SymbolTable.Lookup(node->stringValue));
+	}
+	else if (node->type == ASTTypes::FunctionCall)
+	{
+		abort();
 		return std::nullopt;
 	}
+
+	assert(node->type == ASTTypes::PropertyAccess);
+
+	auto parentSymbolOpt = CompilePropertyAccess(node->left, instructions);
+	if (!parentSymbolOpt.value() || HasError())
+		return std::nullopt;
+	auto parentSymbol = parentSymbolOpt.value();
+
+	// Must resolve the type of the lhs 
+	//ValueType lhs = GetValueTypeOfNode(node->left);
+	//ValueType rhs = GetValueTypeOfNode(right);
+
+	const std::string& propertyName = node->right->stringValue;
+
+	if (parentSymbol->m_SymbolType != SymbolType::Class)
+	{
+		MakeError("Failed to do property access on variable of type " + parentSymbol->m_Name + ", it is not a class");
+		return std::nullopt;
+	}
+
+	SymbolTable::ClassSymbol* classSymbol = (SymbolTable::ClassSymbol*)parentSymbol;
 
 	SymbolTable::VariableSymbol* prop = (SymbolTable::VariableSymbol*)classSymbol->m_MemberVariables->Lookup(propertyName);
 	SymbolTable::FunctionSymbol* method = (SymbolTable::FunctionSymbol*)classSymbol->m_Methods->Lookup(propertyName);
 	if (!prop && !method)
 	{
-		MakeError("Symbol '" + propertyName + "' doesn't exist on type '" + typeName + "'");
+		MakeError("Symbol '" + propertyName + "' doesn't exist on class '" + classSymbol->m_Name + "'");
 		return std::nullopt;
 	}
 
@@ -508,7 +526,93 @@ std::optional<SymbolTable::VariableSymbol*> BytecodeCompiler::CompilePropertyAcc
 		return (SymbolTable::VariableSymbol*)method;
 	}
 
+	auto propClassSymbol = GetClassSymbolOfVariable(prop);
+	if (propClassSymbol) 
+		return propClassSymbol;
+
 	return prop;
+}
+
+
+std::optional<SymbolTable::ClassSymbol*> BytecodeCompiler::ResolveScopeResolution(ASTNode* node)
+{
+	// Left is a scope resolution or an identifier
+	// Right is an identifier
+
+	if (node->type == ASTTypes::Variable)
+	{
+		const std::string& typeName = node->stringValue;
+
+		if (!m_TypeTable.HasType(typeName))
+		{
+			MakeError("Type " + typeName + " has not been defined");
+			return std::nullopt;
+		}
+
+		ValueType baseType = m_TypeTable.GetType(typeName);
+
+		auto cls = m_SymbolTable.LookupClassByType(baseType);
+		if (!cls)
+		{
+			MakeError("Class " + typeName + " has not been defined");
+			return std::nullopt;
+		}
+
+		return cls;
+	}
+
+	auto parentClassSymbol = ResolveScopeResolution(node->left);
+	if (!parentClassSymbol.value() || HasError())
+		return std::nullopt;
+
+	const std::string& childTypeName = node->right->stringValue;
+
+	if (!m_TypeTable.HasType(childTypeName))
+	{
+		MakeError("Type " + childTypeName + " has not been defined");
+		return std::nullopt;
+	}
+
+	ValueType childType = m_TypeTable.GetType(childTypeName);
+
+	auto childClass = parentClassSymbol.value()->m_ChildClasses->LookupClassByType(childType);
+	if (!childClass)
+	{
+		MakeError("Child class '" + childTypeName + "' has not been defined on class " + parentClassSymbol.value()->m_Name);
+		return std::nullopt;
+	}
+
+	return childClass;
+}
+
+std::optional<TypeTableEntry*> BytecodeCompiler::ResolveVariableType(ASTNode* node)
+{
+	switch (node->type)
+	{
+	case ASTTypes::VariableType:
+	case ASTTypes::Variable:
+	{
+		const std::string& typeName = node->stringValue;
+
+		if (!m_TypeTable.HasType(typeName))
+		{
+			MakeError("Type '" + typeName + "' has not been defined");
+			return std::nullopt;
+		}
+
+		return &m_TypeTable.GetTypeEntry(typeName);
+	}
+	case ASTTypes::ScopeResolution:
+	{
+		auto resolvedSymbol = ResolveScopeResolution(node);
+		if (!resolvedSymbol.has_value() || HasError())
+			return std::nullopt;
+
+		return resolvedSymbol.value()->m_StorableValueType;
+	}
+	default:
+		abort();
+	}
 }
 
 void BytecodeCompiler::CompileClass(ASTNode* node, SymbolTable::ClassSymbol* parentClass)
@@ -518,10 +622,23 @@ void BytecodeCompiler::CompileClass(ASTNode* node, SymbolTable::ClassSymbol* par
 	if (m_SymbolTable.Has(className))
 		return MakeError("Class " + className + " has already been declared");
 
-	auto& classType = m_TypeTable.GetTypeEntry(className);
 	uint16_t classId = m_ConstantsPool.AddAndGetClassIndex(className);
 
-	SymbolTable::ClassSymbol* classSymbol = m_SymbolTable.InsertClass(m_CurrentScope, className, &classType);
+	// m_TypeTable.Add(className, TypeTableType::Class);//m_TypeTable.GetTypeEntry(className);
+	
+	// If parsing a child class
+	SymbolTable::ClassSymbol* classSymbol = nullptr;
+	if (m_CurrentParsingClass)
+	{
+		auto classType = &m_TypeTable.AddPrivateType(className, TypeTableType::Class);
+		classSymbol = m_CurrentParsingClass->m_ChildClasses->InsertClass(m_CurrentScope, className, classType);
+	} 
+	else
+	{
+		auto classType = &m_TypeTable.Add(className, TypeTableType::Class);
+		classSymbol = m_SymbolTable.InsertClass(m_CurrentScope, className, classType);
+	}
+
 	m_CurrentParsingClass = classSymbol;
 
 	// Symbol that refers to the current instance of the class. Declared to avoid errors, might fix.
@@ -530,10 +647,9 @@ void BytecodeCompiler::CompileClass(ASTNode* node, SymbolTable::ClassSymbol* par
 	// Create the object that holds the information used when the bytecode is interpreted
 	ClassInstance classInstance(className, classId);
 
-	uint16_t methodId = 0;
-	
-	// Iterate the declaration
 	m_CurrentScope++;
+
+	// Iterate the declaration
 	for (ASTNode* line : node->left->arguments)
 	{
 		if (HasError())
@@ -541,13 +657,13 @@ void BytecodeCompiler::CompileClass(ASTNode* node, SymbolTable::ClassSymbol* par
 
 		if (line->type == ASTTypes::Class)
 		{
-			m_CurrentScope++;
-
 			Instructions nestedClass;
-			Compile(line, nestedClass);
 
-			m_SymbolTable.Remove(m_CurrentScope);
-			m_CurrentScope--;
+			Compile(line, nestedClass);
+			m_CurrentParsingClass = classSymbol;
+
+			// Doesn't remove the class symbol, but all the contents it has
+			//classSymbol->m_ChildClasses->Remove(m_CurrentScope);
 		}
 		else if (line->type == ASTTypes::Assign || line->type == ASTTypes::VariableDeclaration)
 		{
@@ -680,7 +796,7 @@ void BytecodeCompiler::CompileAssignment(ASTNode* node, Instructions& instructio
 	// Property compound assignments requires the property access be compiled first
 	// for more efficiently adding a value to itself without having to access the 
 	// property all over again.
-	if (node->left->type != ASTTypes::PropertyAccess || !node->IsCompoundAssignment())
+	if (node->left->type != ASTTypes::PropertyAccess && !node->IsCompoundAssignment())
 	{
 		Compile(node->right, instructions);
 		if (HasError())
@@ -695,20 +811,15 @@ void BytecodeCompiler::CompileAssignment(ASTNode* node, Instructions& instructio
 		if (!propertySymbol.has_value() || HasError())
 			return;
 
-		ValueType lhs = propertySymbol.value()->m_StorableValueType->id;
-		ValueType rhs = GetValueTypeOfNode(node->right);
-
-		if (lhs != rhs)
-			return MakeError("Variable '" + propertySymbol.value()->m_Name + "' (" + m_TypeTable.GetEntryFromId(lhs).name +
-				") cannot be assigned something of type '" + m_TypeTable.GetEntryFromId(rhs).name + "'");
+		// Remove the store to property instruction
+		Instruction storeInstruction = instructions.back();
+		instructions.pop_back();
 
 		if (node->IsCompoundAssignment())
 		{
-			Instruction storeInstruction = instructions.back();
-			instructions.pop_back();
-
 			instructions.push_back({ Opcodes::dup });
-			
+			instructions.push_back({ Opcodes::load_member, storeInstruction.GetArguments()});
+
 			Compile(node->right, instructions);
 			if (HasError())
 				return;
@@ -717,9 +828,24 @@ void BytecodeCompiler::CompileAssignment(ASTNode* node, Instructions& instructio
 				instructions.push_back({ Opcodes::add });
 			if (node->type == ASTTypes::MinusEquals)
 				instructions.push_back({ Opcodes::sub }); // TODO: Might be in the reverse order
-
-			instructions.push_back(storeInstruction);
 		}
+		else
+		{
+			Compile(node->right, instructions);
+			if (HasError())
+				return;
+		}
+
+		// And add it back after the rhs has been evaluated, pushed to stack and can the be stored
+		instructions.push_back(storeInstruction);
+
+		ValueType lhs = propertySymbol.value()->m_StorableValueType->id;
+		ValueType rhs = GetValueTypeOfNode(node->right);
+
+		if (lhs != rhs)
+			return MakeError("Variable '" + propertySymbol.value()->m_Name + "' (" + m_TypeTable.GetEntryFromId(lhs).name +
+				") cannot be assigned something of type '" + m_TypeTable.GetEntryFromId(rhs).name + "'");
+
 
 		return;
 	}
@@ -1368,6 +1494,13 @@ void BytecodeCompiler::Compile(ASTNode* node, Instructions& instructions, bool c
 	case ASTTypes::PropertyAccess:
 	{
 		CompilePropertyAccess(node, instructions);
+
+		break;
+	}
+
+	case ASTTypes::ScopeResolution:
+	{
+		abort();
 
 		break;
 	}

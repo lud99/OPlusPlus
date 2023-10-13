@@ -48,8 +48,9 @@ namespace Ö
 	SymbolTable::ClassSymbol* SymbolTable::InsertClass(int scope, std::string name, TypeTableEntry* valueType)
 	{
 		ClassSymbol* classSymbol = (ClassSymbol*)Insert(scope, name, valueType, SymbolType::Class);
-		classSymbol->m_MemberVariables = new SymbolTable(nullptr, scope);
-		classSymbol->m_Methods = new SymbolTable(nullptr, scope);
+		classSymbol->m_ChildClasses = new SymbolTable(nullptr, scope + 1);
+		classSymbol->m_MemberVariables = new SymbolTable(nullptr, scope + 1);
+		classSymbol->m_Methods = new SymbolTable(nullptr, scope + 1);
 
 		return classSymbol;
 	}
@@ -112,6 +113,18 @@ namespace Ö
 		if (m_Symbols.count(name) != 0)
 			return m_Symbols[name];
 
+		// Then try to search for child classes
+		/*for (auto& [_, symbol] : m_Symbols)
+		{
+			if (symbol->m_SymbolType != SymbolType::Class)
+				continue;
+
+			ClassSymbol* cls = (ClassSymbol*)symbol;
+			auto result = cls->m_ChildClasses->Lookup(name);
+			if (result != nullptr)
+				return result;
+		}*/
+
 		// Otherwise, resursively search the nested symbol tables
 		SymbolTable* table = this;
 		while (table->m_NextSymbolTable != nullptr)
@@ -134,6 +147,18 @@ namespace Ö
 		{
 			if (entry.second->m_StorableValueType->Resolve().id == type && entry.second->m_SymbolType == SymbolType::Class)
 				return (SymbolTable::ClassSymbol*)entry.second;
+		}
+
+		// Then try to search for child classes
+		for (auto& [_, symbol] : m_Symbols)
+		{
+			if (symbol->m_SymbolType != SymbolType::Class)
+				continue;
+
+			ClassSymbol* cls = (ClassSymbol*)symbol;
+			auto result = cls->m_ChildClasses->LookupClassByType(type);
+			if (result != nullptr)
+				return result;
 		}
 			
 		// Otherwise, resursively search the nested symbol tables
@@ -226,6 +251,7 @@ namespace Ö
 			if (entry.second->m_SymbolType == SymbolType::Class)
 			{
 				SymbolTable::ClassSymbol* s = (SymbolTable::ClassSymbol*)(entry.second);
+				delete s->m_ChildClasses;
 				delete s->m_Methods;
 				delete s->m_MemberVariables;
 			}

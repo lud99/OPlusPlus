@@ -91,7 +91,10 @@ namespace Ö::Bytecode::Compiler {
 		ValueType GetValueTypeOfNode(ASTNode* node);
 
 		std::optional<SymbolTable::VariableSymbol*> CreateSymbolForVariableDeclaration(ASTNode* node, ASTNode* parent, bool& isClassMemberVariable);
-		std::optional<SymbolTable::VariableSymbol*> CompilePropertyAccess(ASTNode* node, Instructions& instructions);
+		std::optional<SymbolTable::Symbol*> CompilePropertyAccess(ASTNode* node, Instructions& instructions);
+		std::optional<SymbolTable::ClassSymbol*> ResolveScopeResolution(ASTNode* node);
+		std::optional<TypeTableEntry*> ResolveVariableType(ASTNode* node);
+
 
 		std::optional<CompiledCallable> CompileCallable(ASTNode* node, SymbolTable::FunctionSymbol& symbol);
 		void CompileCallableCall(ASTNode* node, Instructions& instructions, SymbolTable& symbolTableContext);

@@ -39,12 +39,19 @@ namespace Ö
 		abort();
 	}
 
-	bool TypeTable::Add(const std::string& typeName, TypeTableType type, TypeTableEntry* redirect)
+	TypeTableEntry& TypeTable::Add(const std::string& typeName, TypeTableType type, TypeTableEntry* redirect)
 	{
-		if (HasType(typeName)) false;
+		assert (!HasType(typeName));
 
 		m_Types[typeName] = { typeName, m_CurrentFreeTypeId++, type, redirect };
-		return true;
+		return m_Types[typeName];
+	}
+	TypeTableEntry& TypeTable::AddPrivateType(const std::string& typeName, TypeTableType type, TypeTableEntry* redirect)
+	{
+		assert (!HasType(typeName));
+
+		m_Types[typeName] = { typeName, m_CurrentFreeTypeId++, type, redirect, true };
+		return m_Types[typeName];
 	}
 	TypeTableEntry& TypeTable::ResolveEntry(TypeTableEntry entry)
 	{

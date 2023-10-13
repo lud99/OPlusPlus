@@ -42,7 +42,8 @@ namespace Ö
 		TypeTableType type = TypeTableType::Primitive;
 		TypeTableEntry* redirect = nullptr;
 
-		std::vector<TypeTableEntry*> childTypes;
+		// A private type is a type that cannot be instantiated like any type
+		bool isPrivate = false;
 
 		TypeTableEntry& Resolve();
 	};
@@ -60,7 +61,8 @@ namespace Ö
 
 		TypeTableEntry& GetEntryFromId(ValueType id);
 
-		bool Add(const std::string& typeName, TypeTableType type, TypeTableEntry* redirect = nullptr);
+		TypeTableEntry& Add(const std::string& typeName, TypeTableType type, TypeTableEntry* redirect = nullptr);
+		TypeTableEntry& AddPrivateType(const std::string& typeName, TypeTableType type, TypeTableEntry* redirect = nullptr);
 
 		TypeTableEntry& ResolveEntry(TypeTableEntry entry);
 

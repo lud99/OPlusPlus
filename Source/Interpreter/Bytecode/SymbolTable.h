@@ -86,6 +86,7 @@ namespace Ö
 
 			//Instructions m_InternalConstructor;
 			ClassSymbol* m_ParentClass = nullptr;
+			SymbolTable* m_ChildClasses = nullptr;
 			SymbolTable* m_Methods = nullptr;
 			SymbolTable* m_MemberVariables = nullptr;
 			//std::unordered_map<std::string, FunctionSymbol> m_Methods;

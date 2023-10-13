@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <assert.h>
 
 namespace Ö
 {
@@ -18,6 +19,12 @@ namespace Ö
 	};
 
 	typedef uint16_t ValueType;
+
+	/*bool IsValueTypePrimitive(ValueType type)
+	{
+		assert(type != 0);
+		return type == 1 || type == 2 || type == 3;
+	}*/
 
 	static std::string ValueTypeToString(ValueTypes type)
 	{

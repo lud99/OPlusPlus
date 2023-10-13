@@ -1129,8 +1129,8 @@ bool Parser::ParseClassDeclaration(Tokens& tokens, ASTNode* node)
 		return MakeError("Failed to find right curly bracket that closes class declaration");
 
 	// Add the class as a new type
-	name = GetParentClassname(node) + name;
-	m_TypeTable.Add(name, TypeTableType::Class);
+	//name = GetParentClassname(node) + name;
+	//m_TypeTable.Add(name, TypeTableType::Class);
 
 	std::vector<Token> classContent = SliceVector(tokens, 2, endOfClass + 1 /* include the right curly bracket */);
 
@@ -1545,7 +1545,15 @@ bool Parser::ParseVariableDeclaration(Tokens& tokens, ASTNode* node)
 
 		auto typeTokens = SliceVector(tokens, 0, tokens.size() - 1);
 
-		node->left->stringValue = JoinTokens(typeTokens);
+		//node->left->stringValue = JoinTokens(typeTokens);
+
+		CreateAST(typeTokens, node->left, node);
+
+		if (node->left->type == ASTTypes::VariableType && node->left->stringValue == "")
+		{
+			assert(typeTokens.size() == 1);
+			node->left->stringValue = tokens[0].m_Value;
+		}
 
 		node->right->stringValue = tokens.back().m_Value;
 	}
@@ -1680,8 +1688,8 @@ bool Parser::ParseMemberAccessor(Tokens& tokens, ASTNode* node)
 
 bool Parser::ParseScopeResolution(Tokens& tokens, ASTNode* node)
 {
-	return false;
-	for (int i = 0; i < tokens.size(); i++)
+	//return false;
+	for (int i = tokens.size() - 1; i >= 0; i--)
 	{
 		if (tokens[i].m_Type == Token::ScopeResultion)
 		{
@@ -1704,6 +1712,21 @@ bool Parser::ParseScopeResolution(Tokens& tokens, ASTNode* node)
 
 			CreateAST(lhs, node->left, node);
 			CreateAST(rhs, node->right, node);
+
+			// Only valid lhs node types are:
+			// - Nested scopeResolution
+			// - Final variable (identifier)
+			if (node->left->type != ASTTypes::ScopeResolution &&
+				node->left->type != ASTTypes::Variable)
+			{
+				return MakeError("Invalid scope resolution. Cannot resolve scope of " + node->left->ToString(false));
+			}
+
+			// Only valid rhs is an identifier
+			if (node->right->type != ASTTypes::Variable)
+			{
+				return MakeError("Invalid scope resolution. " + node->right->ToString(false) + " is not a valid scope");
+			}
 
 			return true;
 		}
