@@ -107,6 +107,7 @@ namespace Ö
 		Symbol* Insert(int scope, std::string name, TypeTableEntry* valueType, SymbolType symbolType, uint16_t id = 0);
 		Symbol* Lookup(std::string name);
 		SymbolTable::ClassSymbol* LookupClassByType(ValueType type);
+		SymbolTable::ClassSymbol* LookupClassByTypeFirstLayer(ValueType type);
 		
 		// Remove the symbol table at scope, and then recursively remove the deeper symbol tables 
 		void Remove(int scope);
@@ -119,6 +120,7 @@ namespace Ö
 
 		// Number of symbols in the table (not recursive)
 		std::unordered_map<std::string, Symbol*>& GetSymbols() { return m_Symbols; }
+		int GetScope() { return m_Scope; }
 
 		~SymbolTable();
 

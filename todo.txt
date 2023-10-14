@@ -6,10 +6,15 @@ What is needed:
 		- Map
 		- Arrays
 
+	- Destructuring like javascript
+	- Tuples
+
 	- Structs
 	- Classes
 		- Polymorphism?
 		- Custom constructors, destructors
+		- This
+
 	
 	- Lambda functions
 		- Functions as arguments
@@ -18,17 +23,20 @@ What is needed:
 
 	- Strong types and typechecking
 		Done
+	- Better debug printing
 	- Type inference
 
 	Far into the future:
 
 	- FileIO
 	- Optimizations
-	
+	- Multi file programs with linking
 
 	Parsing
 	- Curly brackets on next line for if-statements etc.
 	- Dont require semicolons after curly brackets
+	- Rewrite ast parser
+
 
 Goal: Call glfw and open gl functions from Ö++
 	- Then write a simple renderer

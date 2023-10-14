@@ -156,6 +156,7 @@ namespace Ö
 				continue;
 
 			ClassSymbol* cls = (ClassSymbol*)symbol;
+			
 			auto result = cls->m_ChildClasses->LookupClassByType(type);
 			if (result != nullptr)
 				return result;
@@ -171,6 +172,28 @@ namespace Ö
 				return (SymbolTable::ClassSymbol*)symbol;
 
 			//table = table->m_NextSymbolTable;
+		}
+
+		return nullptr;
+	}
+
+	SymbolTable::ClassSymbol* SymbolTable::LookupClassByTypeFirstLayer(ValueType type)
+	{
+		// First search in the current symbol table
+		for (auto& entry : m_Symbols)
+		{
+			if (entry.second->m_StorableValueType->Resolve().id == type && entry.second->m_SymbolType == SymbolType::Class)
+				return (SymbolTable::ClassSymbol*)entry.second;
+		}
+
+		// Then try to search for child classes
+		for (auto& [_, symbol] : m_Symbols)
+		{
+			if (symbol->m_SymbolType != SymbolType::Class)
+				continue;
+
+			if (symbol->m_StorableValueType->Resolve().id == type)
+				return (ClassSymbol*)symbol;
 		}
 
 		return nullptr;

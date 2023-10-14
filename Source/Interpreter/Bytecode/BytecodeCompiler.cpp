@@ -272,6 +272,25 @@ void BytecodeCompiler::PrintInstructions(EncodedInstructions& instructions)
 
 std::optional<SymbolTable::VariableSymbol*> BytecodeCompiler::CreateSymbolForVariableDeclaration(ASTNode* node, ASTNode* parent, bool& isClassMemberVariable)
 {
+	auto IsTypeAccessible = [&](ASTNode* node, TypeTableEntry& variableType)
+	{
+		// A child class cannot be created without accessing the type with scope resolution
+		if ((node->type == ASTTypes::Variable || node->type == ASTTypes::VariableType) && variableType.isPrivate)
+		{
+			// But if inside a class that has that class as a child class, then it is allowed
+			if (m_CurrentParsingClass)
+			{
+				auto matchingChildClass = m_CurrentParsingClass->m_ChildClasses->LookupClassByTypeFirstLayer(variableType.id);
+				if (matchingChildClass)
+					return true;
+			}
+
+			return false;
+		}
+		
+		return true;
+	};
+
 	const std::string& variableName = node->right->stringValue;
 
 	auto variableTypeOpt = ResolveVariableType(node->left);
@@ -279,19 +298,17 @@ std::optional<SymbolTable::VariableSymbol*> BytecodeCompiler::CreateSymbolForVar
 		return std::nullopt;
 
 	TypeTableEntry* variableType = variableTypeOpt.value();
+	if (!IsTypeAccessible(node->left, *variableType))
+	{
+		MakeError("Symbol " + variableType->name + " is not accessible in this scope");
+		return std::nullopt;
+	}
 
-	//bool isGlobal = m_CurrentScope == 0;
-	//variable.m_IsGlobal = isGlobal;
 
 	// Check if declared inside a class declaration, then it should be a member variable
 	if (parent && parent->parent && parent->parent->type == ASTTypes::Class)
 	{
 		assert(m_CurrentParsingClass != nullptr);
-
-		isClassMemberVariable = true;
-
-		//const std::string& className = parent->parent->stringValue;
-		//SymbolTable::ClassSymbol& classSymbol = *(SymbolTable::ClassSymbol*)m_SymbolTable.Lookup(className);
 
 		// If member variable has already been declared
 		if (m_CurrentParsingClass->m_MemberVariables->Has(variableName))
@@ -468,7 +485,7 @@ std::optional<SymbolTable::Symbol*> BytecodeCompiler::CompilePropertyAccess(ASTN
 	assert(node->type == ASTTypes::PropertyAccess);
 
 	auto parentSymbolOpt = CompilePropertyAccess(node->left, instructions);
-	if (!parentSymbolOpt.value() || HasError())
+	if (!parentSymbolOpt.has_value() || HasError())
 		return std::nullopt;
 	auto parentSymbol = parentSymbolOpt.value();
 
@@ -562,7 +579,7 @@ std::optional<SymbolTable::ClassSymbol*> BytecodeCompiler::ResolveScopeResolutio
 	}
 
 	auto parentClassSymbol = ResolveScopeResolution(node->left);
-	if (!parentClassSymbol.value() || HasError())
+	if (!parentClassSymbol.has_value() || HasError())
 		return std::nullopt;
 
 	const std::string& childTypeName = node->right->stringValue;
@@ -1500,7 +1517,7 @@ void BytecodeCompiler::Compile(ASTNode* node, Instructions& instructions, bool c
 
 	case ASTTypes::ScopeResolution:
 	{
-		abort();
+		//abort();
 
 		break;
 	}
