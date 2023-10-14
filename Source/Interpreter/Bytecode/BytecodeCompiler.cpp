@@ -875,7 +875,7 @@ void BytecodeCompiler::CompileAssignment(ASTNode* node, Instructions& instructio
 	// Property compound assignments requires the property access be compiled first
 	// for more efficiently adding a value to itself without having to access the 
 	// property all over again.
-	if (node->left->type != ASTTypes::PropertyAccess && !node->IsCompoundAssignment())
+	if (node->left->type != ASTTypes::PropertyAccess && !node->IsCompoundAssignment() && node->left->type != ASTTypes::VariableDeclaration)
 	{
 		Compile(node->right, instructions);
 		if (HasError())
@@ -940,6 +940,13 @@ void BytecodeCompiler::CompileAssignment(ASTNode* node, Instructions& instructio
 			variableSymbol = variableSymbolOptional.value();
 
 		if (HasError()) 
+			return;
+
+		if (isClassMemberVariable)
+			instructions.push_back({ Opcodes::load_objref, { (uint8_t)0 } });
+
+		Compile(node->right, instructions);
+		if (HasError())
 			return;
 
 		ValueType lhs = variableSymbol->m_StorableValueType->id;
@@ -1755,8 +1762,8 @@ ValueType BytecodeCompiler::GetValueTypeOfNode(ASTNode* node)
 		return m_TypeTable.GetType(node->stringValue);
 	case ASTTypes::Assign:
 	{
-		abort();
-		break;
+		// TODO: Maybe handle like javascript and c, and return the value the variable is assigned to?
+		return ValueTypes::Void;
 	}
 
 	case ASTTypes::CompareEquals:
@@ -1953,6 +1960,11 @@ ValueType BytecodeCompiler::GetValueTypeOfNode(ASTNode* node)
 
 		assert(prop != nullptr);
 		return prop->m_StorableValueType->id;
+	}
+
+	case ASTTypes::Return:
+	{
+		return GetValueTypeOfNode(node->left);
 	}
 
 	case ASTTypes::Empty:
