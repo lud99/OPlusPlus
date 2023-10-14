@@ -86,7 +86,7 @@ namespace Ö::Bytecode::Compiler {
 		EncodedInstructions EncodeInstructions(Instructions& instructions);
 
 		Opcodes ResolveCorrectMathOpcode(ASTNode* n, bool reverse = false);
-		Opcodes ResolveCorrectStoreOpcode(ValueType type);
+		Opcodes ResolveCorrectStoreOpcode(ValueType type, bool isClassMember = false);
 		Opcodes ResolveCorrectLoadOpcode(ValueType type);
 		ValueType GetValueTypeOfNode(ASTNode* node);
 

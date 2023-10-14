@@ -63,8 +63,11 @@ Opcodes BytecodeCompiler::ResolveCorrectMathOpcode(ASTNode* n, bool reverse)
 	return Opcodes::no_op;
 };
 
-Opcodes BytecodeCompiler::ResolveCorrectStoreOpcode(ValueType type)
+Opcodes BytecodeCompiler::ResolveCorrectStoreOpcode(ValueType type, bool isClassMember)
 {
+	if (isClassMember)
+		return Opcodes::store_member;
+
 	TypeTableEntry typeEntry = m_TypeTable.ResolveEntry(m_TypeTable.GetEntryFromId(type));
 
 	switch (type)
@@ -317,6 +320,7 @@ std::optional<SymbolTable::VariableSymbol*> BytecodeCompiler::CreateSymbolForVar
 			return std::nullopt;
 		}
 
+		isClassMemberVariable = true;
 		return m_CurrentParsingClass->m_MemberVariables->InsertVariable(m_CurrentScope, variableName, variableType);
 	}
 
@@ -678,9 +682,6 @@ void BytecodeCompiler::CompileClass(ASTNode* node, SymbolTable::ClassSymbol* par
 
 			Compile(line, nestedClass);
 			m_CurrentParsingClass = classSymbol;
-
-			// Doesn't remove the class symbol, but all the contents it has
-			//classSymbol->m_ChildClasses->Remove(m_CurrentScope);
 		}
 		else if (line->type == ASTTypes::Assign || line->type == ASTTypes::VariableDeclaration)
 		{
@@ -1351,6 +1352,10 @@ void BytecodeCompiler::Compile(ASTNode* node, Instructions& instructions, bool c
 		if (!variableSymbol.has_value() || HasError())
 			return;
 
+		// Loads the class instance ('this') in slot 0
+		if (isClassMember)
+			instructions.push_back({ Opcodes::load_objref, { 0 } });
+
 		auto& typeEntry = variableSymbol.value()->m_StorableValueType->Resolve();
 
 		// Assign a default value to it
@@ -1371,7 +1376,7 @@ void BytecodeCompiler::Compile(ASTNode* node, Instructions& instructions, bool c
 			instructions.push_back({ Opcodes::instantiate_class, { (uint8_t)classId } });
 		}
 
-		instructions.push_back({ ResolveCorrectStoreOpcode(typeEntry.id), {(uint8_t)variableSymbol.value()->m_Index}});
+		instructions.push_back({ ResolveCorrectStoreOpcode(typeEntry.id, isClassMember), {(uint8_t)variableSymbol.value()->m_Index}});
 
 		break;
 	}
