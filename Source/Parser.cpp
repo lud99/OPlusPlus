@@ -1034,13 +1034,6 @@ void Parser::CreateAST(Tokens& tokens, ASTNode* node, ASTNode* parent)
 	}
 	else return; // TODO: Might cause trouble
 
-	if (!ParseMemberAccessor(tokens, node))
-	{
-		if (HasError())
-			return;
-	}
-	else return; // TODO: Might cause trouble
-
 	if (!ParseIncrementDecrement(tokens, node))
 	{
 		if (HasError())
@@ -1070,31 +1063,32 @@ void Parser::CreateAST(Tokens& tokens, ASTNode* node, ASTNode* parent)
 	else return; // TODO: Might cause trouble
 
 	// Single token nodes
-	if (tokens.size() == 1)
+	// If there are more tokens than 1, then the code has invalid syntax
+	if (tokens.size() != 1)
 	{
-		Token& token = tokens[0];
-		if (token.m_Type == Token::Variable)
-		{
-			node->type = ASTTypes::Variable;
-			node->stringValue = token.m_Value;
-		}
-		if (token.m_Type == Token::IntLiteral)
-		{
-			node->type = ASTTypes::IntLiteral;
-			node->numberValue = std::stoi(token.m_Value);
-		}
-		if (token.m_Type == Token::DoubleLiteral)
-		{
-			node->type = ASTTypes::DoubleLiteral;
-			node->numberValue = StringToDouble(token.m_Value);
-		}
-		if (token.m_Type == Token::StringLiteral)
-		{
-			node->type = ASTTypes::StringLiteral;
-			node->stringValue = token.m_Value;
-		}
+		return MakeErrorVoid("Token " + tokens[0].ToString() + " has tokens after it that it shouldn't have");
+	}
 
-		return;
+	Token& token = tokens[0];
+	if (token.m_Type == Token::Variable)
+	{
+		node->type = ASTTypes::Variable;
+		node->stringValue = token.m_Value;
+	}
+	if (token.m_Type == Token::IntLiteral)
+	{
+		node->type = ASTTypes::IntLiteral;
+		node->numberValue = std::stoi(token.m_Value);
+	}
+	if (token.m_Type == Token::DoubleLiteral)
+	{
+		node->type = ASTTypes::DoubleLiteral;
+		node->numberValue = StringToDouble(token.m_Value);
+	}
+	if (token.m_Type == Token::StringLiteral)
+	{
+		node->type = ASTTypes::StringLiteral;
+		node->stringValue = token.m_Value;
 	}
 
 	return;
@@ -1272,20 +1266,25 @@ bool Parser::ParseFunctionDeclaration(Tokens& tokens, ASTNode* node)
 				return false;
 
 			Tokens functionBody = SliceVector(tokens, i + 1);
-			for (int j = 0; j < functionBody.size(); j++)
+			if (functionBody.empty())
+				return MakeError("Function doesn't have a body");
+			
+			// A one liner function that has no curly braces and no return keyword
+			bool isOneLineFunction = false;
+			if (functionBody[0].m_Type != Token::LeftCurlyBracket && functionBody.back().m_Type != Token::RightCurlyBracket)
 			{
-				//functionBody[j].m_Depth++;
+				isOneLineFunction = true;
 			}
 
 			CreateAST(functionBody, node->right, node);
 			if (HasError()) return false;
 
-			auto& bodyLines = node->right->arguments;
-			if (bodyLines.empty() || bodyLines[bodyLines.size() - 1]->type != ASTTypes::Return)
-			{
-				// TODO: A void-function should require to have a return
-				return MakeError("Missing return at end of function");
-			}
+			//auto& bodyLines = node->right->arguments;
+			//if (!isOneLineFunction && (bodyLines.empty() || bodyLines[bodyLines.size() - 1]->type != ASTTypes::Return))
+			//{
+			//	// TODO: A void-function should require to have a return
+			//	return MakeError("Missing return at end of function");
+			//}
 
 			return true;
 		}
@@ -1587,7 +1586,10 @@ bool Parser::ParsePropertyAccessExpression(Tokens& tokens, ASTNode* node)
 			node->right = new ASTNode;
 
 			CreateAST(lhs, node->left, node);
+			if (HasError()) return false;
+
 			CreateAST(rhs, node->right, node);
+			if (HasError()) return false;
 
 			// Only valid node types are:
 			// - Nested propertyAccess

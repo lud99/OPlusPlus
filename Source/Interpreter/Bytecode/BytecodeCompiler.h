@@ -129,6 +129,7 @@ namespace Ö::Bytecode::Compiler {
 		ContextConstantsPool m_ConstantsPool;
 
 		SymbolTable::ClassSymbol* m_CurrentParsingClass = nullptr;
+		SymbolTable::FunctionSymbol* m_CurrentParsingCallable = nullptr;
 
 		/*std::unordered_map<SymbolTable::Symbol, Variable> m_Variables;
 		std::unordered_map<SymbolTable::Symbol, Function> m_Functions;

@@ -347,6 +347,9 @@ std::optional<CompiledCallable> BytecodeCompiler::CompileCallable(ASTNode* node,
 	Instructions body;
 	m_CurrentScope++;
 
+	bool isOneLineFunction = node->right->type != ASTTypes::Scope;
+	m_CurrentParsingCallable = &symbol;
+
 	// Compile the parameters
 	for (int i = 2; i < node->left->arguments.size(); i++)
 	{
@@ -374,14 +377,70 @@ std::optional<CompiledCallable> BytecodeCompiler::CompileCallable(ASTNode* node,
 	if (m_Error != "")
 		return std::nullopt;
 
-	// Some bodies has a manual return statement, but if none exists then create one automatically
-	if (body.back().GetOpcode() != Opcodes::ret && body.back().GetOpcode() != Opcodes::ret_void)
-		body.emplace_back(Opcodes::ret_void);
+	Opcodes lastOpcode = body.empty() ? Opcodes::no_op : body.back().GetOpcode();
+	ValueType returnType = symbol.m_StorableValueType->Resolve().id;
 
+	if (isOneLineFunction)
+	{
+		ValueType functionBodyType = GetValueTypeOfNode(node->right);
+		if (functionBodyType != returnType)
+		{
+			MakeError("One line function implicitly returns '" + m_TypeTable.GetEntryFromId(functionBodyType).name
+				+ "', but function return type is '" + symbol.m_StorableValueType->name + "'");
+			return std::nullopt;
+		}
+	}
+
+	if (returnType == ValueTypes::Void)
+	{
+		if (lastOpcode == Opcodes::ret)
+		{
+			MakeError("Trying to return something in a void function");
+			return std::nullopt;
+		} 
+		// If no manual return statement, add the instruction automatically
+		else if (lastOpcode != Opcodes::ret_void)
+		{
+			body.emplace_back(Opcodes::ret_void);
+		}
+	}
+	else 
+	{
+		if (lastOpcode == Opcodes::ret_void)
+		{
+			MakeError("Trying to return void in a function that needs a return value");
+			return std::nullopt;
+		}
+		// If no manual return statement, that is an error
+		else if (lastOpcode != Opcodes::ret)
+		{
+			if (!isOneLineFunction)
+			{
+				MakeError("Not returning in anything function or method that is expected to return " + symbol.m_StorableValueType->name);
+				return std::nullopt;
+			}
+			else
+			{
+				// Add the return
+				body.emplace_back(Opcodes::ret);
+			}
+		}
+	}
+
+	//// Some bodies has a manual return statement, but if none exists then create one automatically
+	//// In the case of one liners, a normal ret should be added
+	//if (lastOpcode != Opcodes::ret && lastOpcode != Opcodes::ret_void)
+	//{
+	//	if (isOneLineFunction)
+	//		body.emplace_back(Opcodes::ret);
+	//	else
+	//		body.emplace_back(Opcodes::ret_void);
+	//}
+		
 	uint16_t constantsPoolIndex = symbol.m_Id;
 
 	CompiledCallable callable = {
-		symbol.m_StorableValueType->Resolve().id,
+		returnType,
 		symbol.m_ParameterTypes,
 		constantsPoolIndex,
 		body,
@@ -756,7 +815,9 @@ std::optional<CompiledCallable> BytecodeCompiler::CompileClassMethod(ASTNode* no
 	auto& methodSymbol = *classSymbol.m_Methods->InsertMethod(m_CurrentScope, methodName, &returnTypeEntry, methodId);
 
 	// Add the hidden 'this' parameter
-	//auto thisSymbol = m_SymbolTable.InsertVariable(m_CurrentScope + 1, "this", classSymbol.m_StorableValueType);
+	auto thisSymbol = m_SymbolTable.InsertVariable(m_CurrentScope + 1, "this", classSymbol.m_StorableValueType);
+	assert(thisSymbol->m_Index == 0); // No other variable has been added to scope + 1 yet, so this should always be true
+
 	methodSymbol.m_ParameterTypes.push_back(classSymbol.m_StorableValueType->id);
 	
 	return CompileCallable(node, methodSymbol);
@@ -1426,17 +1487,33 @@ void BytecodeCompiler::Compile(ASTNode* node, Instructions& instructions, bool c
 
 	case ASTTypes::Return:
 	{
+		if (!m_CurrentParsingCallable)
+			return MakeError("Return has to be in a function on method");
+
 		// Check if there is an statement after the return
 		if (left && left->type != ASTTypes::Empty)
 		{
 			// Convert the expression to bytecode
 			Compile(left, instructions);
 
+			// Typecheck with return type of current callable
+			ValueType rhs = GetValueTypeOfNode(left);
+			if (HasError()) return;
+
+			ValueType returnType = m_CurrentParsingCallable->m_StorableValueType->Resolve().id;
+			if (returnType != rhs)
+				return MakeError("Cannot return '" + m_TypeTable.GetEntryFromId(rhs).name + "', not matching return type '" +
+					m_TypeTable.GetEntryFromId(returnType).name + "'");
+
 			instructions.emplace_back(Opcodes::ret);
 		}
 		else
 		{
-			// Otherwise return null
+			ValueType returnType = m_CurrentParsingCallable->m_StorableValueType->Resolve().id;
+			if (returnType != ValueTypes::Void)
+				return MakeError("Cannot return 'void', not matching return type '" +
+					m_TypeTable.GetEntryFromId(returnType).name + "'");
+
 			instructions.emplace_back(Opcodes::ret_void);
 		}
 
@@ -1874,9 +1951,8 @@ ValueType BytecodeCompiler::GetValueTypeOfNode(ASTNode* node)
 			return method->m_StorableValueType->id;
 		}
 
+		assert(prop != nullptr);
 		return prop->m_StorableValueType->id;
-
-		break;
 	}
 
 	case ASTTypes::Empty:
