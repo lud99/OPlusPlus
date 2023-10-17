@@ -2,286 +2,241 @@
 
 #include <assert.h>
 
-namespace Ö
+namespace Ã–
 {
-	TypeTableEntry& SymbolTable::Symbol::GetTypeTableEntry()
-	{
-		return m_StorableValueType->Resolve();
-	}
+	// TypeTableEntry& SymbolTable::Symbol::GetTypeTableEntry()
+	// {
+	// 	return m_StorableValueType->Resolve();
+	// }
 
-	SymbolTable::Symbol::Symbol(std::string name, SymbolType symbolType, TypeTableEntry* storableValueType)
+	Symbol::Symbol(std::string name, SymbolType symbolType, ValueType dataType)
 	{
 		m_Name = name;
 		m_SymbolType = symbolType;
-		m_StorableValueType = storableValueType;
+		m_DataType = dataType;
 	}
 
-	SymbolTable::VariableSymbol::VariableSymbol(std::string name, SymbolType symbolType, TypeTableEntry* storableValueType, uint16_t index)
+    bool Symbol::operator==(const Symbol &other)
+    {
+        return m_Name == other.m_Name &&
+            m_SymbolType == other.m_SymbolType &&
+            m_DataType == other.m_DataType;
+    }
+
+    VariableSymbol::VariableSymbol(std::string name, ValueType dataType, uint16_t index, VariableSymbolType variableType)
 	{
+        m_SymbolType = SymbolType::Variable;
+
 		m_Name = name;
-		m_SymbolType = symbolType;
-		m_StorableValueType = storableValueType;
+		m_DataType = dataType;
 		
 		m_Index = index;
+        m_VariableType = variableType;
 	}
 
-	/*std::size_t SymbolTable::Symbol::operator()(const Symbol& symbol) const noexcept
+    bool VariableSymbol::operator==(const VariableSymbol &other)
+    {
+        return m_Name == other.m_Name;
+    }
+
+    CallableSymbol::CallableSymbol(std::string name, SymbolType symbolType, ValueType returnType, uint16_t id, CallableSymbolType callableType)
+	{
+		m_Name = name;
+		m_SymbolType = symbolType;
+		m_DataType = returnType;
+
+		m_Id = id;
+        m_CallableType = callableType;
+	}
+
+    bool CallableSymbol::operator==(const CallableSymbol &other)
+    {
+        return m_Name == other.m_Name &&
+            // method == function?. m_SymbolType == other.m_SymbolType &&
+            // TODO: look into overloading of returnType. m_DataType == other.m_DataType &&
+            // unique for callable
+            m_ParameterTypes == other.m_ParameterTypes &&
+            //m_IsBuiltIn == other.m_IsBuiltIn &&
+            //m_CallableType == other.m_CallableType;
+    }
+
+    /*std::size_t SymbolTable::Symbol::operator()(const Symbol& symbol) const noexcept
 	{
 		return m_Id;
 	}*/
 
-	SymbolTable::VariableSymbol* SymbolTable::InsertVariable(int scope, std::string name, TypeTableEntry* storeType)
+    
+    ClassSymbol::ClassSymbol(std::string name, ValueType dataType)
+    {
+        m_SymbolType = SymbolType::Class;
+        
+        m_Name = name;
+        m_DataType = dataType;
+    }
+
+    ClassSymbol::~ClassSymbol()
+    {
+        delete m_Symbols;
+    }
+
+    VariableSymbol* SymbolTable::InsertVariable(std::string name, ValueType dataType, VariableSymbolType variableType)
 	{
-		return (VariableSymbol*)Insert(scope, name, storeType, SymbolType::Variable);
+        uint16_t index = GetLargestVariableIndex() + 1;
+		return (VariableSymbol*)Insert(new VariableSymbol(name, dataType, index, variableType));
 	}
 
-	SymbolTable::FunctionSymbol* SymbolTable::InsertFunction(int scope, std::string name, TypeTableEntry* returnType, uint16_t id)
+	CallableSymbol* SymbolTable::InsertCallable(CallableSymbol callable)
 	{
-		return (FunctionSymbol*)Insert(scope, name, returnType, SymbolType::Function, id);
+        return (CallableSymbol*)Insert(new CallableSymbol(callable));
 	}
 
-	SymbolTable::FunctionSymbol* SymbolTable::InsertMethod(int scope, std::string name, TypeTableEntry* returnType, uint16_t id)
+	ClassSymbol* SymbolTable::InsertClass(std::string name, ValueType dataType)
 	{
-		return (FunctionSymbol*)Insert(scope, name, returnType, SymbolType::Method, id);
-	}
-
-	SymbolTable::ClassSymbol* SymbolTable::InsertClass(int scope, std::string name, TypeTableEntry* valueType)
-	{
-		ClassSymbol* classSymbol = (ClassSymbol*)Insert(scope, name, valueType, SymbolType::Class);
-		classSymbol->m_ChildClasses = new SymbolTable(nullptr, scope + 1);
-		classSymbol->m_MemberVariables = new SymbolTable(nullptr, scope + 1);
-		classSymbol->m_Methods = new SymbolTable(nullptr, scope + 1);
+		ClassSymbol* classSymbol = (ClassSymbol*)Insert(new ClassSymbol(name, dataType));
+		classSymbol->m_Symbols = new SymbolTable(SymbolTableType::Local, nullptr);
 
 		return classSymbol;
 	}
 
-	SymbolTable::Symbol* SymbolTable::Insert(int scope, std::string name, TypeTableEntry* valueType, SymbolType symbolType, uint16_t id)
+    std::vector<Symbol*> SymbolTable::Lookup(std::function<bool(Symbol*)> predicate)
+    {
+        std::vector<Symbol*> result;
+        LookupAccumulator(predicate, result);
+        return result;
+    }
+
+    std::vector<Symbol*> SymbolTable::LookupThisTable(std::function<bool(Symbol*)> predicate)
+    {
+        std::vector<Symbol*> result;
+        LookupThisTableAccumulator(predicate, result);
+        return result;
+    }
+
+    std::vector<Symbol*> SymbolTable::Lookup(std::string name)
 	{
-		// Make sure the symbol hasn't been declared before
-		assert(Lookup(name) == nullptr);
-
-		// If not at the scope that the variable should be created in
-		if (m_Scope != scope)
-		{
-			// Traverse the symbol tables and create them if necessary, until the desired scope is reached.
-			SymbolTable* table = this;
-			while (table->m_Scope < scope)
-			{
-				if (!table->m_NextSymbolTable)
-					table->m_NextSymbolTable = new SymbolTable(this, table->m_Scope + 1);
-
-				table = table->m_NextSymbolTable;
-			}
-
-			// Insert at the correct table
-			return table->Insert(scope, name, valueType, symbolType, id);
-		}
-
-		if (symbolType == SymbolType::Variable)
-		{
-			// Find the variable with the highest index at all scopes.
-			// That + 1 is the index slot the variable will occupy.
-			uint16_t variableIndex = GetLargestVariableIndex() + 1;
-
-			m_Symbols[name] = new VariableSymbol(name, symbolType, valueType, variableIndex);
-		}
-		else if (symbolType == SymbolType::Function)
-		{
-			auto symbol = new FunctionSymbol(name, symbolType, valueType);
-			symbol->m_Id = id;
-
-			m_Symbols[name] = symbol;
-		}
-		else if (symbolType == SymbolType::Method)
-		{
-			auto symbol = new FunctionSymbol(name, symbolType, valueType);
-			symbol->m_Id = id; // GetLargestMethodIndex() + 1;
-
-			m_Symbols[name] = symbol;
-		}
-		else if (symbolType == SymbolType::Class)
-			m_Symbols[name] = new ClassSymbol(name, symbolType, valueType);
-		else
-			m_Symbols[name] = new Symbol{ name, symbolType, valueType };
-
-		return m_Symbols[name];
+		return Lookup([name](Symbol* symbol){
+            return symbol->m_Name == name;
+        });
 	}
 
-	SymbolTable::Symbol* SymbolTable::Lookup(std::string name)
+    std::vector<Symbol*> SymbolTable::Lookup(Symbol* symbol)
 	{
-		// First search in the current symbol table
-		if (m_Symbols.count(name) != 0)
-			return m_Symbols[name];
+        assert(symbol != nullptr);
 
-		// Then try to search for child classes
-		/*for (auto& [_, symbol] : m_Symbols)
-		{
-			if (symbol->m_SymbolType != SymbolType::Class)
-				continue;
-
-			ClassSymbol* cls = (ClassSymbol*)symbol;
-			auto result = cls->m_ChildClasses->Lookup(name);
-			if (result != nullptr)
-				return result;
-		}*/
-
-		// Otherwise, resursively search the nested symbol tables
-		SymbolTable* table = this;
-		while (table->m_NextSymbolTable != nullptr)
-		{
-			table = table->m_NextSymbolTable;
-			Symbol* symbol = table->Lookup(name);
-			if (symbol != nullptr)
-				return symbol;
-
-			//table = table->m_NextSymbolTable;
-		}
-
-		return nullptr;
+        return Lookup([symbol](Symbol* s){
+            return *s == *symbol;
+        });
 	}
 
-	SymbolTable::ClassSymbol* SymbolTable::LookupClassByType(ValueType type)
+	Symbol* SymbolTable::LookupOne(std::string name)
 	{
-		// First search in the current symbol table
-		for (auto& entry : m_Symbols)
-		{
-			if (entry.second->m_StorableValueType->Resolve().id == type && entry.second->m_SymbolType == SymbolType::Class)
-				return (SymbolTable::ClassSymbol*)entry.second;
-		}
-
-		// Then try to search for child classes
-		for (auto& [_, symbol] : m_Symbols)
-		{
-			if (symbol->m_SymbolType != SymbolType::Class)
-				continue;
-
-			ClassSymbol* cls = (ClassSymbol*)symbol;
-			
-			auto result = cls->m_ChildClasses->LookupClassByType(type);
-			if (result != nullptr)
-				return result;
-		}
-			
-		// Otherwise, resursively search the nested symbol tables
-		SymbolTable* table = this;
-		while (table->m_NextSymbolTable != nullptr)
-		{
-			table = table->m_NextSymbolTable;
-			Symbol* symbol = table->LookupClassByType(type);
-			if (symbol != nullptr)
-				return (SymbolTable::ClassSymbol*)symbol;
-
-			//table = table->m_NextSymbolTable;
-		}
-
-		return nullptr;
+		auto symbols = Lookup(name);
+		if (symbols.empty())
+			return nullptr;
+		
+		return symbols[0];
 	}
 
-	SymbolTable::ClassSymbol* SymbolTable::LookupClassByTypeFirstLayer(ValueType type)
+	ClassSymbol* SymbolTable::LookupClassByType(ValueType type)
 	{
-		// First search in the current symbol table
-		for (auto& entry : m_Symbols)
-		{
-			if (entry.second->m_StorableValueType->Resolve().id == type && entry.second->m_SymbolType == SymbolType::Class)
-				return (SymbolTable::ClassSymbol*)entry.second;
-		}
+		auto symbols = Lookup([type](Symbol* symbol){
+            return symbol->m_DataType == type;
+        });
 
-		// Then try to search for child classes
-		for (auto& [_, symbol] : m_Symbols)
-		{
-			if (symbol->m_SymbolType != SymbolType::Class)
-				continue;
-
-			if (symbol->m_StorableValueType->Resolve().id == type)
-				return (ClassSymbol*)symbol;
-		}
-
-		return nullptr;
+        assert(symbols.size() <= 1);
+        return (ClassSymbol*) One(symbols);
 	}
 
-	void SymbolTable::Remove(int scopeToRemove)
+    bool SymbolTable::Has(std::string name)
 	{
-		assert(scopeToRemove != 0);
-
-		if (scopeToRemove - 1 > m_Scope)
-		{
-			return m_NextSymbolTable->Remove(scopeToRemove);
-		}
-		else
-		{
-			delete m_NextSymbolTable;
-			m_NextSymbolTable = nullptr;
-		}
-	}
-
-	// Recursively find the largest variable index in the symbol table above
-	int SymbolTable::GetLargestVariableIndex()
-	{
-		int largestIndex = -1;
-		if (m_PreviousSymbolTable) 
-			largestIndex = m_PreviousSymbolTable->GetLargestVariableIndex();
-
-		for (auto& symbol : m_Symbols)
-		{
-			if (symbol.second->m_SymbolType != SymbolType::Variable)
-				continue;
-
-			SymbolTable::VariableSymbol* variableSymbol = (SymbolTable::VariableSymbol*)symbol.second;
-
-			if (variableSymbol->m_Index > largestIndex)
-				largestIndex = variableSymbol->m_Index;
-		}
-
-		return largestIndex;
-	}
-
-	int SymbolTable::GetLargestMethodIndex()
-	{
-		int largestIndex = -1;
-		//if (m_PreviousSymbolTable)
-			//largestIndex = m_PreviousSymbolTable->GetLargestMethodIndex();
-
-		for (auto& symbol : m_Symbols)
-		{
-			if (symbol.second->m_SymbolType != SymbolType::Method)
-				continue;
-
-			SymbolTable::FunctionSymbol* methodSymbol = (SymbolTable::FunctionSymbol*)symbol.second;
-
-			if (methodSymbol->m_Id > largestIndex)
-				largestIndex = methodSymbol->m_Id;
-		}
-
-		return largestIndex;
-	}
-
-	bool SymbolTable::Has(std::string name)
-	{
-		return Lookup(name) != nullptr;
+		return !Lookup(name).empty();
 	}
 
 	bool SymbolTable::HasAndIs(std::string name, SymbolType type)
 	{
 		if (!Has(name)) return false;
 
-		return Lookup(name)->m_SymbolType == type;
+		return LookupOne(name)->m_SymbolType == type;
+	}
+
+
+    Symbol* SymbolTable::Insert(Symbol* symbol)
+	{
+		// Make sure the *exact* symbol hasn't been declared before (uses the overloaded comparison operators on the symbols)
+		assert(Lookup(symbol).empty());
+
+        auto symbolsWithSameName = LookupThisTable([symbol](Symbol* s) {
+            return s->m_Name == symbol->m_Name;
+        });
+
+        symbolsWithSameName.push_back(symbol);
+
+        return symbol;
+	}
+
+    void SymbolTable::LookupAccumulator(std::function<bool(Symbol*)> predicate, std::vector<Symbol*>& accumulator)
+    {
+		// First search in the current symbol table
+        LookupThisTableAccumulator(predicate, accumulator);
+
+		// Otherwise, resursively search the upward symbol table in the scope above
+        if (m_UpwardSymbolTable != nullptr)
+            m_UpwardSymbolTable->LookupAccumulator(predicate, accumulator);
+    }
+
+    void SymbolTable::LookupThisTableAccumulator(std::function<bool(Symbol*)> predicate, std::vector<Symbol*>& accumulator)
+    {
+        std::vector<Symbol*> result;
+
+        for (auto symbolsWithName : m_Symbols)
+        {
+            for (auto symbol : symbolsWithName)
+            {
+                if (predicate(symbol))
+                    accumulator.push_back(symbol);
+            }
+        }
+    }
+
+    Symbol* SymbolTable::One(std::vector<Symbol*> symbols)
+    {
+        if (symbols.empty()) 
+            return nullptr;
+        
+        return symbols[0];
+    }
+
+	// Recursively find the largest variable index in the symbol table above
+	int SymbolTable::GetLargestVariableIndex()
+	{
+		int largestIndex = -1;
+		if (m_UpwardSymbolTable) 
+			largestIndex = m_UpwardSymbolTable->GetLargestVariableIndex();
+
+        for (auto symbolsWithName : m_Symbols)
+        {
+            for (auto symbol : symbolsWithName)
+            {
+                if (symbol->m_SymbolType != SymbolType::Variable)
+                    continue;
+
+                VariableSymbol* variableSymbol = (VariableSymbol*)symbol;
+
+                if (variableSymbol->m_Index > largestIndex)
+                    largestIndex = variableSymbol->m_Index;
+            }
+        }
+
+		return largestIndex;
 	}
 
 	SymbolTable::~SymbolTable()
 	{
-		for (auto& entry : m_Symbols)
-		{
-			if (entry.second->m_SymbolType == SymbolType::Class)
-			{
-				SymbolTable::ClassSymbol* s = (SymbolTable::ClassSymbol*)(entry.second);
-				delete s->m_ChildClasses;
-				delete s->m_Methods;
-				delete s->m_MemberVariables;
-			}
-
-			delete entry.second;
-		}
-
-		delete m_NextSymbolTable;
+        for (auto symbolsWithName : m_Symbols)
+        {
+            for (auto symbol : symbolsWithName)
+                delete symbol;
+        }
 	}
+
 }

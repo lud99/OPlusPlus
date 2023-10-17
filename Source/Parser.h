@@ -111,6 +111,22 @@ namespace Ö
 		{
 			return IsCompoundAssignment() || type == ASTTypes::Assign;
 		}
+		inline bool IsStatement()
+		{
+			// asssignment is technically a statement, but not sake of simplicity. 
+			// Variable declaration is a statement however.
+			if (type == ASTTypes::Assign)
+				return left->type == ASTTypes::VariableDeclaration;
+
+			return type == ASTTypes::IfStatement ||
+				type == ASTTypes::Else ||
+				type == ASTTypes::WhileStatement ||
+				type == ASTTypes::ForStatement ||
+				type == ASTTypes::Return ||
+				type == ASTTypes::Class ||
+				type == ASTTypes::Break ||
+				type == ASTTypes::Continue;
+		}
 
 		inline bool IsPrimitiveType()
 		{

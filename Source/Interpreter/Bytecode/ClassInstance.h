@@ -12,7 +12,7 @@ namespace Ö::Bytecode
 		uint16_t constantsPoolIndex;
 
 		Instructions body;
-		EncodedInstructions encodedBody;
+		//EncodedInstructions encodedBody;
 	};
 
 	class ClassInstance
@@ -32,7 +32,7 @@ namespace Ö::Bytecode
 		uint16_t m_Index = 0;
 
 		Instructions m_InternalConstructor;
-		EncodedInstructions m_InternalConstructorEncoded;
+		//EncodedInstructions m_InternalConstructorEncoded;
 
 		std::unordered_map<uint16_t, CompiledCallable> m_Methods;
 		std::unordered_map<uint16_t, MemberVariable> m_MemberVariables;

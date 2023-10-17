@@ -4,11 +4,12 @@
 #include <vector>
 #include <string>
 #include <cstdint>
+#include <functional>
 
 #include "../ValueTypes.h"
 #include "../../TypeTable.h"
 
-namespace Ö
+namespace Ã–
 {
 	enum class SymbolType
 	{
@@ -16,6 +17,45 @@ namespace Ö
 		Function,
 		Method,
 		Variable
+	};
+
+    enum class SymbolTableType
+    {
+        Local,
+        Global
+    };
+
+    enum class CallableSymbolType
+    {
+        Normal,
+        Constructor,
+        Operator,
+    };
+
+    enum class VariableSymbolType
+    {
+        Local,
+        Global,
+        Member
+    };
+
+	// TODO: Add for other symbols aswell
+	struct SymbolName
+	{
+		std::string name;
+		std::vector<ValueType> parameterTypes;
+
+		SymbolName() {};
+		SymbolName(std::string n) : name(n) {};
+
+		std::size_t operator()(const SymbolName& symbol) const noexcept
+		{
+			std::string fullName = name + " ";
+			for (auto& param : parameterTypes)
+				fullName += std::to_string(param);
+
+			return std::hash<std::string>{}(fullName);
+		}
 	};
 
 	static std::string SymbolTypeToString(SymbolType type)
@@ -29,106 +69,117 @@ namespace Ö
 		return types[(int)type];
 	}
 
+    class SymbolTable;
+    class Symbol
+    {
+    public:
+        Symbol();
+        Symbol(std::string name, SymbolType symbolType, ValueType dataType);
+
+    public:
+        std::string m_Name;
+        SymbolType m_SymbolType;
+        ValueType m_DataType;
+
+        bool operator==(const Symbol& other);
+
+        //TypeTableEntry& GetTypeTableEntry();
+    };
+
+    class VariableSymbol : public Symbol
+    {
+    public:
+        using Symbol::Symbol;
+        VariableSymbol(std::string name, ValueType dataType, uint16_t index, VariableSymbolType variableType);
+
+        // Does not compare the indicies
+        bool operator==(const VariableSymbol& other);
+        
+        uint16_t m_Index = 0;
+        VariableSymbolType m_VariableType = VariableSymbolType::Local;
+    };
+
+    class CallableSymbol : public Symbol
+    {
+    public:
+        using Symbol::Symbol;
+        CallableSymbol(std::string name, SymbolType symbolType, ValueType returnType, uint16_t id, CallableSymbolType callableType);
+
+        // Compares parameters, isBuiltIn and functionType (and default)
+        bool operator==(const CallableSymbol& other);
+
+    public:
+        uint16_t m_Id;
+
+        std::vector<ValueType> m_ParameterTypes;
+        // TODO: Add data structure for default types
+        
+        bool m_IsBuiltIn = false;
+        CallableSymbolType m_CallableType = CallableSymbolType::Normal;
+    };
+
+    class ClassSymbol;
+    class ClassSymbol : public Symbol
+    {
+    public:
+        using Symbol::Symbol;
+        ClassSymbol(std::string name, ValueType dataType);
+
+        ~ClassSymbol();
+
+    public:
+        SymbolTable* m_Symbols;
+    };
+
 	class SymbolTable;
 	class SymbolTable
 	{
 	public:
-		struct SymbolAttributes
-		{
+		SymbolTable();
+		SymbolTable(SymbolTableType tableType, SymbolTable* upwardSymbolTable);
 
-		};
-		class Symbol
-		{
-		public:
-			Symbol() {};
-			Symbol(std::string name, SymbolType symbolType, TypeTableEntry* storableValueType);
+		VariableSymbol* InsertVariable(std::string name, ValueType dataType, VariableSymbolType variableType);
+		CallableSymbol* InsertCallable(CallableSymbol callable);
+		ClassSymbol* InsertClass(std::string name, ValueType dataType);
 
-			//std::size_t operator()(const Symbol& symbol) const noexcept;
+		std::vector<Symbol*> Lookup(std::function<bool(Symbol*)> predicate);
+		std::vector<Symbol*> LookupThisTable(std::function<bool(Symbol*)> predicate);
 
-			~Symbol() {};
+		std::vector<Symbol*> Lookup(std::string name);
+		std::vector<Symbol*> Lookup(Symbol* symbol);
 
-		public:
-			std::string m_Name;
-			//uint16_t m_Id = 0;
+		Symbol* LookupOne(std::string name);
 
-			SymbolType m_SymbolType;
-			TypeTableEntry* m_StorableValueType = nullptr;
-
-			TypeTableEntry& GetTypeTableEntry();
-		};
-
-		class VariableSymbol : public Symbol
-		{
-		public:
-			using Symbol::Symbol;
-
-			VariableSymbol(std::string name, SymbolType symbolType, TypeTableEntry* storableValueType, uint16_t index);
-
-			uint16_t m_Index;
-		};
-
-		class FunctionSymbol : public Symbol
-		{
-		public:
-			using Symbol::Symbol;
-
-			uint16_t m_Id;
-
-			std::vector<ValueType> m_ParameterTypes;
-			bool m_IsBuiltIn = false;
-		};
-
-		class ClassSymbol;
-		class ClassSymbol : public Symbol
-		{
-		public:
-			using Symbol::Symbol;
-
-			//Instructions m_InternalConstructor;
-			ClassSymbol* m_ParentClass = nullptr;
-			SymbolTable* m_ChildClasses = nullptr;
-			SymbolTable* m_Methods = nullptr;
-			SymbolTable* m_MemberVariables = nullptr;
-			//std::unordered_map<std::string, FunctionSymbol> m_Methods;
-			//std::unordered_map<std::string, Symbol> m_MemberVariables;
+		std::vector<VariableSymbol*> LookupVariables(std::string name);
+		std::vector<VariableSymbol*> LookupMethods(std::string name);
+		std::vector<VariableSymbol*> LookupFunctions(std::string name);
 
 
-		};
-
-		SymbolTable() {};
-		SymbolTable(SymbolTable* previousSymbolTable, int scope = 0) : 
-			m_PreviousSymbolTable(previousSymbolTable), m_Scope(scope) {};
-
-		VariableSymbol* InsertVariable(int scope, std::string name, TypeTableEntry* storeType);
-		FunctionSymbol* InsertFunction(int scope, std::string name, TypeTableEntry* returnType, uint16_t id);
-		FunctionSymbol* InsertMethod(int scope, std::string name, TypeTableEntry* returnType, uint16_t id);
-		ClassSymbol* InsertClass(int scope, std::string name, TypeTableEntry* valueType);
-
-		Symbol* Insert(int scope, std::string name, TypeTableEntry* valueType, SymbolType symbolType, uint16_t id = 0);
-		Symbol* Lookup(std::string name);
-		SymbolTable::ClassSymbol* LookupClassByType(ValueType type);
-		SymbolTable::ClassSymbol* LookupClassByTypeFirstLayer(ValueType type);
+		ClassSymbol* LookupClassByType(ValueType type);
+		//std::vector<ClassSymbol*> LookupClassesByTypeFirstLayer(ValueType type);
 		
 		// Remove the symbol table at scope, and then recursively remove the deeper symbol tables 
-		void Remove(int scope);
+		//void Remove(int scope);
 
-		int GetLargestVariableIndex();
-		int GetLargestMethodIndex();
-	
 		bool Has(std::string name);
 		bool HasAndIs(std::string name, SymbolType type);
 
-		// Number of symbols in the table (not recursive)
-		std::unordered_map<std::string, Symbol*>& GetSymbols() { return m_Symbols; }
-		int GetScope() { return m_Scope; }
+		auto& GetSymbols() { return m_Symbols; }
 
-		~SymbolTable();
+    private:
+        Symbol* Insert(Symbol* symbol);
+        
+        void LookupAccumulator(std::function<bool(Symbol*)> predicate, std::vector<Symbol*>& accumulator);
+        void LookupThisTableAccumulator(std::function<bool(Symbol*)> predicate, std::vector<Symbol*>& accumulator);
+
+        Symbol* One(std::vector<Symbol*> symbols);
+
+        int GetLargestVariableIndex();
 
 	private:
-		int m_Scope = 0;
+        SymbolTableType m_TableType = SymbolTableType::Local;
 
-		std::unordered_map<std::string, Symbol*> m_Symbols;
-		SymbolTable* m_NextSymbolTable = nullptr;
-		SymbolTable* m_PreviousSymbolTable = nullptr;
+		std::vector<std::vector<Symbol*>> m_Symbols;
+		SymbolTable* m_UpwardSymbolTable = nullptr;
 	};
 }

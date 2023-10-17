@@ -120,11 +120,13 @@ namespace Ö::Bytecode {
 			std::cout << "\n";
 
 			std::cout << "Top-level Symbol Table:\n";
-			for (auto& entry : m_Compiler.m_SymbolTable.GetSymbols())
+			for (auto& [_, symbols] : m_Compiler.m_SymbolTable.GetSymbols())
 			{
-				SymbolTable::Symbol* s = entry.second;
-				std::cout << s->m_StorableValueType->name << " " <<
-					s->m_Name << ", " << SymbolTypeToString(s->m_SymbolType) << "\n";
+				for (auto symbol : symbols)
+				{
+					std::cout << symbol->m_StorableValueType->name << " " <<
+						symbol->m_Name << ", " << SymbolTypeToString(symbol->m_SymbolType) << "\n";
+				}
 			}
 			std::cout << "\n";
 
@@ -231,7 +233,7 @@ namespace Ö::Bytecode {
 		
 		// Because the entry point is not in a function, a frame has to be created
 		Frame frame(ctx);
-		frame.m_Instructions = &m_CompiledFile.m_EncodedTopLevelInstructions;
+		//frame.m_Instructions = &m_CompiledFile.m_EncodedTopLevelInstructions;
 		ctx->m_Frames.Push(frame);
 
 		ctx->Execute();
@@ -342,7 +344,7 @@ namespace Ö::Bytecode {
 				int8_t location = instructions[m_ProgramCounter + 1];
 
 				Frame functionFrame(this);
-				functionFrame.m_Instructions = &m_Functions[location].encodedBody;
+				//functionFrame.m_Instructions = &m_Functions[location].encodedBody;
 
 				m_ProgramCounter += 2;
 

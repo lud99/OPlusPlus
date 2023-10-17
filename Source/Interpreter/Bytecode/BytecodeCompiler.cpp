@@ -10,7 +10,7 @@
 
 #include "Heap.h"
 
-namespace Ö::Bytecode::Compiler {
+namespace Ã–::Bytecode::Compiler {
 
 Opcodes ASTComparisonTypeToOpcode(ASTTypes type)
 {
@@ -416,8 +416,17 @@ std::optional<CompiledCallable> BytecodeCompiler::CompileCallable(ASTNode* node,
 		{
 			if (!isOneLineFunction)
 			{
-				MakeError("Not returning in anything function or method that is expected to return " + symbol.m_StorableValueType->name);
-				return std::nullopt;
+				if (symbol.m_FunctionType == SymbolTable::FunctionType::Constructor)
+				{
+					// Load 'this' and return it
+					body.push_back({ Opcodes::load_objref, { 0 } });
+					body.push_back({ Opcodes::ret });
+				}
+				else
+				{
+					MakeError("Not returning in anything function or method that is expected to return " + symbol.m_StorableValueType->name);
+					return std::nullopt;
+				}
 			}
 			else
 			{
@@ -444,7 +453,7 @@ std::optional<CompiledCallable> BytecodeCompiler::CompileCallable(ASTNode* node,
 		symbol.m_ParameterTypes,
 		constantsPoolIndex,
 		body,
-		EncodeInstructions(body)
+		//EncodeInstructions(body)
 	};
 
 	m_SymbolTable.Remove(m_CurrentScope);
@@ -459,7 +468,7 @@ void BytecodeCompiler::CompileCallableCall(ASTNode* node, Instructions& instruct
 	if (!symbolTableContext.Has(functionName))
 		return MakeError("Function " + functionName + " has not been defined");
 
-	SymbolTable::FunctionSymbol* callableSymbol = (SymbolTable::FunctionSymbol*)symbolTableContext.Lookup(functionName);
+	SymbolTable::FunctionSymbol* callableSymbol = (SymbolTable::FunctionSymbol*)symbolTableContext.LookupOne(functionName);
 
 	if (callableSymbol->m_SymbolType != SymbolType::Function && callableSymbol->m_SymbolType != SymbolType::Method)
 		return MakeError("Symbol " + functionName + " cannot be called, is not a function or a method");
@@ -537,7 +546,7 @@ std::optional<SymbolTable::Symbol*> BytecodeCompiler::CompilePropertyAccess(ASTN
 		if (HasError())
 			return std::nullopt;
 
-		return (SymbolTable::Symbol*)GetClassSymbolOfVariable(m_SymbolTable.Lookup(node->stringValue));
+		return (SymbolTable::Symbol*)GetClassSymbolOfVariable(m_SymbolTable.LookupOne(node->stringValue));
 	}
 	else if (node->type == ASTTypes::FunctionCall)
 	{
@@ -566,8 +575,8 @@ std::optional<SymbolTable::Symbol*> BytecodeCompiler::CompilePropertyAccess(ASTN
 
 	SymbolTable::ClassSymbol* classSymbol = (SymbolTable::ClassSymbol*)parentSymbol;
 
-	SymbolTable::VariableSymbol* prop = (SymbolTable::VariableSymbol*)classSymbol->m_MemberVariables->Lookup(propertyName);
-	SymbolTable::FunctionSymbol* method = (SymbolTable::FunctionSymbol*)classSymbol->m_Methods->Lookup(propertyName);
+	SymbolTable::VariableSymbol* prop = (SymbolTable::VariableSymbol*)classSymbol->m_MemberVariables->LookupOne(propertyName);
+	SymbolTable::FunctionSymbol* method = (SymbolTable::FunctionSymbol*)classSymbol->m_Methods->LookupOne(propertyName);
 	if (!prop && !method)
 	{
 		MakeError("Symbol '" + propertyName + "' doesn't exist on class '" + classSymbol->m_Name + "'");
@@ -708,14 +717,15 @@ void BytecodeCompiler::CompileClass(ASTNode* node, SymbolTable::ClassSymbol* par
 	
 	// If parsing a child class
 	SymbolTable::ClassSymbol* classSymbol = nullptr;
+	auto classType = &m_TypeTable.GetTypeEntry(className);
 	if (m_CurrentParsingClass)
 	{
-		auto classType = &m_TypeTable.AddPrivateType(className, TypeTableType::Class);
+		//auto classType = &m_TypeTable.AddPrivateType(className, TypeTableType::Class);
 		classSymbol = m_CurrentParsingClass->m_ChildClasses->InsertClass(m_CurrentScope, className, classType);
 	} 
 	else
 	{
-		auto classType = &m_TypeTable.Add(className, TypeTableType::Class);
+		//auto classType = &m_TypeTable.Add(className, TypeTableType::Class);
 		classSymbol = m_SymbolTable.InsertClass(m_CurrentScope, className, classType);
 	}
 
@@ -768,10 +778,10 @@ void BytecodeCompiler::CompileClass(ASTNode* node, SymbolTable::ClassSymbol* par
 
 	// Member variables
 	classInstance.m_MemberVariables.reserve(classSymbol->m_MemberVariables->GetSymbols().size());
-	for (auto& entry : classSymbol->m_MemberVariables->GetSymbols())
+	for (auto& [_, variables] : classSymbol->m_MemberVariables->GetSymbols())
 	{
 		//CompilerContext::Variable& variable = entry.second;
-		SymbolTable::VariableSymbol& variableSymbol = *(SymbolTable::VariableSymbol*)entry.second;
+		SymbolTable::VariableSymbol& variableSymbol = *(SymbolTable::VariableSymbol*)variables[0];
 
 		classInstance.m_MemberVariables[variableSymbol.m_Index] = { variableSymbol.GetTypeTableEntry().Resolve().id, Value() };
 	}
@@ -810,9 +820,16 @@ std::optional<CompiledCallable> BytecodeCompiler::CompileClassMethod(ASTNode* no
 
 	// TODO: Check so no methods are created inside each other
 
+	// Method is a constructor, so the return type should be itself
+	//if (methodName == classSymbol.m_Name)
+		//returnType = classSymbol.m_Name;
+
 	auto& returnTypeEntry = m_TypeTable.GetTypeEntry(returnType);
 	uint16_t methodId = m_ConstantsPool.AddAndGetMethodReferenceIndex(methodName);
 	auto& methodSymbol = *classSymbol.m_Methods->InsertMethod(m_CurrentScope, methodName, &returnTypeEntry, methodId);
+
+	if (methodName == classSymbol.m_Name)
+		methodSymbol.m_FunctionType = SymbolTable::FunctionType::Constructor;
 
 	// Add the hidden 'this' parameter
 	auto thisSymbol = m_SymbolTable.InsertVariable(m_CurrentScope + 1, "this", classSymbol.m_StorableValueType);
@@ -966,7 +983,7 @@ void BytecodeCompiler::CompileAssignment(ASTNode* node, Instructions& instructio
 			return MakeError("Undeclared variable " + variableName);
 		}
 
-		variableSymbol = (SymbolTable::VariableSymbol*)m_SymbolTable.Lookup(variableName);
+		variableSymbol = (SymbolTable::VariableSymbol*)m_SymbolTable.LookupOne(variableName);
 		variableType = variableSymbol->GetTypeTableEntry().id;
 
 		// Load the variable on the lhs of assignment add/sub the rhs with that before assigning
@@ -1292,44 +1309,45 @@ void BytecodeCompiler::Compile(ASTNode* node, Instructions& instructions, bool c
 		// Format: check condition, jmp_if_false, scope code
 		// The if statement is inversed, so if the condition is true then it just increments the pc and keeps running.
 		// If it's false, then it jumps over the code for that statement 
-		//m_CurrentScope++;
+		
 
-		////instructions.push_back(Instruction(Opcodes::create_scope_frame).Arg(m_CurrentScope));
+		//instructions.push_back(Instruction(Opcodes::create_scope_frame).Arg(m_CurrentScope));
 
-		//uint32_t positionForCondition = instructions.size();
+		uint32_t positionForCondition = instructions.size();
 
-		//// Generate bytecode for the scope, but only to know the amount of instructions
-		//std::vector<Instruction> tempInst = instructions;
-		//BytecodeCompiler temp;
+		// Generate bytecode for the scope, but only to know the amount of instructions
+		std::vector<Instruction> tempInst = instructions;
+		BytecodeCompiler temp;
 		//temp.m_Context = m_Context;
-		//temp.m_CompiledFile.m_ConstantsPool = m_CompiledFile.m_ConstantsPool;
+		temp.m_CompiledFile.m_ConstantsPool = m_CompiledFile.m_ConstantsPool;
 
-		//// Temp compilations
-		//// Main scope
-		//temp.Compile(node->left, tempInst);
-		//temp.Compile(node->right, tempInst);
-		//uint32_t scopeEnd = tempInst.size() + 2; // The position of the pop_frame opcode, which is the end of the scope
+		// Temp compilations
+		// Main scope
+		temp.Compile(node->left, tempInst);
+		temp.Compile(node->right, tempInst);
+		uint32_t scopeEnd = tempInst.size() + 2; // The position of the pop_frame opcode, which is the end of the scope
 
-		//m_Context.m_LoopInfo.m_End = scopeEnd;
-		//m_Context.m_LoopInfo.m_Reset = positionForCondition;
-		//m_Context.m_LoopInfo.m_BodyDepth = m_CurrentScope + 1;
+		/*m_Context.m_LoopInfo.m_End = scopeEnd;
+		m_Context.m_LoopInfo.m_Reset = positionForCondition;
+		m_Context.m_LoopInfo.m_BodyDepth = m_CurrentScope + 1;*/
 
-		//// Create bytecode for the condition
-		//Compile(node->left, instructions);
+		// Create bytecode for the condition
+		Compile(node->left, instructions);
 
-		//// Insert a dummy jump opcode that will be removed
-		//
-		//instructions.push_back({ Opcodes::jmp_if_false, { (uint8_t)scopeEnd } });
-		//
+		// Insert a dummy jump opcode that will be removed
+		
+		instructions.push_back({ Opcodes::jmp_if_false, { (uint8_t)scopeEnd } });
+		
 
-		//// Create bytecode for the scope
-		//Compile(node->right, instructions);
+		// Create bytecode for the scope
+		//m_CurrentScope++;
+		Compile(node->right, instructions);
 
-		//// Jump back to the condition
-		//instructions.push_back({ Opcodes::jmp, { (uint8_t)positionForCondition } });
-		////instructions.push_back(Instruction(Opcodes::pop_scope_frame).Arg(m_CurrentScope));
+		// Jump back to the condition
+		instructions.push_back({ Opcodes::jmp, { (uint8_t)positionForCondition } });
+		//instructions.push_back(Instruction(Opcodes::pop_scope_frame).Arg(m_CurrentScope));
 
-		//// Reset the loop information
+		// Reset the loop information
 		//m_Context.m_LoopInfo = CompilerContext::LoopInfo();
 
 		//m_CurrentScope--;
@@ -1426,6 +1444,14 @@ void BytecodeCompiler::Compile(ASTNode* node, Instructions& instructions, bool c
 
 		auto& typeEntry = variableSymbol.value()->m_StorableValueType->Resolve();
 
+		if (typeEntry.type == TypeTableType::Class)
+		{
+			auto classSymbol = m_SymbolTable.LookupClassByType(typeEntry.id);
+			if (!classSymbol)
+				return MakeError("Class " + typeEntry.name + " is not available in this scope");
+		}
+
+
 		// Assign a default value to it
 		if (typeEntry.id == ValueTypes::Integer)
 			CompileIntLiteral(0, instructions);
@@ -1436,7 +1462,6 @@ void BytecodeCompiler::Compile(ASTNode* node, Instructions& instructions, bool c
 
 		// Instantiate class
 		// TODO: Wide indecies
-		// TODO: if class, run code for constructor?
 		if (typeEntry.type == TypeTableType::Class)
 		{
 			uint16_t classId = m_ConstantsPool.AddAndGetClassIndex(typeEntry.name);
@@ -1553,7 +1578,20 @@ void BytecodeCompiler::Compile(ASTNode* node, Instructions& instructions, bool c
 	case ASTTypes::CompareGreaterThanEqual:
 	{
 		Compile(node->right, instructions);
+		if (HasError())
+			return;
+		
+
 		Compile(node->left, instructions);
+		if (HasError())
+			return;
+
+		// Typecheck
+		ValueType lhs = GetValueTypeOfNode(node->left);
+		ValueType rhs = GetValueTypeOfNode(node->right);
+
+		if (lhs != rhs)
+			return MakeError("Cannot compare types " + m_TypeTable.GetEntryFromId(lhs).name + " and " + m_TypeTable.GetEntryFromId(rhs).name);
 
 		instructions.emplace_back(ASTComparisonTypeToOpcode(node->type));
 
@@ -1616,7 +1654,8 @@ void BytecodeCompiler::Compile(ASTNode* node, Instructions& instructions, bool c
 		const std::string& variableName = node->stringValue;
 		if (m_SymbolTable.Has(variableName))
 		{
-			auto symbol = m_SymbolTable.Lookup(variableName);
+			// TODO
+			auto symbol = m_SymbolTable.LookupOne(variableName);
 			if (symbol->m_SymbolType == SymbolType::Function)
 			{
 				SymbolTable::FunctionSymbol* f = (SymbolTable::FunctionSymbol*)symbol;
@@ -1626,7 +1665,7 @@ void BytecodeCompiler::Compile(ASTNode* node, Instructions& instructions, bool c
 		} else
 			return MakeError("Variable " + variableName + " doesn't exist");
 			
-		SymbolTable::VariableSymbol& variable = *(SymbolTable::VariableSymbol*)m_SymbolTable.Lookup(variableName);
+		SymbolTable::VariableSymbol& variable = *(SymbolTable::VariableSymbol*)m_SymbolTable.LookupOne(variableName);
 		uint16_t index = variable.m_Index;
 
 		// Index is less than 1 byte
@@ -1703,7 +1742,7 @@ void BytecodeCompiler::Compile(ASTNode* node, Instructions& instructions, bool c
 
 void BytecodeCompiler::EncodeCompiledInstructions()
 {
-	m_CompiledFile.m_EncodedTopLevelInstructions = EncodeInstructions(m_CompiledFile.m_TopLevelInstructions);
+	//m_CompiledFile.m_EncodedTopLevelInstructions = EncodeInstructions(m_CompiledFile.m_TopLevelInstructions);
 
 	for (auto& entry : m_CompiledFile.m_Functions)
 	{
@@ -1813,7 +1852,7 @@ ValueType BytecodeCompiler::GetValueTypeOfNode(ASTNode* node)
 			return ValueTypes::Void;
 		}
 
-		auto symbol = m_SymbolTable.Lookup(variableName);
+		auto symbol = m_SymbolTable.LookupOne(variableName);
 		if (symbol->m_SymbolType == SymbolType::Variable)
 			return symbol->m_StorableValueType->id;
 		else if (symbol->m_SymbolType == SymbolType::Function)
@@ -1888,7 +1927,7 @@ ValueType BytecodeCompiler::GetValueTypeOfNode(ASTNode* node)
 			return ValueTypes::Void;
 		}
 
-		return m_SymbolTable.Lookup(variableName)->m_StorableValueType->id;
+		return m_SymbolTable.LookupOne(variableName)->m_StorableValueType->id;
 	}
 	case ASTTypes::PreIncrement:
 	case ASTTypes::PreDecrement:
@@ -1899,7 +1938,7 @@ ValueType BytecodeCompiler::GetValueTypeOfNode(ASTNode* node)
 
 		assert(m_SymbolTable.HasAndIs(functionName, SymbolType::Function));
 
-		SymbolTable::FunctionSymbol* symbol = (SymbolTable::FunctionSymbol*)m_SymbolTable.Lookup(functionName);
+		SymbolTable::FunctionSymbol* symbol = (SymbolTable::FunctionSymbol*)m_SymbolTable.LookupOne(functionName);
 		return symbol->m_StorableValueType->Resolve().id;
 
 		//// Check user defined functions
@@ -1928,8 +1967,8 @@ ValueType BytecodeCompiler::GetValueTypeOfNode(ASTNode* node)
 			return ValueTypes::Void;
 		}
 
-		SymbolTable::VariableSymbol* prop = (SymbolTable::VariableSymbol*)classSymbol->m_MemberVariables->Lookup(propertyName);
-		SymbolTable::FunctionSymbol* method = (SymbolTable::FunctionSymbol*)classSymbol->m_Methods->Lookup(propertyName);
+		SymbolTable::VariableSymbol* prop = (SymbolTable::VariableSymbol*)classSymbol->m_MemberVariables->LookupOne(propertyName);
+		SymbolTable::FunctionSymbol* method = (SymbolTable::FunctionSymbol*)classSymbol->m_Methods->LookupOne(propertyName); // TODO
 		if (!prop && !method)
 		{
 			MakeError("Symbol '" + propertyName + "' doesn't exist on type '" + typeName + "'");

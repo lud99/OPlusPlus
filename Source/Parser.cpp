@@ -1117,6 +1117,7 @@ bool Parser::ParseClassDeclaration(Tokens& tokens, ASTNode* node)
 		return false;
 
 	std::string name = tokens[1].m_Value;
+	bool isNestedClass = node->parent && node->parent->parent && node->parent->parent->type == ASTTypes::Class;
 
 	int endOfClass = FindMatchingEndBracket(tokens, tokens[2]);
 	if (endOfClass == -1)
@@ -1124,7 +1125,11 @@ bool Parser::ParseClassDeclaration(Tokens& tokens, ASTNode* node)
 
 	// Add the class as a new type
 	//name = GetParentClassname(node) + name;
-	//m_TypeTable.Add(name, TypeTableType::Class);
+
+	if (isNestedClass)
+		m_TypeTable.AddPrivateType(name, TypeTableType::Class);
+	else
+		m_TypeTable.Add(name, TypeTableType::Class);
 
 	std::vector<Token> classContent = SliceVector(tokens, 2, endOfClass + 1 /* include the right curly bracket */);
 
@@ -1269,22 +1274,30 @@ bool Parser::ParseFunctionDeclaration(Tokens& tokens, ASTNode* node)
 			if (functionBody.empty())
 				return MakeError("Function doesn't have a body");
 			
-			// A one liner function that has no curly braces and no return keyword
-			bool isOneLineFunction = false;
-			if (functionBody[0].m_Type != Token::LeftCurlyBracket && functionBody.back().m_Type != Token::RightCurlyBracket)
+			// A lambda function that has no curly braces, no return keyword and only one expression (not statement) is allowed
+			bool isLambdaFunction = false;
+			if (functionBody[0].m_Type != Token::LeftCurlyBracket)// && functionBody.back().m_Type != Token::RightCurlyBracket)
 			{
-				isOneLineFunction = true;
+				isLambdaFunction = true;
 			}
 
 			CreateAST(functionBody, node->right, node);
-			if (HasError()) return false;
 
-			//auto& bodyLines = node->right->arguments;
-			//if (!isOneLineFunction && (bodyLines.empty() || bodyLines[bodyLines.size() - 1]->type != ASTTypes::Return))
-			//{
-			//	// TODO: A void-function should require to have a return
-			//	return MakeError("Missing return at end of function");
-			//}
+			if (isLambdaFunction)
+			{
+				if (node->right->IsStatement())
+				{
+					std::string nodeName = node->right->ToString(false);
+					std::string functionName = node->left->arguments[1]->stringValue;
+					if (node->right->type == ASTTypes::Assign) // hacky
+						nodeName = "VariableDeclaration";
+
+					return MakeError("Statement '" + nodeName + "' not supported in lambda function '" + functionName + "'");
+				}
+					
+			}
+
+			if (HasError()) return false;
 
 			return true;
 		}

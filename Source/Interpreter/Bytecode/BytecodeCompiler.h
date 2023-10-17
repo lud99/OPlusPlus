@@ -21,7 +21,7 @@ namespace Ö::Bytecode::Compiler {
 	{
 	public:
 		RuntimeConstantsPool m_ConstantsPool;
-		EncodedInstructions m_EncodedTopLevelInstructions;
+		//EncodedInstructions m_EncodedTopLevelInstructions;
 		Instructions m_TopLevelInstructions;
 
 		std::unordered_map<uint16_t, CompiledCallable> m_Functions;
