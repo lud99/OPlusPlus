@@ -1,12 +1,20 @@
 #pragma once
 
-#include "Interpreter/ValueTypes.h"
 #include <string>
 #include <unordered_map>
 #include <cstdint>
 
 namespace Ö
 {
+	enum PrimitiveValueTypes
+	{
+		Void = 0,
+		Integer = 1,
+		Float = 2,
+		String = 3,
+	};
+	typedef uint16_t ValueType;
+
 	enum class TypeTableType
 	{
 		Class,

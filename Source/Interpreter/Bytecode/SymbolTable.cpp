@@ -55,7 +55,7 @@ namespace Ö
             // method == function?. m_SymbolType == other.m_SymbolType &&
             // TODO: look into overloading of returnType. m_DataType == other.m_DataType &&
             // unique for callable
-            m_ParameterTypes == other.m_ParameterTypes &&
+            m_ParameterTypes == other.m_ParameterTypes;
             //m_IsBuiltIn == other.m_IsBuiltIn &&
             //m_CallableType == other.m_CallableType;
     }

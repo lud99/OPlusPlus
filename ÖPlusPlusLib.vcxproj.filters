@@ -18,40 +18,16 @@
     <ClInclude Include="Source\ÖPlusPlusLib.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Interpreter\Bytecode\BytecodeCompiler.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Interpreter\Bytecode\BytecodeInterpreter.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Interpreter\Bytecode\Debugger.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Interpreter\Bytecode\Heap.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Interpreter\Bytecode\Stack.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Interpreter\Functions.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Interpreter\Value.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Interpreter\ValueTypes.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Source\json.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Lexer.h">
+    <ClInclude Include="Source\Parser\Lexer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Source\macro.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Parser.h">
+    <ClInclude Include="Source\Parser\Parser.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Source\Tester.h">
@@ -60,16 +36,19 @@
     <ClInclude Include="Source\Utils.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Interpreter\Bytecode\ClassInstance.h">
+    <ClInclude Include="Source\Parser\Semantics\TypeTable.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Source\TypeTable.h">
+    <ClInclude Include="Source\Parser\Semantics\SemanticAnalyzer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Interpreter\Bytecode\SymbolTable.h">
+    <ClInclude Include="Source\magic_enums.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Interpreter\Bytecode\ConstantsPool.h">
+    <ClInclude Include="Source\Parser\Nodes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Parser\Operators.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -77,40 +56,19 @@
     <ClCompile Include="Source\ÖPlusPlusLib.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Interpreter\Bytecode\BytecodeCompiler.cpp">
+    <ClCompile Include="Source\Parser\Lexer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Interpreter\Bytecode\Debugger.cpp">
+    <ClCompile Include="Source\Parser\Semantics\TypeTable.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Interpreter\Bytecode\Heap.cpp">
+    <ClCompile Include="Source\Parser\Semantics\SemanticAnalyzer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Interpreter\Value.cpp">
+    <ClCompile Include="Source\Parser\Nodes.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Lexer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Parser.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Interpreter\Bytecode\BytecodeInterpreter.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Interpreter\Bytecode\Instruction.h">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\TypeTable.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Interpreter\Functions.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Interpreter\Bytecode\SymbolTable.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Interpreter\Bytecode\ConstantsPool.cpp">
+    <ClCompile Include="Source\Parser\Parser.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

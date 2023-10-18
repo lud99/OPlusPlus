@@ -101,7 +101,8 @@ namespace Ö::Bytecode {
 			{
 				std::cout << "#" << entry.first << " = ClassReference: " << entry.second << "\n";
 			}
-			std::cout << "\n";
+			std::cout << "\n";	
+			Sttring s;
 
 			std::cout << "Type Table:\n";
 			for (auto& entry : m_Compiler.m_TypeTable.AllTypes())

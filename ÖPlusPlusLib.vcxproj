@@ -175,39 +175,25 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="Source\Interpreter\Bytecode\BytecodeCompiler.h" />
-    <ClInclude Include="Source\Interpreter\Bytecode\BytecodeInterpreter.h" />
-    <ClInclude Include="Source\Interpreter\Bytecode\ClassInstance.h" />
-    <ClInclude Include="Source\Interpreter\Bytecode\ConstantsPool.h" />
-    <ClInclude Include="Source\Interpreter\Bytecode\Debugger.h" />
-    <ClInclude Include="Source\Interpreter\Bytecode\Heap.h" />
-    <ClInclude Include="Source\Interpreter\Bytecode\Stack.h" />
-    <ClInclude Include="Source\Interpreter\Bytecode\SymbolTable.h" />
-    <ClInclude Include="Source\Interpreter\Functions.h" />
-    <ClInclude Include="Source\Interpreter\Value.h" />
-    <ClInclude Include="Source\Interpreter\ValueTypes.h" />
+    <ClInclude Include="Source\Parser\Nodes.h" />
+    <ClInclude Include="Source\Parser\Operators.h" />
+    <ClInclude Include="Source\Parser\Semantics\SemanticAnalyzer.h" />
     <ClInclude Include="Source\json.hpp" />
-    <ClInclude Include="Source\Lexer.h" />
+    <ClInclude Include="Source\Parser\Lexer.h" />
     <ClInclude Include="Source\macro.h" />
-    <ClInclude Include="Source\Parser.h" />
+    <ClInclude Include="Source\Parser\Parser.h" />
+    <ClInclude Include="Source\magic_enums.hpp" />
     <ClInclude Include="Source\Tester.h" />
-    <ClInclude Include="Source\TypeTable.h" />
+    <ClInclude Include="Source\Parser\Semantics\TypeTable.h" />
     <ClInclude Include="Source\Utils.hpp" />
     <ClInclude Include="Source\ÖPlusPlusLib.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Source\Interpreter\Bytecode\BytecodeCompiler.cpp" />
-    <ClCompile Include="Source\Interpreter\Bytecode\BytecodeInterpreter.cpp" />
-    <ClCompile Include="Source\Interpreter\Bytecode\ConstantsPool.cpp" />
-    <ClCompile Include="Source\Interpreter\Bytecode\Debugger.cpp" />
-    <ClCompile Include="Source\Interpreter\Bytecode\Heap.cpp" />
-    <ClCompile Include="Source\Interpreter\Bytecode\Instruction.h" />
-    <ClCompile Include="Source\Interpreter\Bytecode\SymbolTable.cpp" />
-    <ClCompile Include="Source\Interpreter\Functions.cpp" />
-    <ClCompile Include="Source\Interpreter\Value.cpp" />
-    <ClCompile Include="Source\Lexer.cpp" />
-    <ClCompile Include="Source\Parser.cpp" />
-    <ClCompile Include="Source\TypeTable.cpp" />
+    <ClCompile Include="Source\Parser\Lexer.cpp" />
+    <ClCompile Include="Source\Parser\Nodes.cpp" />
+    <ClCompile Include="Source\Parser\Parser.cpp" />
+    <ClCompile Include="Source\Parser\Semantics\SemanticAnalyzer.cpp" />
+    <ClCompile Include="Source\Parser\Semantics\TypeTable.cpp" />
     <ClCompile Include="Source\ÖPlusPlusLib.cpp" />
   </ItemGroup>
   <ItemGroup>

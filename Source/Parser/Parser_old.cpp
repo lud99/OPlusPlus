@@ -879,7 +879,7 @@ bool Parser::IsValidVariableDeclarationExpression(Tokens tokens)
 	return true;
 }
 
-ASTNode Parser::CreateRootNode()
+AST Parser::CreateRootNode()
 {
 	ASTNode tree;
 	tree.type = ASTTypes::ProgramBody;
