@@ -159,7 +159,7 @@ namespace Ö
 		std::vector<std::string> m_Lines;
 		std::string m_Source = "";
 
-		int m_ParenthesisParsingDepth = 0;
+		int m_ParenthesesParsingDepth = 0;
 		int m_ScopeParsingDepth = 0;
 	};
 

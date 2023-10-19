@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include <iostream>
 
 #include "../macro.h"
 #include "Operators.h"
@@ -21,6 +22,8 @@ namespace Ö::AST
 
 		AssignmentExpression,
 		BinaryExpression,
+		UnaryExpression,
+
 		BlockStatement,
 
 		IntLiteral,
@@ -92,10 +95,10 @@ namespace Ö::AST
 	};*/
 
 	struct Node;
-	struct Node
+	extern "C" struct Node
 	{
-		Node();
-		Node(Node* parent);
+		EXPORT Node();
+		EXPORT Node(Node* parent);
 
 		Node* m_Parent = nullptr;
 		NodeType m_Type = NodeType::Empty;
@@ -105,21 +108,23 @@ namespace Ö::AST
 			return std::string(magic_enum::enum_name(m_Type));
 		};
 
-		virtual std::string ToString()
+		EXPORT virtual void Print(std::string padding = "")
 		{
-			return "";
-		};
+			std::cout << padding << TypeToString() << (ToString() != "" ? ": " : "") << ToString() << "\n";
+		}
 
-
+		EXPORT virtual std::string ToString() { return ""; };
 	};
 
 	struct Scope : public Node
 	{
 		std::vector<Node*> m_Lines;
 
-		std::string ToString() override
+		virtual void Print(std::string padding) override
 		{
-			return "";
+			std::cout << padding << TypeToString() << ": \n";
+			for (auto& line : m_Lines)
+				line->Print(padding + "    ");
 		}
 	};
 	struct Program : public Scope
@@ -137,10 +142,7 @@ namespace Ö::AST
 
 		std::string m_Name;
 
-		std::string ToString() override
-		{
-			return m_Name;
-		}
+		std::string ToString() override { return m_Name; }
 	};
 
 	struct Type : public Node
@@ -149,10 +151,7 @@ namespace Ö::AST
 
 		std::string m_TypeName;
 
-		std::string ToString() override
-		{
-			return m_TypeName;
-		}
+		std::string ToString() override { return m_TypeName; }
 	};
 
 	struct VariableDeclaration : public Node
@@ -164,22 +163,57 @@ namespace Ö::AST
 		Node* m_ValueNode;
 	};
 
-	struct BinaryExpression : public Node
-	{
-		BinaryExpression(Node* parent);
+	struct Expression : public Node { };
 
-		Node* m_Left;
+	struct BinaryExpression : public Expression
+	{
+		BinaryExpression(Node* parent, Operators::Operator op);
+
+		Node* m_Lhs;
 		Operators::Operator m_Operator;
-		Node* m_Right;
+		Node* m_Rhs;
+
+		virtual void Print(std::string padding) override
+		{
+			std::cout << padding << TypeToString() << " (" << ToString() << "):\n";
+			m_Lhs->Print(padding + "    ");
+			m_Rhs->Print(padding + "    ");
+		}
 
 		std::string ToString() override
 		{
-			return m_Operator.OnlySymbolToString();
+			return m_Operator.m_Symbol;
 		}
 	};
 
-	struct Literal : public Node {};
+	struct UnaryExpression : public Expression
+	{
+		UnaryExpression(Node* parent, Operators::Operator op);
 
+		Node* m_Argument;
+		Operators::Operator m_Operator;
+
+		virtual void Print(std::string padding) override
+		{
+			if (m_Operator.m_Associaticity == Operators::Associativity::Left)
+			{
+				m_Argument->Print(padding + "    ");
+				std::cout << padding << TypeToString() << " (" << ToString() << "):\n";
+			}
+			else if (m_Operator.m_Associaticity == Operators::Associativity::Right)
+			{
+				std::cout << padding << TypeToString() << " (" << ToString() << "):\n";
+				m_Argument->Print(padding + "    ");
+			}
+		}
+
+		std::string ToString() override
+		{
+			return m_Operator.m_Symbol;
+		}
+	};
+
+	class Literal : public Node {};
 	struct IntLiteral : public Literal
 	{
 		IntLiteral(Node* parent, int value);

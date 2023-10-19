@@ -9,4 +9,4 @@
 //#include "Interpreter/Bytecode/BytecodeInterpreter.h"
 
 // Prints hello 
-extern "C" EXPORT void hello_world(std::string thing = "Hello world!");
+//extern "C" EXPORT void hello_world(std::string thing = "Hello world!");

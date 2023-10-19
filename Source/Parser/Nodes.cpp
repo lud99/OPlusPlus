@@ -42,10 +42,18 @@ namespace Ö::AST {
 		m_Type = NodeType::VariableDeclaration;
 	}
 
-	BinaryExpression::BinaryExpression(Node* parent)
+	BinaryExpression::BinaryExpression(Node* parent, Operators::Operator op)
 	{
 		m_Parent = parent;
 		m_Type = NodeType::BinaryExpression;
+		m_Operator = op;
+	}
+
+	UnaryExpression::UnaryExpression(Node* parent, Operators::Operator op)
+	{
+		m_Parent = parent;
+		m_Type = NodeType::UnaryExpression;
+		m_Operator = op;
 	}
 
 	IntLiteral::IntLiteral(Node* parent, int value)

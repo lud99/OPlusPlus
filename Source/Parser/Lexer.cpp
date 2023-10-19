@@ -422,7 +422,7 @@ namespace Ö
 
 	int Lexer::TotalDepth()
 	{
-		return m_ParenthesisParsingDepth + m_ScopeParsingDepth;
+		return m_ParenthesesParsingDepth + m_ScopeParsingDepth;
 	}
 
 	Token Lexer::AddToken(Token token, int customDepth)
@@ -677,13 +677,13 @@ namespace Ö
 					if (!m_Tokens.empty() && m_Tokens.back().m_Type == Token::Variable)
 						m_Tokens.back().m_Type = Token::FunctionName;
 
-					m_ParenthesisParsingDepth++;
+					m_ParenthesesParsingDepth++;
 					AddToken(Token(Token::LeftParentheses, m_Position, "("));
 				}
 				else if (Current() == ')')
 				{
 					AddToken(Token(Token::RightParentheses, m_Position, ")"));
-					m_ParenthesisParsingDepth--;
+					m_ParenthesesParsingDepth--;
 				}
 
 				//// Check for square brackets
@@ -914,7 +914,7 @@ namespace Ö
 		if (m_ScopeParsingDepth != 0)
 			return "Expected closing curly bracket";
 
-		if (parenthesisParsingDepth != 0)
+		if (m_ParenthesesParsingDepth != 0)
 			return "Expected closing parenthesis";
 
 

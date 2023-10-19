@@ -178,7 +178,6 @@
     <ClInclude Include="Source\Parser\Nodes.h" />
     <ClInclude Include="Source\Parser\Operators.h" />
     <ClInclude Include="Source\Parser\Semantics\SemanticAnalyzer.h" />
-    <ClInclude Include="Source\json.hpp" />
     <ClInclude Include="Source\Parser\Lexer.h" />
     <ClInclude Include="Source\macro.h" />
     <ClInclude Include="Source\Parser\Parser.h" />

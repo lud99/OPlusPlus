@@ -26,7 +26,7 @@ namespace Ö::AST
 
 		EXPORT Node* CreateAST(Tokens& tokens, Node* parent);
 		
-		EXPORT void PrintASTTree(Node* node, int depth);
+		EXPORT float TemporaryEvaluator(Node* node);
 
 		EXPORT bool HasError() { return m_Error != ""; }
 		EXPORT const std::string& GetError() { return m_Error; };
@@ -49,6 +49,7 @@ namespace Ö::AST
 		bool IsValidVariableDeclarationExpression(Tokens tokens);
 
 		Node* ParseScope(Tokens& tokens, Node* parent);
+		Node* ParseParentheses(Tokens& tokens, Node* parent);
 		Node* ParseBinaryExpression(Tokens& tokens, Node* parent);
 
 		bool ParseClassDeclaration(Tokens& tokens, Node* node);
@@ -63,7 +64,6 @@ namespace Ö::AST
 		bool ParseMathExpression(Tokens& tokens, Node* node);
 		bool ParseVariableDeclaration(Tokens& tokens, Node* node);
 		bool ParsePropertyAccessExpression(Tokens& tokens, Node* node);
-		bool ParseParentheses(Tokens& tokens, Node* node);
 		bool ParseMemberAccessor(Tokens& tokens, Node* node);
 		bool ParseScopeResolution(Tokens& tokens, Node* node);
 		bool ParseFunctionCall(Tokens& tokens, Node* node);
@@ -71,6 +71,10 @@ namespace Ö::AST
 
 		LinesOfTokens MakeScopeIntoLines(Tokens tokens, int start, int end, int startingDepth);
 		bool IsInsideBrackets(Tokens tokens, int start);
+
+		// Find the matching bracket (, {, [ with the same depth
+		std::optional<int> FindMatchingEndBracket(Tokens& tokens, Token& startToken);
+		std::optional<int> FindMatchingStartBracket(Tokens& tokens, Token& endToken);
 
 		Node* MakeError(const std::string& message);
 		void MakeErrorVoid(const std::string& message);

@@ -18,9 +18,6 @@
     <ClInclude Include="Source\ÖPlusPlusLib.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Source\json.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Source\Parser\Lexer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
