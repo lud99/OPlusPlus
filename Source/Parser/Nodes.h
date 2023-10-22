@@ -23,6 +23,7 @@ namespace Ö::AST
 		AssignmentExpression,
 		BinaryExpression,
 		UnaryExpression,
+		CallExpression,
 
 		BlockStatement,
 
@@ -167,7 +168,7 @@ namespace Ö::AST
 
 	struct BinaryExpression : public Expression
 	{
-		BinaryExpression(Node* parent, Operators::Operator op);
+		BinaryExpression(Node* parent, Node* left, Operators::Operator op, Node* right);
 
 		Node* m_Lhs;
 		Operators::Operator m_Operator;
@@ -188,28 +189,46 @@ namespace Ö::AST
 
 	struct UnaryExpression : public Expression
 	{
-		UnaryExpression(Node* parent, Operators::Operator op);
+		UnaryExpression(Node* parent, Node* operand, Operators::Operator op);
 
-		Node* m_Argument;
+		Node* m_Operand;
 		Operators::Operator m_Operator;
 
 		virtual void Print(std::string padding) override
 		{
 			if (m_Operator.m_Associaticity == Operators::Associativity::Left)
 			{
-				m_Argument->Print(padding + "    ");
+				m_Operand->Print(padding + "    ");
 				std::cout << padding << TypeToString() << " (" << ToString() << "):\n";
 			}
 			else if (m_Operator.m_Associaticity == Operators::Associativity::Right)
 			{
 				std::cout << padding << TypeToString() << " (" << ToString() << "):\n";
-				m_Argument->Print(padding + "    ");
+				m_Operand->Print(padding + "    ");
 			}
 		}
 
 		std::string ToString() override
 		{
 			return m_Operator.m_Symbol;
+		}
+	};
+
+	struct CallExpression : public Expression
+	{
+		CallExpression(Node* parent, Node* callee, std::vector<Node*> arguments);
+
+		Node* m_Callee;
+		std::vector<Node*> m_Arguments;
+
+		virtual void Print(std::string padding) override
+		{
+			std::cout << padding << TypeToString() << " (" << m_Callee->ToString() << "):\n";
+
+			for (auto& argument : m_Arguments)
+			{
+				argument->Print(padding + "    ");
+			}	
 		}
 	};
 

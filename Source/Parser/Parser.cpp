@@ -8,29 +8,96 @@
 
 namespace Ö::AST
 {
-	Parser::Parser()
+	Parser::Parser(Tokens& tokens)
 	{
+		m_Tokens = tokens;
+		m_TokenStream = std::deque<Token>(tokens.begin(), tokens.end());
+
 		using namespace Operators;
 
 		// Using the precedences from C++
 		// https://en.cppreference.com/w/cpp/language/operator_precedence
 
-		// Precedence: 3
+		// p = 2
+		m_DefinedOperators.AddOperator(PostfixIncrement, "++", Unary, Token::Increment, 2, Left);
+		m_DefinedOperators.AddOperator(PostfixDecrement, "--", Unary, Token::Decrement, 2, Left);
+		m_DefinedOperators.AddOperator(Call, "()", Unary, Token::LeftParentheses, 2, Left);
+		m_DefinedOperators.AddOperator(Subscript, "[]", Unary, Token::LeftSquareBracket, 2, Left);
+		m_DefinedOperators.AddOperator(MemberAccess, ".", Unary, Token::MemberAccessor, 2, Left);
+
+		// p = 3
+		m_DefinedOperators.AddOperator(PrefixIncrement, "++", Unary, Token::Increment, 3, Right);
+		m_DefinedOperators.AddOperator(PrefixDecrement, "--", Unary, Token::Decrement, 3, Right);
 		m_DefinedOperators.AddOperator(UnaryPlus, "+", Unary, Token::Add, 3, Right);
 		m_DefinedOperators.AddOperator(UnaryMinus, "-", Unary, Token::Subtract, 3, Right);
-		//m_DefinedOperators.AddOperator(LogicalNot, Unary, Token::Not, 3, Left);
+		m_DefinedOperators.AddOperator(LogicalNot, "!", Unary, Token::Not, 3, Right);
 		//m_DefinedOperators.AddOperator(BitwiseNot, Unary, Token::Not, 3, Left);
 		//m_DefinedOperators.AddOperator(LogicalNot, Unary, Token::Not, 3, Left);
 
-		// Precedence: 5
+		// p = 5
 		m_DefinedOperators.AddOperator(Multiplication, "*", Binary, Token::Multiply, 5, Left);
 		m_DefinedOperators.AddOperator(Division, "/", Binary, Token::Divide, 5, Left);
+		m_DefinedOperators.AddOperator(Remainder, "%", Binary, Token::Remainder, 5, Left);
 
-		// Precedence: 6
+		// p = 6
 		m_DefinedOperators.AddOperator(Addition, "+", Binary, Token::Add, 6, Left);
 		m_DefinedOperators.AddOperator(Subtraction, "-", Binary, Token::Subtract, 6, Left);
 
+		// p = 9
+		m_DefinedOperators.AddOperator(LessThan, "<", Binary, Token::LessThan, 9, Left);
+		m_DefinedOperators.AddOperator(LessThanOrEqual, "<=", Binary, Token::LessThanOrEqual, 9, Left);
+		m_DefinedOperators.AddOperator(GreaterThan, ">", Binary, Token::GreaterThan, 9, Left);
+		m_DefinedOperators.AddOperator(GreaterThanOrEqual, ">=", Binary, Token::GreaterThanOrEqual, 9, Left);
 
+		// p = 10
+		m_DefinedOperators.AddOperator(Equality, "==", Binary, Token::Equality, 10, Left);
+		m_DefinedOperators.AddOperator(NotEqual, "!=", Binary, Token::NotEqual, 10, Left);
+
+		// p = 16
+		m_DefinedOperators.AddOperator(DirectAssignment, "=", Binary, Token::SetEquals, 16, Right);
+		m_DefinedOperators.AddOperator(CompoundAssignmentSum, "+=", Binary, Token::PlusEquals, 16, Right);
+		m_DefinedOperators.AddOperator(CompoundAssignmentDifference, "-=", Binary, Token::MinusEquals, 16, Right);
+
+
+
+
+
+		// Parselets for variables and literals
+		m_PrefixParselets[Token::Identifier] = new IdentifierParselet();
+		m_PrefixParselets[Token::IntLiteral] = new LiteralParselet();
+		m_PrefixParselets[Token::DoubleLiteral] = new LiteralParselet();
+		m_PrefixParselets[Token::FloatLiteral] = new LiteralParselet();
+		m_PrefixParselets[Token::StringLiteral] = new LiteralParselet();
+
+		m_PrefixParselets[Token::LeftParentheses] = new ParenthesesGroupParselet();
+
+		// Unary prefix operators. +a, -a
+		m_PrefixParselets[Token::Increment] = new PrefixOperatorParselet();
+		m_PrefixParselets[Token::Decrement] = new PrefixOperatorParselet();
+		m_PrefixParselets[Token::Add] = new PrefixOperatorParselet();
+		m_PrefixParselets[Token::Subtract] = new PrefixOperatorParselet();
+
+		m_PrefixParselets[Token::Not] = new PrefixOperatorParselet();
+
+		// Infix. Binary operators, a + b etc.
+		m_InfixParselets[Token::LeftParentheses] = new CallParselet();
+
+		m_InfixParselets[Token::Multiply] = new BinaryOperatorParselet();
+		m_InfixParselets[Token::Divide] = new BinaryOperatorParselet();
+		m_InfixParselets[Token::Add] = new BinaryOperatorParselet();
+		m_InfixParselets[Token::Subtract] = new BinaryOperatorParselet();
+
+		m_InfixParselets[Token::LessThan] = new BinaryOperatorParselet();
+		m_InfixParselets[Token::LessThanOrEqual] = new BinaryOperatorParselet();
+		m_InfixParselets[Token::GreaterThan] = new BinaryOperatorParselet();
+		m_InfixParselets[Token::GreaterThanOrEqual] = new BinaryOperatorParselet();
+
+		m_InfixParselets[Token::Equality] = new BinaryOperatorParselet();
+		m_InfixParselets[Token::SetEquals] = new BinaryOperatorParselet();
+
+		// Unary postfix
+		m_InfixParselets[Token::Increment] = new PostfixOperatorParselet();
+		m_InfixParselets[Token::Decrement] = new PostfixOperatorParselet();
 	}
 
 	Node Parser::CreateRootNode()
@@ -41,60 +108,95 @@ namespace Ö::AST
 		return node;
 	}
 
-	Node* Parser::CreateAST(Tokens& tokens, Node* parent)
+	// Inspired by https://journal.stuffwithstuff.com/2011/03/19/pratt-parsers-expression-parsing-made-easy/
+	Node* Parser::ParseExpression(int precedence)
 	{
-		Node* node = nullptr;
+		// Parse prefix operators
+		Token token = ConsumeToken();
+		if (token.m_Type == Token::Types::EndOfFile)
+			return nullptr;
 
-		// Try to parse scopes and the main body of a program
-		node = ParseScope(tokens, parent);
-		RETURN_IF_ERROR();
+		if (m_PrefixParselets.count(token.m_Type) == 0)
+			return MakeError("Unexpected token " + token.m_Value + ", could not parse");
 
-		if (node) 
-			return node;
+		PrefixParselet* prefix = m_PrefixParselets.at(token.m_Type);
+		Node* left = prefix->Parse(*this, token, nullptr);
 
-		// class
-
-		// statements
-
-		// assignment
-
-		// Binary expressions
-		node = ParseBinaryExpression(tokens, parent);
-		RETURN_IF_ERROR();
-
-		if (node)
-			return node;
-
-		// Parentheses
-		node = ParseParentheses(tokens, parent);
-		RETURN_IF_ERROR();
-
-		if (node)
-			return node;
-
-		// Single token nodes
-		// If there are more tokens than 1, then the code has invalid syntax
-		if (tokens.size() != 1)
-			return MakeError("Token " + tokens[0].ToString() + " has tokens after it that it shouldn't have");
-
-		Token& token = tokens[0];
-		if (token.m_Type == Token::Variable)
+		// Parse infix operators, such as normal binary operators
+		while (precedence < GetPrecedenceOfCurrentToken())
 		{
-			abort();
-			//node->type = ASTTypes::Variable;
-			//node->stringValue = token.m_Value;
-		}
-		if (token.m_Type == Token::IntLiteral)
-			return new IntLiteral(parent, std::stoi(token.m_Value));
-		if (token.m_Type == Token::DoubleLiteral)
-			return new DoubleLiteral(parent, StringToDouble(token.m_Value));
-		if (token.m_Type == Token::FloatLiteral)
-			abort();
-		if (token.m_Type == Token::StringLiteral)
-			return new StringLiteral(parent, token.m_Value);
+			token = PeekToken(0);
+			if (token.m_Type == Token::Types::EndOfFile)
+				return left;
 
-		return nullptr;
+			token = ConsumeToken();
+
+			// If no infix, then return the parsed prefix 
+			if (m_InfixParselets.count(token.m_Type) == 0)
+				return left;
+
+			InfixParselet* infix = m_InfixParselets.at(token.m_Type);
+
+			left = infix->Parse(*this, left, token, nullptr);
+		}
+		
+		return left;
 	}
+
+	//Node* Parser::CreateAST(Tokens& tokens, Node* parent)
+	//{
+	//	Node* node = nullptr;
+
+	//	// Try to parse scopes and the main body of a program
+	//	node = ParseScope(tokens, parent);
+	//	RETURN_IF_ERROR();
+
+	//	if (node) 
+	//		return node;
+
+	//	// class
+
+	//	// statements
+
+	//	// assignment
+
+	//	// Binary expressions
+	//	node = ParseBinaryExpression(tokens, parent);
+	//	RETURN_IF_ERROR();
+
+	//	if (node)
+	//		return node;
+
+	//	// Parentheses
+	//	node = ParseParentheses(tokens, parent);
+	//	RETURN_IF_ERROR();
+
+	//	if (node)
+	//		return node;
+
+	//	// Single token nodes
+	//	// If there are more tokens than 1, then the code has invalid syntax
+	//	if (tokens.size() != 1)
+	//		return MakeError("Token " + tokens[0].ToString() + " has tokens after it that it shouldn't have");
+
+	//	Token& token = tokens[0];
+	//	if (token.m_Type == Token::Variable)
+	//	{
+	//		abort();
+	//		//node->type = ASTTypes::Variable;
+	//		//node->stringValue = token.m_Value;
+	//	}
+	//	if (token.m_Type == Token::IntLiteral)
+	//		return new IntLiteral(parent, std::stoi(token.m_Value));
+	//	if (token.m_Type == Token::DoubleLiteral)
+	//		return new DoubleLiteral(parent, StringToDouble(token.m_Value));
+	//	if (token.m_Type == Token::FloatLiteral)
+	//		abort();
+	//	if (token.m_Type == Token::StringLiteral)
+	//		return new StringLiteral(parent, token.m_Value);
+
+	//	return nullptr;
+	//}
 
 	float Parser::TemporaryEvaluator(Node* node)
 	{
@@ -142,7 +244,7 @@ namespace Ö::AST
 		case NodeType::UnaryExpression:
 		{
 			UnaryExpression* expr = (UnaryExpression*)node;
-			float arg = TemporaryEvaluator(expr->m_Argument);
+			float arg = TemporaryEvaluator(expr->m_Operand);
 
 			switch (expr->m_Operator.m_Name)
 			{
@@ -170,294 +272,294 @@ namespace Ö::AST
 		}
 	}
 
-	Node* Parser::ParseScope(Tokens& tokens, Node* parent)
-	{
-		if (tokens[0].m_Type == Token::LeftCurlyBracket || parent->m_Type == NodeType::Root)
-		{
-			LinesOfTokens lines;
-			Scope* scope;
+	//Node* Parser::ParseScope(Tokens& tokens, Node* parent)
+	//{
+	//	if (tokens[0].m_Type == Token::LeftCurlyBracket || parent->m_Type == NodeType::Root)
+	//	{
+	//		LinesOfTokens lines;
+	//		Scope* scope;
 
-			// There are no first and last brackets to exlude if it's the root program, so iterate all tokens
-			if (parent->m_Type == NodeType::Root)
-			{
-				lines = MakeScopeIntoLines(tokens, 0, tokens.size(), 0);
-				scope = new Program(parent);
-			}
-			else
-			{
-				lines = MakeScopeIntoLines(tokens, 1, tokens.size() - 1, tokens[0].m_Depth);
-				scope = new BlockStatement(parent);
-			}
+	//		// There are no first and last brackets to exlude if it's the root program, so iterate all tokens
+	//		if (parent->m_Type == NodeType::Root)
+	//		{
+	//			lines = MakeScopeIntoLines(tokens, 0, tokens.size(), 0);
+	//			scope = new Program(parent);
+	//		}
+	//		else
+	//		{
+	//			lines = MakeScopeIntoLines(tokens, 1, tokens.size() - 1, tokens[0].m_Depth);
+	//			scope = new BlockStatement(parent);
+	//		}
 
-			// Finally, evaluate all lines
-			for (auto& line : lines)
-			{
-				Node* statement = CreateAST(line, scope);
-				RETURN_IF_ERROR();
+	//		// Finally, evaluate all lines
+	//		for (auto& line : lines)
+	//		{
+	//			Node* statement = CreateAST(line, scope);
+	//			RETURN_IF_ERROR();
 
-				scope->m_Lines.push_back(statement);
-			}
+	//			scope->m_Lines.push_back(statement);
+	//		}
 
-			return scope;
-		}
+	//		return scope;
+	//	}
 
-		return nullptr;
-	}
+	//	return nullptr;
+	//}
 
-	Node* Parser::ParseParentheses(Tokens& tokens, Node* parent)
-	{
-		if (tokens[0].m_Type != Token::LeftParentheses)
-			return nullptr;
+	//Node* Parser::ParseParentheses(Tokens& tokens, Node* parent)
+	//{
+	//	if (tokens[0].m_Type != Token::LeftParentheses)
+	//		return nullptr;
 
-		// Slice until next parentheses
-		auto end = FindMatchingEndBracket(tokens, tokens[0]);
-		if (!end.has_value())
-			return MakeError("Found no matching right parenthesis");
+	//	// Slice until next parentheses
+	//	auto end = FindMatchingEndBracket(tokens, tokens[0]);
+	//	if (!end.has_value())
+	//		return MakeError("Found no matching right parenthesis");
 
-		Tokens contents = SliceVector(tokens, 1, end.value());
-		return CreateAST(contents, parent);
-	}
-
-
+	//	Tokens contents = SliceVector(tokens, 1, end.value());
+	//	return CreateAST(contents, parent);
+	//}
 
 
-	Node* Parser::ParseBinaryExpression(Tokens& tokens, Node* parent)
-	{
-		using namespace Operators;
 
-		auto IsTokenAnOperator = [&](Token token) {
-			for (auto& op : m_DefinedOperators.GetOperators())
-			{
-				if (token.m_Type == op.m_TokenType) return true;
-			}
-			return false;
-		};
 
-		auto IsBinaryOpUnary = [&](Operator op, Tokens& left, Tokens& right) {
-			assert(op.m_Type == Operators::Binary);
+	//Node* Parser::ParseBinaryExpression(Tokens& tokens, Node* parent)
+	//{
+		//using namespace Operators;
 
-			for (auto& unaryOp : m_DefinedOperators.GetOperators())
-			{
-				if (op.m_Name == unaryOp.m_Name || unaryOp.m_Type == Operators::Binary)
-					continue;
+		//auto IsTokenAnOperator = [&](Token token) {
+		//	for (auto& op : m_DefinedOperators.GetOperators())
+		//	{
+		//		if (token.m_Type == op.m_TokenType) return true;
+		//	}
+		//	return false;
+		//};
 
-				if (unaryOp.m_TokenType == op.m_TokenType)
-				{
-					if (unaryOp.m_Associaticity == Associativity::Right)
-					{
-						if (left.empty())
-							return true;
+		//auto IsBinaryOpUnary = [&](Operator op, Tokens& left, Tokens& right) {
+		//	assert(op.m_Type == Operators::Binary);
 
-						if (IsTokenAnOperator(left.back()))
-							return true;
-					}
-					else if (unaryOp.m_Associaticity == Associativity::Left)
-					{
-						if (right.empty())
-							return true;
+		//	for (auto& unaryOp : m_DefinedOperators.GetOperators())
+		//	{
+		//		if (op.m_Name == unaryOp.m_Name || unaryOp.m_Type == Operators::Binary)
+		//			continue;
 
-						if (IsTokenAnOperator(left.front()))
-							return true;
-					}
+		//		if (unaryOp.m_TokenType == op.m_TokenType)
+		//		{
+		//			if (unaryOp.m_Associaticity == Associativity::Right)
+		//			{
+		//				if (left.empty())
+		//					return true;
 
-					return false;
-				}
-			}
+		//				if (IsTokenAnOperator(left.back()))
+		//					return true;
+		//			}
+		//			else if (unaryOp.m_Associaticity == Associativity::Left)
+		//			{
+		//				if (right.empty())
+		//					return true;
 
-			return false;
-		};
+		//				if (IsTokenAnOperator(left.front()))
+		//					return true;
+		//			}
 
-		auto IsParsingCorrectUnary = [&](Operator op, Tokens& left, Tokens& right) {
-			assert(op.m_Type == Operators::Unary);
+		//			return false;
+		//		}
+		//	}
 
-			if (op.m_Associaticity == Associativity::Right)
-			{
-				// +a
-				if (left.empty())
-					return true;
+		//	return false;
+		//};
 
-				// +-a (op: -)
-				if (IsTokenAnOperator(left.back()))
-					return false;
-			}
-			else if (op.m_Associaticity == Associativity::Left)
-			{
-				if (right.empty())
-					return true;
+		//auto IsParsingCorrectUnary = [&](Operator op, Tokens& left, Tokens& right) {
+		//	assert(op.m_Type == Operators::Unary);
 
-				if (IsTokenAnOperator(left.front()))
-					return false;
-			}
+		//	if (op.m_Associaticity == Associativity::Right)
+		//	{
+		//		// +a
+		//		if (left.empty())
+		//			return true;
 
-			return true;
-		};
+		//		// +-a (op: -)
+		//		if (IsTokenAnOperator(left.back()))
+		//			return false;
+		//	}
+		//	else if (op.m_Associaticity == Associativity::Left)
+		//	{
+		//		if (right.empty())
+		//			return true;
 
-		// 1 - -2 * 5
-		// 1 - 2
-		// a+ + 5 => a+
+		//		if (IsTokenAnOperator(left.front()))
+		//			return false;
+		//	}
 
-		auto ParseOperator = [&](Operator& op, int positionOfOperator, bool& continueParsing) -> Node* {
-			Tokens leftSide = SliceVector(tokens, 0, positionOfOperator);
-			Tokens rightSide = SliceVector(tokens, positionOfOperator + 1);
+		//	return true;
+		//};
 
-			if (op.m_Type == Operators::Binary)
-			{
-				if (IsBinaryOpUnary(op, leftSide, rightSide))
-				{
-					continueParsing = true;
-					return nullptr;
-				}
+		//// 1 - -2 * 5
+		//// 1 - 2
+		//// a+ + 5 => a+
 
-				if (leftSide.empty())
-				{
-					
+		//auto ParseOperator = [&](Operator& op, int positionOfOperator, bool& continueParsing) -> Node* {
+		//	Tokens leftSide = SliceVector(tokens, 0, positionOfOperator);
+		//	Tokens rightSide = SliceVector(tokens, positionOfOperator + 1);
 
-					MakeError("Expected something to the left of " + op.ToString());
-					return nullptr;
-				}
+		//	if (op.m_Type == Operators::Binary)
+		//	{
+		//		if (IsBinaryOpUnary(op, leftSide, rightSide))
+		//		{
+		//			continueParsing = true;
+		//			return nullptr;
+		//		}
 
-				BinaryExpression* binaryExpressionNode = new BinaryExpression(parent, op);
-				binaryExpressionNode->m_Lhs = CreateAST(leftSide, binaryExpressionNode);
-				RETURN_IF_ERROR();
+		//		if (leftSide.empty())
+		//		{
+		//			
 
-				if (IsBinaryOpUnary(op, leftSide, rightSide))
-				{
-					continueParsing = true;
-					return nullptr;
-				}
+		//			MakeError("Expected something to the left of " + op.ToString());
+		//			return nullptr;
+		//		}
 
-				if (rightSide.empty())
-				{
-					MakeError("Expected something to the right of " + op.ToString());
-					return nullptr;
-				}
+		//		BinaryExpression* binaryExpressionNode = new BinaryExpression(parent, op);
+		//		binaryExpressionNode->m_Lhs = CreateAST(leftSide, binaryExpressionNode);
+		//		RETURN_IF_ERROR();
 
-				binaryExpressionNode->m_Rhs = CreateAST(rightSide, binaryExpressionNode);
-				RETURN_IF_ERROR();
+		//		if (IsBinaryOpUnary(op, leftSide, rightSide))
+		//		{
+		//			continueParsing = true;
+		//			return nullptr;
+		//		}
 
-				return binaryExpressionNode;
-			}
-			else if (op.m_Type == Operators::Unary)
-			{
-				if (!IsParsingCorrectUnary(op, leftSide, rightSide))
-				{
-					continueParsing = true;
-					return nullptr;
-				}
+		//		if (rightSide.empty())
+		//		{
+		//			MakeError("Expected something to the right of " + op.ToString());
+		//			return nullptr;
+		//		}
 
-				UnaryExpression* unaryExpressionNode = new UnaryExpression(parent, op);
+		//		binaryExpressionNode->m_Rhs = CreateAST(rightSide, binaryExpressionNode);
+		//		RETURN_IF_ERROR();
 
-				// ex: a++. operands are to the left
-				if (op.m_Associaticity == Operators::Associativity::Left)
-				{
-					if (leftSide.empty())
-						return MakeError("Expected something to the left of " + op.ToString());
-					if (!rightSide.empty())
-						return MakeError("Didn't expect something to the right of " + op.ToString());
+		//		return binaryExpressionNode;
+		//	}
+		//	else if (op.m_Type == Operators::Unary)
+		//	{
+		//		if (!IsParsingCorrectUnary(op, leftSide, rightSide))
+		//		{
+		//			continueParsing = true;
+		//			return nullptr;
+		//		}
 
-					unaryExpressionNode->m_Argument = CreateAST(leftSide, unaryExpressionNode);
-				} else if(op.m_Associaticity == Operators::Associativity::Right)
-				{
-					if (rightSide.empty())
-						return MakeError("Expected something to the right of " + op.ToString());
-					if (!leftSide.empty())
-						return MakeError("Didn't expect something to the left of " + op.ToString());
+		//		UnaryExpression* unaryExpressionNode = new UnaryExpression(parent, op);
 
-					unaryExpressionNode->m_Argument = CreateAST(rightSide, unaryExpressionNode);
-				}
-				
-				RETURN_IF_ERROR();
+		//		// ex: a++. operands are to the left
+		//		if (op.m_Associaticity == Operators::Associativity::Left)
+		//		{
+		//			if (leftSide.empty())
+		//				return MakeError("Expected something to the left of " + op.ToString());
+		//			if (!rightSide.empty())
+		//				return MakeError("Didn't expect something to the right of " + op.ToString());
 
-				return unaryExpressionNode;
-			}
+		//			unaryExpressionNode->m_Argument = CreateAST(leftSide, unaryExpressionNode);
+		//		} else if(op.m_Associaticity == Operators::Associativity::Right)
+		//		{
+		//			if (rightSide.empty())
+		//				return MakeError("Expected something to the right of " + op.ToString());
+		//			if (!leftSide.empty())
+		//				return MakeError("Didn't expect something to the left of " + op.ToString());
 
-			abort();
-			return nullptr;
-		};
+		//			unaryExpressionNode->m_Argument = CreateAST(rightSide, unaryExpressionNode);
+		//		}
+		//		
+		//		RETURN_IF_ERROR();
 
-		// Iterate all operators. They are already sorted by lowest precedence first
-		// TODO: Associativity
-		for (int opI = 0; opI < m_DefinedOperators.GetOperators().size(); opI++)
-		{
-			auto& op = m_DefinedOperators.GetOperators()[opI];
+		//		return unaryExpressionNode;
+		//	}
 
-			// For some reason, left associative operators like add and subtract needs to iterate from the right
-			// I would expect that they would start from the left instead.
-			// But my guess is its because the same reason operators that goes first needs to be parsed last.
-			// TODO: Prettify code somehow
-			if (op.m_Associaticity == Associativity::Left)
-			{
-				for (int i = tokens.size() - 1; i >= 0; i--)
-				{
-					if (tokens[i].m_Type == op.m_TokenType)
-					{
-						if (IsInsideBrackets(tokens, i))
-							continue;
+		//	abort();
+		//	return nullptr;
+		//};
 
-						// 2 - 3
-						// 2 + -3 * 6
+		//// Iterate all operators. They are already sorted by lowest precedence first
+		//// TODO: Associativity
+		//for (int opI = 0; opI < m_DefinedOperators.GetOperators().size(); opI++)
+		//{
+		//	auto& op = m_DefinedOperators.GetOperators()[opI];
 
-						// error cases
-						// binop: (not right associative unary op) op (not left associative unary op)
+		//	// For some reason, left associative operators like add and subtract needs to iterate from the right
+		//	// I would expect that they would start from the left instead.
+		//	// But my guess is its because the same reason operators that goes first needs to be parsed last.
+		//	// TODO: Prettify code somehow
+		//	if (op.m_Associaticity == Associativity::Left)
+		//	{
+		//		for (int i = tokens.size() - 1; i >= 0; i--)
+		//		{
+		//			if (tokens[i].m_Type == op.m_TokenType)
+		//			{
+		//				if (IsInsideBrackets(tokens, i))
+		//					continue;
 
-						// Check so the next token isn't an operator
-						/*for (auto& op2 : m_DefinedOperators.GetOperators())
-						{
-							if (op.m_Type == Operators::Binary && !IsBinaryOpUnary(op))
-							{
-								if (!ElementExists(tokens, i - 1))
-									return MakeError("err");
-								if (!ElementExists(tokens, i + 1))
-									return MakeError("err");
+		//				// 2 - 3
+		//				// 2 + -3 * 6
 
-								if (tokens[i - 1].m_Type == op2.m_TokenType)
-								{
-									if (op2.m_Type == Operators::Binary ||
-										(op2.m_Type == Operators::Unary && op2.m_Associaticity == Operators::Left))
-										return MakeError("Cannot have " + op2.ToString() + " next to " + op.ToString());
-								}
+		//				// error cases
+		//				// binop: (not right associative unary op) op (not left associative unary op)
 
-								if (tokens[i + 1].m_Type == op2.m_TokenType)
-								{
-									if (op2.m_Type == Operators::Binary ||
-										(op2.m_Type == Operators::Unary && op2.m_Associaticity == Operators::Right))
-										return MakeError("Cannot have " + op2.ToString() + " next to " + op.ToString());
-								}
-							}
-						}*/
+		//				// Check so the next token isn't an operator
+		//				/*for (auto& op2 : m_DefinedOperators.GetOperators())
+		//				{
+		//					if (op.m_Type == Operators::Binary && !IsBinaryOpUnary(op))
+		//					{
+		//						if (!ElementExists(tokens, i - 1))
+		//							return MakeError("err");
+		//						if (!ElementExists(tokens, i + 1))
+		//							return MakeError("err");
 
-						bool continueParsing = false;
-						Node* node = ParseOperator(op, i, continueParsing);
+		//						if (tokens[i - 1].m_Type == op2.m_TokenType)
+		//						{
+		//							if (op2.m_Type == Operators::Binary ||
+		//								(op2.m_Type == Operators::Unary && op2.m_Associaticity == Operators::Left))
+		//								return MakeError("Cannot have " + op2.ToString() + " next to " + op.ToString());
+		//						}
 
-						if (continueParsing)
-							continue;
+		//						if (tokens[i + 1].m_Type == op2.m_TokenType)
+		//						{
+		//							if (op2.m_Type == Operators::Binary ||
+		//								(op2.m_Type == Operators::Unary && op2.m_Associaticity == Operators::Right))
+		//								return MakeError("Cannot have " + op2.ToString() + " next to " + op.ToString());
+		//						}
+		//					}
+		//				}*/
 
-						return node;
-					}
-				}
-			} else if (op.m_Associaticity == Associativity::Right)
-			{
-				for (int i = 0; i < tokens.size(); i++)
-				{
-					if (tokens[i].m_Type == op.m_TokenType)
-					{
-						if (IsInsideBrackets(tokens, i))
-							continue;
+		//				bool continueParsing = false;
+		//				Node* node = ParseOperator(op, i, continueParsing);
 
-						bool continueParsing = false;
-						Node* node = ParseOperator(op, i, continueParsing);
+		//				if (continueParsing)
+		//					continue;
 
-						if (continueParsing)
-							continue;
+		//				return node;
+		//			}
+		//		}
+		//	} else if (op.m_Associaticity == Associativity::Right)
+		//	{
+		//		for (int i = 0; i < tokens.size(); i++)
+		//		{
+		//			if (tokens[i].m_Type == op.m_TokenType)
+		//			{
+		//				if (IsInsideBrackets(tokens, i))
+		//					continue;
 
-						return node;
-					}
-				}
-			}
-		}
+		//				bool continueParsing = false;
+		//				Node* node = ParseOperator(op, i, continueParsing);
 
-		return nullptr;
-	}
+		//				if (continueParsing)
+		//					continue;
+
+		//				return node;
+		//			}
+		//		}
+		//	}
+		//}
+
+		//return nullptr;
+	//}
 
 	// TODO: Understand my code :)
 	LinesOfTokens Parser::MakeScopeIntoLines(Tokens tokens, int start, int end, int startingDepth)
@@ -682,5 +784,133 @@ namespace Ö::AST
 	void Parser::MakeErrorVoid(const std::string& message)
 	{
 		m_Error = message;
+	}
+
+	Token Parser::ConsumeToken()
+	{
+		Token first = m_TokenStream.front();
+
+		m_TokenStream.pop_front();
+
+		return first;
+	}
+
+	std::optional<Token> Parser::ConsumeToken(Token::Types expectedType)
+	{
+		Token next = PeekToken(0);
+		if (next.m_Type != expectedType)
+		{
+			MakeError("Expected token " + Token(expectedType, 0).ToString() + " but got " + next.ToString());
+			return {};
+		}
+
+		return ConsumeToken();
+	}
+
+	Token Parser::PeekToken(int distance)
+	{
+		return m_TokenStream[distance];
+	}
+
+	bool Parser::MatchToken(Token::Types expectedType)
+	{
+		Token token = PeekToken(0);
+		if (token.m_Type != expectedType)
+			return false;
+
+		ConsumeToken();
+		return true;
+	}
+
+	int Parser::GetPrecedenceOfCurrentToken()
+	{
+		auto op = m_DefinedOperators.GetAny(PeekToken(0).m_Type);
+
+		// Default value if no precedence exists
+		if (!op.has_value()) 
+			return 0;
+
+		return op.value().GetParsePrecedence();
+	}
+
+	// Parslets
+	// Identifers and literals
+
+	Node* IdentifierParselet::Parse(Parser& parser, Token token, Node* parent)
+	{
+		return new Identifier(parent, token.m_Value);
+	}
+	Node* LiteralParselet::Parse(Parser& parser, Token token, Node* parent)
+	{
+		if (token.m_Type == Token::IntLiteral)
+			return new IntLiteral(parent, std::stoi(token.m_Value));
+		if (token.m_Type == Token::DoubleLiteral)
+			return new DoubleLiteral(parent, StringToDouble(token.m_Value));
+		if (token.m_Type == Token::FloatLiteral)
+			abort();
+		if (token.m_Type == Token::StringLiteral)
+			return new StringLiteral(parent, token.m_Value);
+
+		abort();
+		return nullptr;
+	}
+	Node* ParenthesesGroupParselet::Parse(Parser& parser, Token token, Node* parent)
+	{
+		Node* expression = parser.ParseExpression();
+
+		auto result = parser.ConsumeToken(Token::Types::RightParentheses);
+		if (!result.has_value()) 
+			return nullptr;
+
+		return expression;
+	}
+
+	// Operators
+
+	Node* PrefixOperatorParselet::Parse(Parser& parser, Token token, Node* parent)
+	{
+		auto opOp = parser.m_DefinedOperators.GetUnary(token.m_Type);
+		assert(opOp.has_value());
+		auto& op = opOp.value();
+
+		Node* operand = parser.ParseExpression(op.GetParsePrecedence());
+		return new UnaryExpression(parent, operand, op);
+	}
+
+	Node* PostfixOperatorParselet::Parse(Parser& parser, Node* left, Token token, Node* parent)
+	{
+		auto opOp = parser.m_DefinedOperators.GetUnary(token.m_Type);
+		assert(opOp.has_value());
+		auto& op = opOp.value();
+
+		return new UnaryExpression(parent, left, op);
+	}
+
+	Node* BinaryOperatorParselet::Parse(Parser& parser, Node* left, Token token, Node* parent)
+	{
+		auto opOp = parser.m_DefinedOperators.GetBinary(token.m_Type);
+		assert(opOp.has_value());
+		auto& op = opOp.value();
+
+		Node* right = parser.ParseExpression(op.GetParsePrecedence());
+
+		return new BinaryExpression(parent, left, op, right);
+	}
+
+	Node* CallParselet::Parse(Parser& parser, Node* left, Token token, Node* parent)
+	{
+		std::vector<Node*> arguments;
+		
+		// Parse until we find a closing parentheses
+		if (!parser.MatchToken(Token::RightParentheses))
+		{
+			do
+			{
+				arguments.push_back(parser.ParseExpression());
+			} while (parser.MatchToken(Token::Comma));
+			parser.ConsumeToken(Token::RightParentheses);
+		}
+
+		return new CallExpression(nullptr, left, arguments);
 	}
 };

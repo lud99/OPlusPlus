@@ -42,18 +42,30 @@ namespace Ö::AST {
 		m_Type = NodeType::VariableDeclaration;
 	}
 
-	BinaryExpression::BinaryExpression(Node* parent, Operators::Operator op)
+	BinaryExpression::BinaryExpression(Node* parent, Node* left, Operators::Operator op, Node* right)
 	{
 		m_Parent = parent;
 		m_Type = NodeType::BinaryExpression;
 		m_Operator = op;
+
+		m_Lhs = left;
+		m_Rhs = right;
 	}
 
-	UnaryExpression::UnaryExpression(Node* parent, Operators::Operator op)
+	UnaryExpression::UnaryExpression(Node* parent, Node* operand, Operators::Operator op)
 	{
 		m_Parent = parent;
 		m_Type = NodeType::UnaryExpression;
 		m_Operator = op;
+		m_Operand = operand;
+	}
+
+	CallExpression::CallExpression(Node* parent, Node* callee, std::vector<Node*> arguments)
+	{
+		m_Parent = parent;
+		m_Type = NodeType::CallExpression;
+		m_Callee = callee;
+		m_Arguments = arguments;
 	}
 
 	IntLiteral::IntLiteral(Node* parent, int value)

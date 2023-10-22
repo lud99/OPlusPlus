@@ -2,6 +2,7 @@
 
 #include <string>
 #include <sstream>
+#include "../magic_enums.hpp"
 
 namespace Ö
 {
@@ -9,87 +10,12 @@ namespace Ö
 
 	std::string Token::ToString()
 	{
-		std::string names[] = {
-			"Empty",
-			"VoidType",
-			"IntType",
-			"IntLiteral",
-			"FloatType",
-			"FloatLiteral",
-			"DoubleType",
-			"DoubleLiteral",
-			"StringType",
-			"StringLiteral",
-			"CharType",
-			"CharLiteral",
+		return TokenTypeToString(m_Type);
+	}
 
-			"ClassKeyword",
-
-			"SingleLineComment",
-			"MultiLineComment",
-			"NewLine",
-
-			"Variable",
-			
-			"MemberAccessor",
-			"ScopeResultion",
-
-			"PropertyAccess",
-
-			"Semicolon",
-			"Comma",
-			"Colon",
-
-			"Add",
-			"Subtract",
-			"Multiply",
-			"Divide",
-			"PlusEquals",
-			"MinusEquals",
-
-			"SetEquals",
-			"CompareEquals",
-			"NotEquals",
-			"LessThan",
-			"GreaterThan",
-			"LessThanEqual",
-			"GreaterThanEqual",
-
-			"RightArrow",
-
-			"And",
-			"Or",
-			"Not",
-			"LeftShift",
-			"RightShift",
-			"Xor",
-			"Modulus",
-
-			"PostIncrement",
-			"PreIncrement",
-			"PostDecrement",
-			"PreDecrement",
-
-			"LeftParentheses",
-			"RightParentheses",
-			"LeftCurlyBracket",
-			"RightCurlyBracket",
-			"LeftSquareBracket",
-			"RightSquareBracket",
-
-			"FunctionName",
-
-			"If",
-			"Else",
-			"While",
-			"For",
-			"Break",
-			"Continue",
-			"Return",
-			"Global"
-		};
-
-		return names[(int)m_Type];
+	std::string TokenTypeToString(Token::Types type)
+	{
+		return std::string(magic_enum::enum_name(type));
 	}
 
 	bool IsValidNumberChar(char ch)
@@ -366,12 +292,12 @@ namespace Ö
 		else if (token.m_Value == "not")
 			token.m_Type = Token::Not;
 		else if (token.m_Value == "xor")
-			token.m_Type = Token::Xor;
+			token.m_Type = Token::Power;
 		else if (token.m_Value == "mod")
-			token.m_Type = Token::Modulus;
+			token.m_Type = Token::Remainder;
 
 		// Convert boolean tokens 'true' and 'false' to numbers
-		if (token.m_Type == Token::Variable && (token.m_Value == "true" || token.m_Value == "false"))
+		/*if (token.m_Type == Token::Identifier && (token.m_Value == "true" || token.m_Value == "false"))
 		{
 			if (token.m_Value == "true")
 				token.m_Value = "1";
@@ -379,7 +305,7 @@ namespace Ö
 				token.m_Value = "0";
 
 			token.m_Type = Token::IntLiteral;
-		}
+		}*/
 
 		return token;
 	}
@@ -607,7 +533,7 @@ namespace Ö
 						if (error != "") return MakeError(error);
 
 						token.m_Value += Current();
-						token.m_Type = Token::Variable;
+						token.m_Type = Token::Identifier;
 						Skip();
 					}
 
@@ -674,8 +600,8 @@ namespace Ö
 				if (Current() == '(')
 				{
 					// The variable in the previous token is actually a function call
-					if (!m_Tokens.empty() && m_Tokens.back().m_Type == Token::Variable)
-						m_Tokens.back().m_Type = Token::FunctionName;
+					//if (!m_Tokens.empty() && m_Tokens.back().m_Type == Token::Identifier)
+						//m_Tokens.back().m_Type = Token::FunctionName;
 
 					m_ParenthesesParsingDepth++;
 					AddToken(Token(Token::LeftParentheses, m_Position, "("));
@@ -719,25 +645,25 @@ namespace Ö
 						// ==
 						if (Current() == '=' && Next() == '=')
 						{
-							AddToken(Token(Token::CompareEquals, m_Position, "=="));
+							AddToken(Token(Token::Equality, m_Position, "=="));
 							foundMatch = true;
 						}
 						// !=
 						if (Current() == '!' && Next() == '=')
 						{
-							AddToken(Token(Token::NotEquals, m_Position, "!="));
+							AddToken(Token(Token::NotEqual, m_Position, "!="));
 							foundMatch = true;
 						}
 						// <=
 						if (Current() == '<' && Next() == '=')
 						{
-							AddToken(Token(Token::LessThanEqual, m_Position, "<="));
+							AddToken(Token(Token::LessThanOrEqual, m_Position, "<="));
 							foundMatch = true;
 						}
 						// >=
 						if (Current() == '>' && Next() == '=')
 						{
-							AddToken(Token(Token::GreaterThanEqual, m_Position, ">="));
+							AddToken(Token(Token::GreaterThanOrEqual, m_Position, ">="));
 							foundMatch = true;
 						}
 						// =>
@@ -787,9 +713,9 @@ namespace Ö
 				if (IsValidIncrement(m_Source, m_Position) || IsValidDecrement(m_Source, m_Position))
 				{
 					if (IsValidIncrement(m_Source, m_Position))
-						AddToken(Token(Token::PostIncrement, m_Position, "++"));
+						AddToken(Token(Token::Increment, m_Position, "++"));
 					if (IsValidDecrement(m_Source, m_Position))
-						AddToken(Token(Token::PostDecrement, m_Position, "--"));
+						AddToken(Token(Token::Decrement, m_Position, "--"));
 
 					Skip();
 					continue;
@@ -813,12 +739,12 @@ namespace Ö
 				// Not
 				if (Current() == '!')
 					token = AddToken(Token(Token::Not, m_Position, "!"));
-				// Xor
+				// Power
 				if (Current() == '^')
-					token = AddToken(Token(Token::Xor, m_Position, "^"));
-				// Modulus
+					token = AddToken(Token(Token::Power, m_Position, "^"));
+				// Remainder
 				if (Current() == '%')
-					token = AddToken(Token(Token::Modulus, m_Position, "%"));
+					token = AddToken(Token(Token::Remainder, m_Position, "%"));
 
 				// Plus
 				if (Current() == '+')
@@ -901,6 +827,9 @@ namespace Ö
 		}
 
 		AddToken(token);
+
+		// Add eof token
+		AddToken(Token(Token::Types::EndOfFile, m_Position));
 
 		// Unclosed comment
 		if (isMultilineComment)

@@ -7,7 +7,6 @@
 
 namespace Ö
 {
-
 	struct Token
 	{
 		enum Types {
@@ -30,7 +29,7 @@ namespace Ö
 			MultiLineComment,
 			NewLine,
 
-			Variable,
+			Identifier,
 
 			MemberAccessor,
 			ScopeResultion,
@@ -49,12 +48,12 @@ namespace Ö
 			MinusEquals,
 
 			SetEquals,
-			CompareEquals,
-			NotEquals,
+			Equality,
+			NotEqual,
 			LessThan,
 			GreaterThan,
-			LessThanEqual,
-			GreaterThanEqual,
+			LessThanOrEqual,
+			GreaterThanOrEqual,
 
 			RightArrow,
 
@@ -63,13 +62,11 @@ namespace Ö
 			Not,
 			LeftShift,
 			RightShift,
-			Xor,
-			Modulus,
+			Power,
+			Remainder,
 
-			PostIncrement,
-			PreIncrement,
-			PostDecrement,
-			PreDecrement,
+			Increment,
+			Decrement,
 
 			LeftParentheses,
 			RightParentheses,
@@ -78,8 +75,6 @@ namespace Ö
 			LeftSquareBracket,
 			RightSquareBracket,
 
-			FunctionName,
-
 			If,
 			Else,
 			While,
@@ -87,21 +82,15 @@ namespace Ö
 			Break,
 			Continue,
 			Return,
-			Global
+			Global,
+
+			EndOfFile,
 		};
 
 		Token() {};
 		Token(Types type, int position, std::string value = "", int depth = -1) : m_Type(type), m_StartPosition(position), m_Value(value), m_Depth(depth) {};
 
 		EXPORT std::string ToString();
-
-		/*
-		string, int, double and also user-defined structs. Eg: Not an integer literal, but the explicit typeEntry
-		*/
-		/*inline bool IsVariableType()
-		{
-			return m_Type == Token::VoidType || m_Type == Token::IntType || m_Type == Token::StringType || m_Type == Token::DoubleType || m_Type == Token::FloatType;
-		}*/
 
 		inline bool IsMathOperator()
 		{
@@ -115,8 +104,8 @@ namespace Ö
 
 		inline bool IsComparisonOperator()
 		{
-			return m_Type == Token::CompareEquals || m_Type == Token::NotEquals || m_Type == Token::LessThan || m_Type == Token::GreaterThan
-				|| m_Type == Token::LessThanEqual || m_Type == Token::GreaterThanEqual;
+			return m_Type == Token::Equality || m_Type == Token::NotEqual || m_Type == Token::LessThan || m_Type == Token::GreaterThan
+				|| m_Type == Token::LessThanOrEqual || m_Type == Token::GreaterThanOrEqual;
 		}
 
 		Types m_Type = Types::Empty;
@@ -126,6 +115,8 @@ namespace Ö
 
 		int m_Depth = -1;
 	};
+
+	std::string TokenTypeToString(Token::Types type);
 
 	typedef std::vector<Token> Tokens;
 

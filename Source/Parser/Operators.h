@@ -22,42 +22,36 @@ namespace Ö::Operators
 	};
 	enum Name
 	{
-		// TODO: add names that are longer than one char
 		// Unary
-		//PostfixIncrement,
-		//PostfixDecrement,
-
-		PrefixIncrement,
-		PrefixDecrement,
-
-		UnaryPlus,
-		UnaryMinus,
-
-		LogicalNot,
-		BitwiseNot,
-
-		FunctionCall,
+		// p = 2
+		PostfixIncrement, PostfixDecrement,
+		Call,
 		Subscript,
+		MemberAccess,
 
+		// p = 3
+		PrefixIncrement, PrefixDecrement,
+		UnaryPlus, UnaryMinus,
+		LogicalNot, BitwiseNot,
 
 		// Binary
-		Addition,
-		Subtraction,
-		Multiplication,
-		Division,
-		Remainder,
+		// p = 5
+		Multiplication, Division, Remainder,
 
-		Equality,
-		NotEqual,
-		LessThan,
-		LessThanOrEqual,
-		GreaterThan,
-		GreaterThanOrEqual,
+		// p = 6
+		Addition, Subtraction,
+		
+		// p = 9
+		LessThan, LessThanOrEqual,
+		GreaterThan, GreaterThanOrEqual,
 
+		// p = 10
+		Equality, NotEqual,
+		
+		// p = 16
 		DirectAssignment,
-		CompoundAssignmentSum,
-
-		MemberAccess,
+		CompoundAssignmentSum, CompoundAssignmentDifference,
+		CompoundAssignmentProduct, CompoundAssignmentQuotinent
 	};
 
 	// Precedence is what decides what order the operators are executed in
@@ -81,6 +75,17 @@ namespace Ö::Operators
 			return left.m_Precedence > right.m_Precedence;
 		}
 
+		// If the precedence is one less, then it is right associative. 
+		// If its the same then it is left associative
+		int GetParsePrecedence()
+		{
+			constexpr int HighestPrecedence = 17;
+			// My precedence is specified as lowest being executed first, but parsed last.
+			// The pratt parser is inverted so lowest means it is parsed first, and therefor executed last
+			int invertedPrecedence = HighestPrecedence - m_Precedence + 1;
+			return invertedPrecedence - (m_Associaticity == Operators::Associativity::Right ? 1 : 0);
+		}
+
 		std::string ToString() 
 		{
 			return std::string(magic_enum::enum_name(m_Type)) + " operator " + std::string(magic_enum::enum_name(m_Name));
@@ -95,6 +100,34 @@ namespace Ö::Operators
 			m_Operators.push_back({ name, m_Symbol, type, tokenType, precedence, associaticity });
 			std::sort(m_Operators.begin(), m_Operators.end(), Operator());
 		} 
+
+		std::optional<Operator> GetUnary(Token::Types type)
+		{
+			for (auto& op : m_Operators)
+			{
+				if (op.m_TokenType == type && op.m_Type == Unary)
+					return op;
+			}
+			return {};
+		}
+		std::optional<Operator> GetBinary(Token::Types type)
+		{
+			for (auto& op : m_Operators)
+			{
+				if (op.m_TokenType == type && op.m_Type == Binary)
+					return op;
+			}
+			return {};
+		}
+		std::optional<Operator> GetAny(Token::Types type)
+		{
+			for (auto& op : m_Operators)
+			{
+				if (op.m_TokenType == type)
+					return op;
+			}
+			return {};
+		}
 
 		auto& GetOperators() { return m_Operators; }
 
