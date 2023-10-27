@@ -92,9 +92,30 @@ namespace Ö
 
 		EXPORT std::string ToString();
 
-		inline bool IsMathOperator()
+		inline bool IsOperator()
 		{
-			return m_Type == Token::Add || m_Type == Token::Subtract || m_Type == Token::Multiply || m_Type == Token::Divide;
+			Token::Types ops[12] = {
+				Add,
+				Subtract,
+				Divide,
+				Multiply,
+				Not,
+				Increment,
+				Decrement,
+				MemberAccessor,
+				Remainder,
+				SetEquals,
+				PlusEquals,
+				MinusEquals,
+			};
+
+			for (auto& type : ops)
+			{
+				if (m_Type == type)
+					return true;
+			}
+
+			return IsComparisonOperator();
 		}
 
 		inline bool IsStatementKeyword()
@@ -106,6 +127,12 @@ namespace Ö
 		{
 			return m_Type == Token::Equality || m_Type == Token::NotEqual || m_Type == Token::LessThan || m_Type == Token::GreaterThan
 				|| m_Type == Token::LessThanOrEqual || m_Type == Token::GreaterThanOrEqual;
+		}
+
+		inline bool IsLiteral()
+		{
+			return m_Type == Token::IntLiteral || m_Type == Token::DoubleLiteral 
+				|| m_Type == Token::FloatLiteral || m_Type == Token::StringLiteral;
 		}
 
 		Types m_Type = Types::Empty;

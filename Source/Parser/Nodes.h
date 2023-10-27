@@ -183,7 +183,7 @@ namespace Ö::AST
 
 		std::string ToString() override
 		{
-			return m_Operator.m_Symbol;
+			return std::string(magic_enum::enum_name(m_Operator.m_Name)) + " (" + m_Operator.m_Symbol + ")";
 		}
 	};
 
@@ -196,21 +196,13 @@ namespace Ö::AST
 
 		virtual void Print(std::string padding) override
 		{
-			if (m_Operator.m_Associaticity == Operators::Associativity::Left)
-			{
-				m_Operand->Print(padding + "    ");
-				std::cout << padding << TypeToString() << " (" << ToString() << "):\n";
-			}
-			else if (m_Operator.m_Associaticity == Operators::Associativity::Right)
-			{
-				std::cout << padding << TypeToString() << " (" << ToString() << "):\n";
-				m_Operand->Print(padding + "    ");
-			}
+			std::cout << padding << TypeToString() << " (" << ToString() << "):\n";
+			m_Operand->Print(padding + "    ");
 		}
 
 		std::string ToString() override
 		{
-			return m_Operator.m_Symbol;
+			return std::string(magic_enum::enum_name(m_Operator.m_Name)) + " (" + m_Operator.m_Symbol + ")";
 		}
 	};
 

@@ -54,6 +54,13 @@ namespace Ö::Operators
 		CompoundAssignmentProduct, CompoundAssignmentQuotinent
 	};
 
+	enum Affix
+	{
+		Prefix,
+		Midfix,
+		Postfix
+	};
+
 	// Precedence is what decides what order the operators are executed in
 	// Higher precedence means it executes first, so at the bottom of the AST Tree
 	struct Operator
@@ -61,6 +68,7 @@ namespace Ö::Operators
 		Name m_Name;
 		std::string m_Symbol;
 
+		Affix m_Affix; // The position of the operator in an expression
 		Type m_Type;
 
 		Token::Types m_TokenType;
@@ -95,17 +103,26 @@ namespace Ö::Operators
 	class DefinedOperators
 	{
 	public:
-		void AddOperator(Name name, std::string m_Symbol, Type type, Token::Types tokenType, int precedence, Associativity associaticity)
+		void AddOperator(Name name, std::string m_Symbol, Affix affix, Type type, Token::Types tokenType, int precedence, Associativity associaticity)
 		{ 
-			m_Operators.push_back({ name, m_Symbol, type, tokenType, precedence, associaticity });
+			m_Operators.push_back({ name, m_Symbol, affix, type, tokenType, precedence, associaticity });
 			std::sort(m_Operators.begin(), m_Operators.end(), Operator());
 		} 
 
-		std::optional<Operator> GetUnary(Token::Types type)
+		std::optional<Operator> GetUnaryPrefix(Token::Types type)
 		{
 			for (auto& op : m_Operators)
 			{
-				if (op.m_TokenType == type && op.m_Type == Unary)
+				if (op.m_TokenType == type && op.m_Type == Unary && op.m_Affix == Prefix)
+					return op;
+			}
+			return {};
+		}
+		std::optional<Operator> GetUnaryPostfix(Token::Types type)
+		{
+			for (auto& op : m_Operators)
+			{
+				if (op.m_TokenType == type && op.m_Type == Unary && op.m_Affix == Postfix)
 					return op;
 			}
 			return {};

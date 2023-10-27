@@ -34,6 +34,9 @@ namespace Ö::AST
 		
 		EXPORT float TemporaryEvaluator(Node* node);
 
+		Node* MakeError(const std::string& message);
+		void MakeErrorVoid(const std::string& message);
+
 		EXPORT bool HasError() { return m_Error != ""; }
 		EXPORT const std::string& GetError() { return m_Error; };
 
@@ -89,9 +92,6 @@ namespace Ö::AST
 		// Find the matching bracket (, {, [ with the same depth
 		std::optional<int> FindMatchingEndBracket(Tokens& tokens, Token& startToken);
 		std::optional<int> FindMatchingStartBracket(Tokens& tokens, Token& endToken);
-
-		Node* MakeError(const std::string& message);
-		void MakeErrorVoid(const std::string& message);
 
 	private:
 		std::string m_Error = "";

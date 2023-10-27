@@ -69,7 +69,7 @@ namespace Ö
 				}
 				if (current == '-')
 				{
-					error = "Expected number after minus sign";
+					//error = "Expected number after minus sign";
 					return false;
 				}
 
