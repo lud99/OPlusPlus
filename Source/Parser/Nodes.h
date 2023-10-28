@@ -17,6 +17,7 @@ namespace Ö::AST
 		Root,
 		Program,
 
+		Typename,
 		Identifier,
 		VariableDeclaration,
 
@@ -27,93 +28,33 @@ namespace Ö::AST
 
 		BlockStatement,
 
+		FunctionPrototype,
+		FunctionDefinition,
+
+		IfStatement,
+		WhileStatement,
+		ForStatement,
+
+		Continue,
+		Break,
+
+		Return,
+
 		IntLiteral,
 		FloatLiteral,
 		DoubleLiteral,
 		StringLiteral
 	};
-	/*{
-		Empty,
-		VariableDeclaration,
-		GlobalVariableDeclaration,
-		VariableType,
-		Assign,
-		PropertyAssign,
-		CompareEquals,
-		CompareNotEquals,
-		CompareLessThan,
-		CompareGreaterThan,
-		CompareLessThanEqual,
-		CompareGreaterThanEqual,
-		And,
-		Or,
-		Not,
-		Null,
-		IntLiteral,
-		DoubleLiteral,
-		StringLiteral,
-		Bool,
-		ArrayType,
-		FunctionType,
-		ObjectType,
-		Class,
-		Variable,
-		MemberAcessor,
-		ScopeResolution,
-		PropertyAccess,
-		ListInitializer,
-		MathExpression,
-		Add,
-		Subtract,
-		Multiply,
-		Divide,
-		Xor,
-		ToThePower,
-		Modulus,
-		PlusEquals,
-		MinusEquals,
-		PostIncrement,
-		PreIncrement,
-		PostDecrement,
-		PreDecrement,
-		ProgramBody,
-		ModuleBody,
-		Line,
-		FunctionCall,
-		Return,
-		IfStatement,
-		Else,
-		WhileStatement,
-		ForStatement,
-		FunctionDefinition,
-		FunctionPrototype,
-		Break,
-		Continue,
-		Import,
-		Export,
-		Scope,
-		Modifier
-	};*/
 
 	struct Node;
 	extern "C" struct Node
 	{
-		EXPORT Node();
-		EXPORT Node(Node* parent);
+		EXPORT Node() {};
 
-		Node* m_Parent = nullptr;
 		NodeType m_Type = NodeType::Empty;
 
-		EXPORT virtual std::string TypeToString()
-		{
-			return std::string(magic_enum::enum_name(m_Type));
-		};
-
-		EXPORT virtual void Print(std::string padding = "")
-		{
-			std::cout << padding << TypeToString() << (ToString() != "" ? ": " : "") << ToString() << "\n";
-		}
-
+		EXPORT virtual std::string TypeToString();
+		EXPORT virtual void Print(std::string padding = "");
 		EXPORT virtual std::string ToString() { return ""; };
 	};
 
@@ -121,34 +62,75 @@ namespace Ö::AST
 	{
 		std::vector<Node*> m_Lines;
 
-		virtual void Print(std::string padding) override
-		{
-			std::cout << padding << TypeToString() << ": \n";
-			for (auto& line : m_Lines)
-				line->Print(padding + "    ");
-		}
+		virtual void Print(std::string padding) override;
 	};
 	struct Program : public Scope
 	{
-		Program(Node* parent);
+		Program() { m_Type = NodeType::Program; };
 	};
 	struct BlockStatement : public Scope
 	{
-		BlockStatement(Node* parent);
+		BlockStatement() { m_Type = NodeType::BlockStatement; };
+	};
+
+
+
+	struct ConditionalStatement : public Node
+	{
+		Node* m_Condition;
+		BlockStatement* m_Body;
+
+		virtual void Print(std::string padding) override;
+	};
+	struct WhileStatement : public ConditionalStatement
+	{
+		WhileStatement(Node* condition, BlockStatement* body);
+	};
+	struct IfStatement : public ConditionalStatement
+	{
+		IfStatement(Node* condition, BlockStatement* body, BlockStatement* elseArm);
+		
+		BlockStatement* m_ElseArm;
+
+		virtual void Print(std::string padding) override;
+	};
+	struct ForStatement : public Node
+	{
+		ForStatement(Node* initialization, Node* condition, Node* advancement, BlockStatement* body);
+		
+		Node* m_Initialization;
+		Node* m_Condition;
+		Node* m_Advancement;
+
+		BlockStatement* m_Body;
+
+		virtual void Print(std::string padding) override;
+	};
+
+	struct SingleKeywordStatement : public Node
+	{
+		SingleKeywordStatement(NodeType type) { m_Type = type; };
+	};
+	struct ReturnStatement : public Node
+	{
+		ReturnStatement(Node* returnValue);
+
+		Node* m_ReturnValue;
 	};
 
 	struct Identifier : public Node
 	{
-		Identifier(Node* parent, const std::string& name);
+		Identifier(const std::string& name);
 
 		std::string m_Name;
 
 		std::string ToString() override { return m_Name; }
 	};
 
+
 	struct Type : public Node
 	{
-		Type(Node* parent, const std::string& typeName);
+		Type(const std::string& typeName);
 
 		std::string m_TypeName;
 
@@ -157,77 +139,65 @@ namespace Ö::AST
 
 	struct VariableDeclaration : public Node
 	{
-		VariableDeclaration(Node* parent);
+		VariableDeclaration(Type* variableType, Identifier* variableName, Node* assignedValue);
 
-		Type* m_TypeNode;
-		Identifier* m_IdentifierNode;
-		Node* m_ValueNode;
+		Type* m_VariableType;
+		Identifier* m_VariableName;
+		Node* m_AssignedValue;
+
+		virtual void Print(std::string padding) override;
+	};
+
+	struct FunctionPrototypeStatement : public Node
+	{
+		FunctionPrototypeStatement(Type* returnType, Identifier* name, std::vector<Node*> parameters);
+
+		Type* m_ReturnType;
+		Identifier* m_Name;
+		std::vector<Node*> m_Parameters;
+
+		virtual void Print(std::string padding) override;
 	};
 
 	struct Expression : public Node { };
 
 	struct BinaryExpression : public Expression
 	{
-		BinaryExpression(Node* parent, Node* left, Operators::Operator op, Node* right);
+		BinaryExpression(Node* left, Operators::Operator op, Node* right);
 
 		Node* m_Lhs;
 		Operators::Operator m_Operator;
 		Node* m_Rhs;
 
-		virtual void Print(std::string padding) override
-		{
-			std::cout << padding << TypeToString() << " (" << ToString() << "):\n";
-			m_Lhs->Print(padding + "    ");
-			m_Rhs->Print(padding + "    ");
-		}
-
-		std::string ToString() override
-		{
-			return std::string(magic_enum::enum_name(m_Operator.m_Name)) + " (" + m_Operator.m_Symbol + ")";
-		}
+		virtual void Print(std::string padding) override;
+		std::string ToString() override;
 	};
 
 	struct UnaryExpression : public Expression
 	{
-		UnaryExpression(Node* parent, Node* operand, Operators::Operator op);
+		UnaryExpression(Node* operand, Operators::Operator op);
 
 		Node* m_Operand;
 		Operators::Operator m_Operator;
 
-		virtual void Print(std::string padding) override
-		{
-			std::cout << padding << TypeToString() << " (" << ToString() << "):\n";
-			m_Operand->Print(padding + "    ");
-		}
-
-		std::string ToString() override
-		{
-			return std::string(magic_enum::enum_name(m_Operator.m_Name)) + " (" + m_Operator.m_Symbol + ")";
-		}
+		virtual void Print(std::string padding) override;
+		std::string ToString() override;
 	};
 
 	struct CallExpression : public Expression
 	{
-		CallExpression(Node* parent, Node* callee, std::vector<Node*> arguments);
+		CallExpression(Node* callee, std::vector<Node*> arguments);
 
 		Node* m_Callee;
 		std::vector<Node*> m_Arguments;
 
-		virtual void Print(std::string padding) override
-		{
-			std::cout << padding << TypeToString() << " (" << m_Callee->ToString() << "):\n";
-
-			for (auto& argument : m_Arguments)
-			{
-				argument->Print(padding + "    ");
-			}	
-		}
+		virtual void Print(std::string padding) override;
 	};
 
 	class Literal : public Node {};
 	struct IntLiteral : public Literal
 	{
-		IntLiteral(Node* parent, int value);
+		IntLiteral(int value);
 
 		int m_Value;
 
@@ -235,7 +205,7 @@ namespace Ö::AST
 	};
 	struct FloatLiteral : public Literal
 	{
-		FloatLiteral(Node* parent, float value);
+		FloatLiteral(float value);
 
 		float m_Value;
 
@@ -243,7 +213,7 @@ namespace Ö::AST
 	};
 	struct DoubleLiteral : public Literal
 	{
-		DoubleLiteral(Node* parent, double value);
+		DoubleLiteral(double value);
 
 		double m_Value;
 
@@ -251,11 +221,11 @@ namespace Ö::AST
 	};
 	struct StringLiteral : public Literal
 	{
-		StringLiteral(Node* parent, std::string value);
+		StringLiteral(std::string value);
 
 		std::string m_Value;
 
-		std::string ToString() override { return m_Value; }
+		std::string ToString() override { return "\"" + m_Value + "\""; }
 	};
 
 }

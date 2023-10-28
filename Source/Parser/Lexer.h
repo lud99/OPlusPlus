@@ -11,16 +11,10 @@ namespace Ö
 	{
 		enum Types {
 			Empty,
-			VoidType,
-			IntType,
 			IntLiteral,
-			FloatType,
 			FloatLiteral,
-			DoubleType,
 			DoubleLiteral,
-			StringType,
 			StringLiteral,
-			CharType,
 			CharLiteral,
 
 			ClassKeyword,
@@ -79,8 +73,10 @@ namespace Ö
 			Else,
 			While,
 			For,
+
 			Break,
 			Continue,
+
 			Return,
 			Global,
 

@@ -2,7 +2,7 @@
 
 #include <iostream>
 
-#include "../Utils.hpp"
+#include "Parselets.h"
 
 #define RETURN_IF_ERROR() if (HasError()) return nullptr;
 
@@ -58,8 +58,6 @@ namespace Ö::AST
 		m_DefinedOperators.AddOperator(CompoundAssignmentSum, "+=", Midfix, Binary, Token::PlusEquals, 16, Right);
 		m_DefinedOperators.AddOperator(CompoundAssignmentDifference, "-=", Midfix, Binary, Token::MinusEquals, 16, Right);
 
-
-
 		// Parselets for variables and literals
 		m_PrefixParselets[Token::Identifier] = new IdentifierParselet();
 		m_PrefixParselets[Token::IntLiteral] = new LiteralParselet();
@@ -96,14 +94,70 @@ namespace Ö::AST
 		// Unary postfix
 		m_InfixParselets[Token::Increment] = new PostfixOperatorParselet();
 		m_InfixParselets[Token::Decrement] = new PostfixOperatorParselet();
+
+		// Statements
+		m_StatementParselets[Token::LeftCurlyBracket] = new BlockStatementParselet();
+
+		m_StatementParselets[Token::Identifier] = new TypenameStatementParselet();
+
+		m_StatementParselets[Token::While] = new ConditionalStatementParselet();
+		m_StatementParselets[Token::If] = new ConditionalStatementParselet();
+		m_StatementParselets[Token::For] = new ForStatementParselet();
+
+		m_StatementParselets[Token::Continue] = new SingleKeywordParselet();
+		m_StatementParselets[Token::Break] = new SingleKeywordParselet();
+		m_StatementParselets[Token::Return] = new ReturnParselet();
+
 	}
 
-	Node Parser::CreateRootNode()
+	Node* Parser::ParseProgram()
 	{
-		Node node(nullptr);
-		node.m_Type = NodeType::Root;
-		
-		return node;
+		Program* program = new Program();
+
+		while (true)
+		{
+			Token token = PeekToken(0);
+			if (token.m_Type == Token::EndOfFile)
+				break;
+
+			Node* line = Parse();
+			if (HasError()) return nullptr;
+
+			if (!line) return nullptr; // handle
+
+			program->m_Lines.push_back(line);
+		}
+
+		return program;
+	}
+
+	Node* Parser::Parse()
+	{
+		Token token = PeekToken(0);
+
+		// Empty statement
+		if (MatchToken(Token::Semicolon))
+			return nullptr;
+
+		// If no statement parselets, then try to parse it as an expression
+		if (m_StatementParselets.count(token.m_Type) == 0 || (token.m_Type == Token::Identifier && TokenIsIdentifier(token)))
+		{
+			Node* node = ParseExpression();
+			if (HasError()) return nullptr;
+
+			ConsumeToken(Token::Semicolon);
+			if (HasError()) return nullptr;
+
+			if (!node)
+				return MakeError("Unhandled token, " + token.ToString());
+
+			return node;
+		}
+
+		token = ConsumeToken();
+
+		StatementParselet* parselet = m_StatementParselets.at(token.m_Type);
+		return parselet->Parse(*this, token);
 	}
 
 	// Inspired by https://journal.stuffwithstuff.com/2011/03/19/pratt-parsers-expression-parsing-made-easy/
@@ -113,15 +167,21 @@ namespace Ö::AST
 			return nullptr;
 
 		// Parse prefix operators
-		Token token = ConsumeToken();
-		if (token.m_Type == Token::Types::EndOfFile)
+		if (MatchToken(Token::Types::EndOfFile))
 			return nullptr;
 
+		if (PeekToken(0).m_Type == Token::Semicolon)
+			return nullptr;
+
+		Token token = ConsumeToken();
 		if (m_PrefixParselets.count(token.m_Type) == 0)
 			return MakeError("Unexpected token " + token.m_Value + ", could not parse");
 
 		PrefixParselet* prefix = m_PrefixParselets.at(token.m_Type);
-		Node* left = prefix->Parse(*this, token, nullptr);
+		Node* left = prefix->Parse(*this, token);
+
+		///if (left->m_Type == NodeType::Typename)
+			//return MakeError("Cannot have type " + left->ToString() + " in an expression");
 
 		// Parse infix operators, such as normal binary operators or postfix unary operators (like a++)
 		while (!HasError() && PeekToken(0).m_Type != Token::Types::EndOfFile && precedence < GetPrecedenceOfCurrentToken())
@@ -144,7 +204,7 @@ namespace Ö::AST
 
 			InfixParselet* infix = m_InfixParselets.at(token.m_Type);
 
-			left = infix->Parse(*this, left, token, nullptr);
+			left = infix->Parse(*this, left, token);
 		}
 		
 		return left;
@@ -224,104 +284,6 @@ namespace Ö::AST
 		}
 	}
 
-	//Node* Parser::ParseScope(Tokens& tokens, Node* parent)
-	//{
-	//	if (tokens[0].m_Type == Token::LeftCurlyBracket || parent->m_Type == NodeType::Root)
-	//	{
-	//		LinesOfTokens lines;
-	//		Scope* scope;
-
-	//		// There are no first and last brackets to exlude if it's the root program, so iterate all tokens
-	//		if (parent->m_Type == NodeType::Root)
-	//		{
-	//			lines = MakeScopeIntoLines(tokens, 0, tokens.size(), 0);
-	//			scope = new Program(parent);
-	//		}
-	//		else
-	//		{
-	//			lines = MakeScopeIntoLines(tokens, 1, tokens.size() - 1, tokens[0].m_Depth);
-	//			scope = new BlockStatement(parent);
-	//		}
-
-	//		// Finally, evaluate all lines
-	//		for (auto& line : lines)
-	//		{
-	//			Node* statement = CreateAST(line, scope);
-	//			RETURN_IF_ERROR();
-
-	//			scope->m_Lines.push_back(statement);
-	//		}
-
-	//		return scope;
-	//	}
-
-	//	return nullptr;
-	//}
-
-
-	bool Parser::IsInsideBrackets(Tokens tokens, int start)
-	{
-		for (int i = start; i >= 0; i--) // Walk backwards from here
-		{
-			if (tokens[i].m_Type == Token::LeftParentheses ||
-				tokens[i].m_Type == Token::LeftSquareBracket) {
-				if (tokens[i].m_Depth == tokens[start].m_Depth)
-					return true;
-			}
-		}
-
-		for (int i = start; i < tokens.size(); i++) // Walk forwards from here
-		{
-			if (tokens[i].m_Type == Token::RightParentheses ||
-				tokens[i].m_Type == Token::RightSquareBracket)
-			{
-				assert(tokens[i].m_Depth != -1);
-
-				if (tokens[i].m_Depth == tokens[start].m_Depth)
-					return true;
-			}
-		}
-
-		return false;
-	}
-
-	std::optional<int> Parser::FindMatchingEndBracket(Tokens& tokens, Token& startToken)
-	{
-		Token::Types typeOfEnd = Token::Empty;
-		if (startToken.m_Type == Token::LeftParentheses)
-			typeOfEnd = Token::RightParentheses;
-		else if (startToken.m_Type == Token::LeftCurlyBracket)
-			typeOfEnd = Token::RightCurlyBracket;
-		else if (startToken.m_Type == Token::LeftSquareBracket)
-			typeOfEnd = Token::RightSquareBracket;
-
-		for (int i = 0; i < tokens.size(); i++)
-		{
-			if (tokens[i].m_Depth == startToken.m_Depth && tokens[i].m_Type == typeOfEnd)
-				return i;
-		}
-
-		return std::nullopt;
-	}
-	std::optional<int> Parser::FindMatchingStartBracket(Tokens& tokens, Token& endToken)
-	{
-		Token::Types typeOfEnd = Token::Empty;
-		if (endToken.m_Type == Token::RightParentheses)
-			typeOfEnd = Token::LeftParentheses;
-		else if (endToken.m_Type == Token::RightCurlyBracket)
-			typeOfEnd = Token::LeftCurlyBracket;
-		else if (endToken.m_Type == Token::RightSquareBracket)
-			typeOfEnd = Token::LeftSquareBracket;
-
-		for (int i = tokens.size() - 1; i >= 0; i--)
-		{
-			if (tokens[i].m_Depth == endToken.m_Depth && tokens[i].m_Type == typeOfEnd)
-				return i;
-		}
-
-		return std::nullopt;
-	}
-
 	Node* Parser::MakeError(const std::string& message)
 	{
 		m_Error = message;
@@ -367,6 +329,26 @@ namespace Ö::AST
 		ConsumeToken();
 		return true;
 	}
+	bool Parser::MatchTokenNoConsume(int peekDistance, Token::Types expectedType)
+	{
+		Token next = PeekToken(peekDistance);
+		if (next.m_Type != expectedType)
+			return false;
+
+		return true;
+	}
+
+	bool Parser::EnsureToken(int peekDistance, Token::Types expectedType)
+	{
+		Token next = PeekToken(peekDistance);
+		if (next.m_Type != expectedType)
+		{
+			MakeError("Expected token " + Token(expectedType, 0).ToString() + " but got " + next.ToString());
+			return false;
+		}
+
+		return true;
+	}
 
 	int Parser::GetPrecedenceOfCurrentToken()
 	{
@@ -377,111 +359,5 @@ namespace Ö::AST
 			return 0;
 
 		return op.value().GetParsePrecedence();
-	}
-
-	// Parslets
-	// Identifers and literals
-
-	Node* IdentifierParselet::Parse(Parser& parser, Token token, Node* parent)
-	{
-		return new Identifier(parent, token.m_Value);
-	}
-	Node* LiteralParselet::Parse(Parser& parser, Token token, Node* parent)
-	{
-		Token nextToken = parser.PeekToken(0);
-		if (nextToken.IsLiteral())
-			return parser.MakeError("Cannot have two literals next to each other");
-
-		if (token.m_Type == Token::IntLiteral)
-			return new IntLiteral(parent, std::stoi(token.m_Value));
-		if (token.m_Type == Token::DoubleLiteral)
-			return new DoubleLiteral(parent, StringToDouble(token.m_Value));
-		if (token.m_Type == Token::FloatLiteral)
-			abort();
-		if (token.m_Type == Token::StringLiteral)
-			return new StringLiteral(parent, token.m_Value);
-
-		abort();
-		return nullptr;
-	}
-	Node* ParenthesesGroupParselet::Parse(Parser& parser, Token token, Node* parent)
-	{
-		Node* expression = parser.ParseExpression();
-
-		auto result = parser.ConsumeToken(Token::Types::RightParentheses);
-		if (!result.has_value()) 
-			return nullptr;
-
-		return expression;
-	}
-
-	// Operators
-
-	Node* PrefixOperatorParselet::Parse(Parser& parser, Token token, Node* parent)
-	{
-		auto opOp = parser.m_DefinedOperators.GetUnaryPrefix(token.m_Type);
-		assert(opOp.has_value());
-		auto& op = opOp.value();
-
-		//Token nextToken = parser.PeekToken(0);
-		//if (nextToken.IsOperator())
-			//return parser.MakeError("Cannot have two binary operators next to each other");
-
-		Node* operand = parser.ParseExpression(op.GetParsePrecedence());
-
-		if (parser.HasError())
-			return nullptr;
-
-		if (!operand)
-			return parser.MakeError("Expected expression next to " + op.ToString());
-
-		return new UnaryExpression(parent, operand, op);
-	}
-
-	Node* PostfixOperatorParselet::Parse(Parser& parser, Node* left, Token token, Node* parent)
-	{
-		auto opOp = parser.m_DefinedOperators.GetUnaryPostfix(token.m_Type);
-		assert(opOp.has_value());
-		auto& op = opOp.value();
-
-		return new UnaryExpression(parent, left, op);
-	}
-
-	Node* BinaryOperatorParselet::Parse(Parser& parser, Node* left, Token token, Node* parent)
-	{
-		auto opOp = parser.m_DefinedOperators.GetBinary(token.m_Type);
-		assert(opOp.has_value());
-		auto& op = opOp.value();
-
-		Token nextToken = parser.PeekToken(0);
-		if (nextToken.IsOperator())
-			return parser.MakeError("Cannot have two binary operators next to each other");
-
-		Node* right = parser.ParseExpression(op.GetParsePrecedence());
-
-		if (parser.HasError())
-			return nullptr;
-
-		if (!right)
-			return parser.MakeError("Expected expression on right side of " + op.ToString());
-
-		return new BinaryExpression(parent, left, op, right);
-	}
-
-	Node* CallParselet::Parse(Parser& parser, Node* left, Token token, Node* parent)
-	{
-		std::vector<Node*> arguments;
-		
-		// Parse until we find a closing parentheses
-		if (!parser.MatchToken(Token::RightParentheses))
-		{
-			do
-			{
-				arguments.push_back(parser.ParseExpression());
-			} while (parser.MatchToken(Token::Comma));
-			parser.ConsumeToken(Token::RightParentheses);
-		}
-
-		return new CallExpression(nullptr, left, arguments);
 	}
 };

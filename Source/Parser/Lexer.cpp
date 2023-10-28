@@ -253,7 +253,7 @@ namespace Ö
 	Token ResolveTokenKeyword(Token tok)
 	{
 		Token token = tok;
-		if (token.m_Value == "void")
+		/*if (token.m_Value == "void")
 			token.m_Type = Token::VoidType;
 		if (token.m_Value == "int")
 			token.m_Type = Token::IntType;
@@ -264,9 +264,9 @@ namespace Ö
 		else if (token.m_Value == "string")
 			token.m_Type = Token::StringType;
 		else if (token.m_Value == "char")
-			token.m_Type = Token::CharType;
+			token.m_Type = Token::CharType;*/
 
-		else if (token.m_Value == "class")
+		if (token.m_Value == "class")
 			token.m_Type = Token::ClassKeyword;
 
 		else if (token.m_Value == "return")
@@ -399,12 +399,12 @@ namespace Ö
 		};
 
 		auto shouldAddSemicolon = [&] {
-			return !m_Tokens.empty() &&
+			return false;/* !m_Tokens.empty() &&
 				m_Tokens.back().m_Type != Token::Semicolon &&
 				m_Tokens.back().m_Type != Token::NewLine &&
 				m_Tokens.back().m_Type != Token::LeftCurlyBracket &&
 				m_Tokens.back().m_Type != Token::RightCurlyBracket &&
-				!isInComment();
+				!isInComment();*/
 		};
 
 		Token token;

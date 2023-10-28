@@ -9,10 +9,10 @@
 #include <optional>
 #include <deque>
 
+#include "Semantics/TypeTable.h"
 #include "Nodes.h"
 #include "Lexer.h"
 #include "Operators.h"
-//#include "TypeTable.h"
 
 namespace Ö::AST
 {
@@ -20,18 +20,18 @@ namespace Ö::AST
 
 	struct PrefixParselet;
 	struct InfixParselet;
+	struct StatementParselet;
 
 	class Parser
 	{
 	public:
 		EXPORT Parser(Tokens& tokens);
 
-		EXPORT Node CreateRootNode();
-
-		EXPORT Node* ParseExpression(int precedence = 0);
-
-		//EXPORT Node* CreateAST(Tokens& tokens, Node* parent);
+		EXPORT Node* ParseProgram();
 		
+		Node* Parse();
+		Node* ParseExpression(int precedence = 0);
+
 		EXPORT float TemporaryEvaluator(Node* node);
 
 		Node* MakeError(const std::string& message);
@@ -43,55 +43,20 @@ namespace Ö::AST
 		// Lexer functions
 		Token ConsumeToken();
 		std::optional<Token> ConsumeToken(Token::Types expectedType);
+		
 		Token PeekToken(int distance);
+		
 		bool MatchToken(Token::Types expectedType);
+		bool MatchTokenNoConsume(Token::Types expectedType) { return MatchTokenNoConsume(0, expectedType); };
+
+		bool MatchTokenNoConsume(int peekDistance, Token::Types expectedType);
+
+		bool EnsureToken(int peekDistance, Token::Types expectedType);
+
 		int GetPrecedenceOfCurrentToken();
 
-	private:
-
-		bool IsValidClassDeclaration(Tokens tokens);
-		bool IsValidElseStatement(Tokens tokens, int position);
-		bool IsValidStatement(Tokens tokens);
-		bool IsValidAssignmentExpression(Tokens tokens, int equalsSignPosition);
-		bool IsValidCompoundAssignmentExpression(Tokens tokens, int position);
-		bool IsValidComparisonExpression(Tokens tokens, int position);
-		bool IsValidLogicalAndOrExpression(Tokens tokens, int position);
-		bool IsValidPropertyAccessExpression(Tokens tokens);
-		bool IsValidPostIncDecExpression(Tokens tokens, int position);
-		bool IsValidPreIncDecExpression(Tokens tokens, int position);
-		bool IsValidScopeResolutionExpresion(Tokens tokens, int position);
-		bool IsValidFunctionCallExpression(Tokens tokens);
-		bool IsValidVariableDeclarationExpression(Tokens tokens);
-
-		Node* ParseScope(Tokens& tokens, Node* parent);
-		Node* ParseParentheses(Tokens& tokens, Node* parent);
-		Node* ParseBinaryExpression(Tokens& tokens, Node* parent);
-
-		
-
-		bool ParseClassDeclaration(Tokens& tokens, Node* node);
-		bool ParseElseStatement(Tokens& tokens, Node* node);
-		bool ParseStatement(Tokens& tokens, Node* node);
-		bool ParseFunctionDeclaration(Tokens& tokens, Node* node);
-		bool ParseFunctionPrototype(Tokens& tokens, Node* node);
-		bool ParseAssignment(Tokens& tokens, Node* node);
-		bool ParseLogicalAndOr(Tokens& tokens, Node* node);
-		bool ParseComparisonOperators(Tokens& tokens, Node* node);
-		bool ParseCompoundAssignment(Tokens& tokens, Node* node);
-		bool ParseMathExpression(Tokens& tokens, Node* node);
-		bool ParseVariableDeclaration(Tokens& tokens, Node* node);
-		bool ParsePropertyAccessExpression(Tokens& tokens, Node* node);
-		bool ParseMemberAccessor(Tokens& tokens, Node* node);
-		bool ParseScopeResolution(Tokens& tokens, Node* node);
-		bool ParseFunctionCall(Tokens& tokens, Node* node);
-		bool ParseIncrementDecrement(Tokens& tokens, Node* node);
-
-		LinesOfTokens MakeScopeIntoLines(Tokens tokens, int start, int end, int startingDepth);
-		bool IsInsideBrackets(Tokens tokens, int start);
-
-		// Find the matching bracket (, {, [ with the same depth
-		std::optional<int> FindMatchingEndBracket(Tokens& tokens, Token& startToken);
-		std::optional<int> FindMatchingStartBracket(Tokens& tokens, Token& endToken);
+		bool TokenIsTypename(Token token) { return m_TypeTable.HasType(token.m_Value); }
+		bool TokenIsIdentifier(Token token) { return !TokenIsTypename(token) && token.m_Type == Token::Identifier; }
 
 	private:
 		std::string m_Error = "";
@@ -104,51 +69,10 @@ namespace Ö::AST
 		std::unordered_map<Token::Types, PrefixParselet*> m_PrefixParselets;
 		std::unordered_map<Token::Types, InfixParselet*> m_InfixParselets;
 
+		std::unordered_map<Token::Types, StatementParselet*> m_StatementParselets;
+
 	public:
 		Operators::DefinedOperators m_DefinedOperators;
-	};
-
-	// Base classes
-	struct PrefixParselet
-	{
-		virtual Node* Parse(Parser& parser, Token token, Node* parent) { abort();  return nullptr; }
-	};
-	struct InfixParselet
-	{
-		virtual Node* Parse(Parser& parser, Node* left, Token token, Node* parent) { abort();  return nullptr; }
-	};
-
-	// Identifiers and literals
-	struct IdentifierParselet : public PrefixParselet
-	{
-		Node* Parse(Parser& parser, Token token, Node* parent) override;
-	};
-	struct LiteralParselet : public PrefixParselet
-	{
-		Node* Parse(Parser& parser, Token token, Node* parent) override;
-	};	
-	struct ParenthesesGroupParselet : public PrefixParselet
-	{
-		Node* Parse(Parser& parser, Token token, Node* parent) override;
-	};
-
-
-	// Operators
-
-	struct PrefixOperatorParselet : public PrefixParselet 
-	{
-		Node* Parse(Parser& parser, Token token, Node* parent) override;
-	};
-	struct PostfixOperatorParselet : public InfixParselet
-	{
-		Node* Parse(Parser& parser, Node* left, Token token, Node* parent) override;
-	};
-	struct BinaryOperatorParselet : public InfixParselet
-	{
-		Node* Parse(Parser& parser, Node* left, Token token, Node* parent) override;
-	};
-	struct CallParselet : public InfixParselet
-	{
-		Node* Parse(Parser& parser, Node* left, Token token, Node* parent) override;
+		TypeTable m_TypeTable;
 	};
 }
