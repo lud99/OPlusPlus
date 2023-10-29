@@ -29,6 +29,7 @@ namespace Ö::AST
 		BlockStatement,
 
 		FunctionDefinition,
+		ExpressionFunctionDefinition,
 
 		IfStatement,
 		WhileStatement,
@@ -182,19 +183,20 @@ namespace Ö::AST
 
 	struct FunctionDefinitionStatement : public Node
 	{
-		FunctionDefinitionStatement(Type* returnType, Identifier* name, std::vector<Node*> parameters, BlockStatement* body);
+		FunctionDefinitionStatement(Type* returnType, Identifier* name, std::vector<Node*> parameters, Node* body);
 
 		Type* m_ReturnType;
 		Identifier* m_Name;
 		std::vector<Node*> m_Parameters;
 
-		BlockStatement* m_Body = nullptr;
+		Node* m_Body = nullptr;
 
 		bool IsPrototype() { return m_Body == nullptr; }
+		bool IsExpressionFunction() { return m_Body->m_Type != NodeType::BlockStatement; }
 
 		virtual void Print(std::string padding) override;
 	};
-
+	
 	struct Expression : public Node { };
 
 	struct BinaryExpression : public Expression

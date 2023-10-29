@@ -218,7 +218,7 @@ namespace Ö::AST {
 			m_ReturnValue->Print(padding + "    ");
 	}
 
-	FunctionDefinitionStatement::FunctionDefinitionStatement(Type* returnType, Identifier* name, std::vector<Node*> parameters, BlockStatement* body)
+	FunctionDefinitionStatement::FunctionDefinitionStatement(Type* returnType, Identifier* name, std::vector<Node*> parameters, Node* body)
 	{
 		m_Type = NodeType::FunctionDefinition;
 		m_ReturnType = returnType;

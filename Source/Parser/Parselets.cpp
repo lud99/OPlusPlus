@@ -361,13 +361,29 @@ namespace Ö::AST
 		if (parser.MatchToken(Token::Semicolon))
 			return new FunctionDefinitionStatement(returnType, name, parameters, nullptr);
 
+		// Check if an expression function (int a() => 5);
+		nextToken = parser.PeekToken(0);
+		if (parser.MatchToken(Token::RightArrow))
+		{
+			Node* expression = parser.ParseExpression();
+			if (parser.HasError()) return nullptr;
+
+			if (!expression)
+				return parser.MakeErrorButPretty("Expected expression after right arrow", nextToken);
+
+			parser.ConsumeToken(Token::Semicolon);
+			if (parser.HasError()) return nullptr;
+
+			return new FunctionDefinitionStatement(returnType, name, parameters, expression);
+		}
+
 		// Otherwise parse body
 		Node* body = parser.Parse();
 		if (parser.HasError()) return nullptr;
 		if (!body || body->m_Type != NodeType::BlockStatement)
-			return parser.MakeErrorButPretty("Expected block statement for function definition", nextToken);
+			return parser.MakeErrorButPretty("Expected block statement or '=>' after function definition", nextToken);
 
-		return new FunctionDefinitionStatement(returnType, name, parameters, (BlockStatement*)body);
+		return new FunctionDefinitionStatement(returnType, name, parameters, body);
 	}
 
 	Node* TypenameStatementParselet::Parse(Parser& parser, Token token)
