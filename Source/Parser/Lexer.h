@@ -5,8 +5,14 @@
 #include <string>
 #include <vector>
 
-namespace Ö
+namespace Ö::Lexer
 {
+	struct TokenPosition
+	{
+		int line = 0;
+		int column = 0;
+	};
+
 	struct Token
 	{
 		enum Types {
@@ -87,9 +93,10 @@ namespace Ö
 		};
 
 		Token() {};
-		Token(Types type, int position, std::string value = "", int depth = -1) : m_Type(type), m_StartPosition(position), m_Value(value), m_Depth(depth) {};
+		Token(Types type, TokenPosition position, std::string value = "") : m_Type(type), m_StartPosition(position), m_Value(value) {};
 
-		EXPORT std::string ToString();
+		EXPORT std::string TypeToString();
+		EXPORT std::string ToFormattedValueString();
 
 		inline bool IsOperator()
 		{
@@ -137,9 +144,7 @@ namespace Ö
 		Types m_Type = Types::Empty;
 		std::string m_Value;
 
-		int m_StartPosition = 0;
-
-		int m_Depth = -1;
+		TokenPosition m_StartPosition;
 	};
 
 	std::string TokenTypeToString(Token::Types type);
@@ -151,6 +156,8 @@ namespace Ö
 	public:
 		EXPORT std::string CreateTokens(const std::string& source, bool createCommentTokens = false);
 
+		EXPORT static std::string ReconstructSourcecode(Tokens& tokens);
+
 		char ConsumeNext();
 		char Next();
 		bool IsNext();
@@ -159,11 +166,11 @@ namespace Ö
 		int CharactersLeft();
 		int Skip();
 
-		int TotalDepth();
+		TokenPosition CalculateLineAndColumn();
 
 		Tokens& GetTokens() { return m_Tokens; };
 
-		Token AddToken(Token token, int customDepth = -1);
+		Token AddToken(Token token);
 
 		std::string MakeError(const std::string& message);
 
@@ -175,9 +182,6 @@ namespace Ö
 
 		std::vector<std::string> m_Lines;
 		std::string m_Source = "";
-
-		int m_ParenthesesParsingDepth = 0;
-		int m_ScopeParsingDepth = 0;
 	};
 
 };

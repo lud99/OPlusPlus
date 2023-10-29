@@ -10,6 +10,7 @@
 
 namespace Ö::Operators
 {
+	using namespace Ö::Lexer;
 	enum Associativity
 	{
 		Left,

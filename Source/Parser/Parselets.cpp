@@ -153,7 +153,7 @@ namespace Ö::AST
 
 		Node* body = parser.Parse();
 		if (!body || body->m_Type != NodeType::BlockStatement)
-			return parser.MakeError("Expected left curly bracket after " + token.ToString() + " statement");
+			return parser.MakeError("Expected left curly bracket after " + token.TypeToString() + " statement");
 
 		if (token.m_Type == Token::While)
 			return (Node*) new WhileStatement(condition, (BlockStatement*)body);
@@ -233,7 +233,7 @@ namespace Ö::AST
 
 		Node* body = parser.Parse();
 		if (!body || body->m_Type != NodeType::BlockStatement)
-			return parser.MakeError("Expected left curly bracket after " + token.ToString() + " statement");
+			return parser.MakeError("Expected left curly bracket after " + token.TypeToString() + " statement");
 
 		return (Node*) new ForStatement(initialization, condition, advancement, (BlockStatement*)body);
 	}

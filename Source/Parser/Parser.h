@@ -16,6 +16,7 @@
 
 namespace Ö::AST
 {
+	using namespace Ö::Lexer;
 	typedef std::vector<Tokens> LinesOfTokens;
 
 	struct PrefixParselet;

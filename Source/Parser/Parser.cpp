@@ -155,7 +155,7 @@ namespace Ö::AST
 			if (HasError()) return nullptr;
 
 			if (!node)
-				return MakeError("Unexpected token " + token.ToString() + " in statement parser");
+				return MakeError("Unexpected token " + token.TypeToString() + " in statement parser");
 
 			return node;
 		}
@@ -316,7 +316,7 @@ namespace Ö::AST
 		Token next = PeekToken(0);
 		if (next.m_Type != expectedType)
 		{
-			MakeError("Expected token " + Token(expectedType, 0).ToString() + " but got " + next.ToString());
+			MakeError("Expected token " + TokenTypeToString(expectedType) + " but got " + next.TypeToString());
 			return {};
 		}
 
@@ -351,7 +351,7 @@ namespace Ö::AST
 		Token next = PeekToken(peekDistance);
 		if (next.m_Type != expectedType)
 		{
-			MakeError("Expected token " + Token(expectedType, 0).ToString() + " but got " + next.ToString());
+			MakeError("Expected token " + TokenTypeToString(expectedType) + " but got " + next.TypeToString());
 			return false;
 		}
 
