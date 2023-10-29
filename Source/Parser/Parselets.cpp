@@ -205,7 +205,6 @@ namespace Ö::AST
 		if (token.m_Type == Token::EndOfFile)
 			return blockNode;
 
-
 		return blockNode;
 	}
 	Node* ForStatementParselet::Parse(Parser& parser, Token token)
@@ -269,16 +268,35 @@ namespace Ö::AST
 		return (Node*) new ReturnStatement(returnValue);
 	}
 
-	Node* ParseVariableDeclaration(Parser& parser, Token token, Type* type, Identifier* name, Token::Types endToken = Token::Semicolon)
+	Node* ParseVariableDeclaration(Parser& parser, Token token, Type* type, Identifier* name, bool consumeEndToken = true, Token::Types endToken = Token::Semicolon)
 	{
-		if (parser.MatchTokenNoConsume(endToken))
-			return new VariableDeclaration(type, name, nullptr);
+		// int a;
+		if (consumeEndToken)
+		{
+			if (parser.MatchToken(endToken))
+				return new VariableDeclaration(type, name, nullptr);
+		}
+		else
+		{
+			if (parser.MatchTokenNoConsume(endToken))
+				return new VariableDeclaration(type, name, nullptr);
+		}
 
+		// int a = ...;
 		parser.ConsumeToken(Token::SetEquals);
 		if (parser.HasError()) return nullptr;
 
 		Node* assignedValue = parser.ParseExpression();
 		if (parser.HasError()) return nullptr;
+		
+		if (!assignedValue)
+			return parser.MakeErrorButPretty("Expected expression on right hand side of assignment, but got " + 
+				parser.PeekToken(0).ToFormattedValueString(), parser.PeekToken(0));
+
+		if (parser.HasError()) return nullptr;
+
+		if (consumeEndToken)
+			parser.ConsumeToken(endToken);
 
 		return new VariableDeclaration(type, name, assignedValue);
 	}
@@ -323,7 +341,7 @@ namespace Ö::AST
 				if (token.m_Type == Token::RightParentheses)
 					endToken = Token::RightParentheses;
 
-				Node* variableDeclaration = ParseVariableDeclaration(parser, token, type, name, endToken);
+				Node* variableDeclaration = ParseVariableDeclaration(parser, token, type, name, false /* dont consume comma */, endToken);
 
 				parameters.push_back(variableDeclaration);
 			} while (parser.MatchToken(Token::Comma));
@@ -365,20 +383,7 @@ namespace Ö::AST
 			return ParseFunctionDefinition(parser, token, type, name);
 
 		// Otherwise it's a variable declaration (int a; or int a = ...;)
-		// int a;
-		if (parser.MatchToken(Token::Semicolon))
-			return new VariableDeclaration(type, name, nullptr);
-
-		// int a = ...;
-		parser.ConsumeToken(Token::SetEquals);
-		if (parser.HasError()) return nullptr;
-
-		Node* assignedValue = parser.ParseExpression();
-		if (parser.HasError()) return nullptr;
-
-		parser.ConsumeToken(Token::Semicolon);
-
-		return new VariableDeclaration(type, name, assignedValue);
+		return ParseVariableDeclaration(parser, token, type, name);
 	}
 
 	Node* ClosureParselet::Parse(Parser& parser, Token token)
@@ -394,9 +399,9 @@ namespace Ö::AST
 	Node* LoopParselet::Parse(Parser& parser, Token token)
 	{
 		Node* body = parser.Parse();
-		if (parser.HasError()) return nullptr;
 		if (!body || body->m_Type != NodeType::BlockStatement)
-			return parser.MakeErrorButPretty("Expected block statement for loop", token);
+			return parser.MakeErrorButPretty("Expected block statement after 'loop'", token);
+		if (parser.HasError()) return nullptr;
 
 		return new LoopStatement((BlockStatement*)body);
 	}
@@ -408,5 +413,60 @@ namespace Ö::AST
 		if (parser.HasError()) return nullptr;
 
 		return (Node*) new BreakStatement(breakValue);
+	}
+
+	Node* ClassDefinitionParselet::Parse(Parser& parser, Token token)
+	{
+		auto nameOpt = parser.ConsumeToken(Token::Identifier);
+		if (!nameOpt.has_value()) return nullptr;
+
+		std::string className = nameOpt.value().m_Value;
+
+		if (parser.m_TypeTable.HasType(className))
+			return parser.MakeErrorButPretty("Class '" + className + "' has already been declared elsewhere");
+
+		parser.m_TypeTable.Add(className, TypeTableType::Class);
+
+		Token nextToken = parser.ConsumeToken();
+		if (parser.HasError()) return nullptr;
+
+		Identifier* name = new Identifier(className);
+
+		// Parse body of class definition
+		ClassDeclarationStatement* classDeclaration = new ClassDeclarationStatement(name);
+
+		while (true)
+		{
+			token = parser.PeekToken(0);
+			if (parser.MatchToken(Token::RightCurlyBracket))
+				break;
+
+			if (parser.MatchToken(Token::EndOfFile))
+				return parser.MakeErrorButPretty("No closing curly bracket for class definition", token);
+
+			Node* line = parser.Parse();
+			if (parser.HasError()) return nullptr;
+			if (!line)
+				return parser.MakeErrorButPretty("Could not parse class definition");
+
+			// Add the node to the right spot
+			if (line->m_Type == NodeType::VariableDeclaration)
+				classDeclaration->m_MemberDeclarations.push_back((VariableDeclaration*)line);
+			else if (line->m_Type == NodeType::FunctionDefinition)
+				classDeclaration->m_MethodDeclarations.push_back((FunctionDefinitionStatement*)line);
+			else if (line->m_Type == NodeType::ClassDeclaration)
+				classDeclaration->m_NestedClassDeclarations.push_back((ClassDeclarationStatement*)line);
+			else if (line->m_Type != NodeType::EmptyStatement)
+				return parser.MakeErrorButPretty("Unsupported statement in class declaration '" + line->TypeToString() + "'", token);
+		}
+
+		//Node* definition = ParseClassDefinitionBody(parser, nextToken);
+		if (parser.HasError()) return nullptr;
+
+		// A semicolon after class declaration is legal, but not necessary
+		//if (parser.MatchTokenNoConsume(Token::Semicolon))
+			//parser.ConsumeToken(Token::Semicolon);
+
+		return classDeclaration;
 	}
 }

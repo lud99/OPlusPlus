@@ -281,4 +281,28 @@ namespace Ö::AST {
 		if (m_BreakValue)
 			m_BreakValue->Print(padding + "    ");
 	}
+
+	ClassDeclarationStatement::ClassDeclarationStatement(Identifier* name)
+	{
+		m_Type = NodeType::ClassDeclaration;
+		m_Name = name;
+	}
+
+	void ClassDeclarationStatement::Print(std::string padding)
+	{
+		std::string newPadding = padding + "        ";
+		std::cout << padding << TypeToString() << ": \n";
+
+		m_Name->Print(padding + "    ");
+
+		std::cout << padding + "    (member variables): \n";
+		for (auto& node : m_MemberDeclarations)
+			node->Print(newPadding);
+		std::cout << padding + "    (methods): \n";
+		for (auto& node : m_MethodDeclarations)
+			node->Print(newPadding);
+		std::cout << padding + "    (nested classes): \n";
+		for (auto& node : m_NestedClassDeclarations)
+			node->Print(newPadding);
+	}
 }

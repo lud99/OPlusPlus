@@ -94,4 +94,9 @@ namespace Ö::AST
 	{
 		Node* Parse(Parser& parser, Token token) override;
 	};
+
+	struct ClassDefinitionParselet : public StatementParselet
+	{
+		Node* Parse(Parser& parser, Token token) override;
+	};
 }

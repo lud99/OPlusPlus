@@ -116,6 +116,7 @@ namespace Ö::AST
 		m_StatementParselets[Token::Break] = new BreakParselet();
 		m_StatementParselets[Token::Return] = new ReturnParselet();
 
+		m_StatementParselets[Token::ClassKeyword] = new ClassDefinitionParselet();
 	}
 
 	Node* Parser::ParseProgram()
@@ -145,7 +146,7 @@ namespace Ö::AST
 
 		// Empty statement
 		if (MatchToken(Token::Semicolon))
-			return nullptr;
+			return new Node();
 
 		// If no statement parselets, then try to parse it as an expression
 		if (m_StatementParselets.count(token.m_Type) == 0 || (token.m_Type == Token::Identifier && TokenIsIdentifier(token)))
@@ -183,7 +184,13 @@ namespace Ö::AST
 
 		Token token = ConsumeToken();
 		if (m_PrefixParselets.count(token.m_Type) == 0)
+		{
+			// If the operator is a infix, then error
+			if (m_InfixParselets.count(token.m_Type) != 0)
+				return MakeErrorButPretty("Infix operator used as prefix");
+
 			return MakeErrorButPretty("Unexpected token " + token.m_Value + " in expression, could not parse");
+		}
 
 		PrefixParselet* prefix = m_PrefixParselets.at(token.m_Type);
 		Node* left = prefix->Parse(*this, token);
@@ -318,7 +325,7 @@ namespace Ö::AST
 			auto startPosition = error.token.m_StartPosition;
 
 			std::string severity = std::string(magic_enum::enum_name(error.severity));
-			std::cout << "(Parser) " << severity << ": " << error.message << "\n";
+			std::cout << severity << ": " << error.message << "\n\n";
 
 			std::string lineOfError = sourceLines[startPosition.line];
 
@@ -326,8 +333,11 @@ namespace Ö::AST
 
 			std::string leftPadding = " " + Replicate(indent, " ") + " | ";
 
-			if (startPosition.line != 0) 
-				std::cout << leftPadding << "\n";
+			if (startPosition.line != 0)
+			{
+				std::string lineBefore = sourceLines[startPosition.line - 1];
+				std::cout << leftPadding << lineBefore << "\n";
+			}
 			std::cout << " " << startPosition.line + 1 << " | " << lineOfError << "\n";
 			std::cout << leftPadding;
 
@@ -357,7 +367,7 @@ namespace Ö::AST
 		Token next = PeekToken(0);
 		if (next.m_Type != expectedType)
 		{
-			MakeErrorButPretty("Expected " + TokenTypeToString(expectedType) + ", found " + next.TypeToString(), next);
+			MakeErrorButPretty("Expected " + TokenTypeToString(expectedType) + ", found '" + next.ToFormattedValueString() + "'", next);
 			return {};
 		}
 
@@ -392,7 +402,7 @@ namespace Ö::AST
 		Token next = PeekToken(peekDistance);
 		if (next.m_Type != expectedType)
 		{
-			MakeErrorButPretty("Expected " + TokenTypeToString(expectedType) + ", found " + next.TypeToString(), next);
+			MakeErrorButPretty("Expected " + TokenTypeToString(expectedType) + ", found '" + next.ToFormattedValueString() + "'", next);
 			return false;
 		}
 

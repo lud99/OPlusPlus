@@ -12,7 +12,7 @@ namespace Ö::AST
 	struct Node;
 
 	enum class NodeType {
-		Empty,
+		EmptyStatement,
 
 		Root,
 		Program,
@@ -42,6 +42,8 @@ namespace Ö::AST
 
 		Return,
 
+		ClassDeclaration,
+
 		IntLiteral,
 		FloatLiteral,
 		DoubleLiteral,
@@ -54,7 +56,7 @@ namespace Ö::AST
 	{
 		EXPORT Node() {};
 
-		NodeType m_Type = NodeType::Empty;
+		NodeType m_Type = NodeType::EmptyStatement;
 
 		EXPORT virtual std::string TypeToString();
 		EXPORT virtual void Print(std::string padding = "");
@@ -224,6 +226,20 @@ namespace Ö::AST
 
 		Node* m_Callee;
 		std::vector<Node*> m_Arguments;
+
+		virtual void Print(std::string padding) override;
+	};
+
+	struct ClassDeclarationStatement;
+	struct ClassDeclarationStatement : public Node
+	{
+		ClassDeclarationStatement(Identifier* name);
+
+		Identifier* m_Name;
+
+		std::vector<VariableDeclaration*> m_MemberDeclarations;
+		std::vector<FunctionDefinitionStatement*> m_MethodDeclarations;
+		std::vector<ClassDeclarationStatement*> m_NestedClassDeclarations;
 
 		virtual void Print(std::string padding) override;
 	};
