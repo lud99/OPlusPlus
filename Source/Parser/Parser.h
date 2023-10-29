@@ -61,7 +61,7 @@ namespace Ö::AST
 		Token ConsumeToken();
 		std::optional<Token> ConsumeToken(Token::Types expectedType);
 		
-		Token PeekToken(int distance);
+		Token PeekToken(int distance = 0);
 		
 		bool MatchToken(Token::Types expectedType);
 		bool MatchTokenNoConsume(Token::Types expectedType) { return MatchTokenNoConsume(0, expectedType); };

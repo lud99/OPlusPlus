@@ -82,7 +82,7 @@ namespace Ö::AST {
 		return std::string(magic_enum::enum_name(m_Operator.m_Name)) + " (" + m_Operator.m_Symbol + ")";
 	}
 
-	CallExpression::CallExpression(Node* callee, std::vector<Node*> arguments)
+	CallExpression::CallExpression(Node* callee, TupleExpression* arguments)
 	{
 		m_Type = NodeType::CallExpression;
 		m_Callee = callee;
@@ -94,10 +94,7 @@ namespace Ö::AST {
 		// todo: print correctly
 		std::cout << padding << TypeToString() << " (" << m_Callee->ToString() << "):\n";
 
-		for (auto& argument : m_Arguments)
-		{
-			argument->Print(padding + "    ");
-		}
+		m_Arguments->Print(padding + "    ");
 	}
 
 	IntLiteral::IntLiteral(int value)
@@ -304,5 +301,19 @@ namespace Ö::AST {
 		std::cout << padding + "    (nested classes): \n";
 		for (auto& node : m_NestedClassDeclarations)
 			node->Print(newPadding);
+	}
+
+	TupleExpression::TupleExpression(std::vector<Node*> elements)
+	{
+		m_Type = NodeType::TupleExpression;
+		m_Elements = elements;
+	}
+
+	void TupleExpression::Print(std::string padding)
+	{
+		std::cout << padding << TypeToString() << ": \n";
+
+		for (auto& element : m_Elements)
+			element->Print(padding + "    ");
 	}
 }

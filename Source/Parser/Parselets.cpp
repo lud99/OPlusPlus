@@ -48,11 +48,60 @@ namespace Ö::AST
 		abort();
 		return nullptr;
 	}
+
+	Node* ParseTupleExpression(Parser& parser)
+	{
+		std::vector<Node*> arguments;
+
+		// Parse until we find a closing parentheses
+		if (!parser.MatchToken(Token::RightParentheses))
+		{
+			do
+			{
+				arguments.push_back(parser.ParseExpression());
+			} while (parser.MatchToken(Token::Comma));
+			parser.ConsumeToken(Token::RightParentheses);
+		}
+
+		return new TupleExpression(arguments);
+	}
+
 	Node* ParenthesesGroupParselet::Parse(Parser& parser, Token token)
 	{
+		// Look ahead for a comma inside the parantheses
+		int i = 0;
+		while (true)
+		{
+			Token peekToken = parser.PeekToken(i);
+
+			if (peekToken.m_Type == Token::EndOfFile)
+				return parser.MakeErrorButPretty("No closing parentheses found", token);
+
+			// If ')' is found before a comma, then it is not a tuple
+			// But if it is the first token we peek, '() would it look like', then it is an empty tuple
+			if (peekToken.m_Type == Token::RightParentheses)
+			{
+				// Tuple!
+				if (i == 0)
+					return ParseTupleExpression(parser);
+				
+				// No tuple :(
+				break;
+			}
+
+			// It is a tuple!
+			if (peekToken.m_Type == Token::Comma)
+			{
+				 return ParseTupleExpression(parser);
+			}
+
+			i++;
+		}
+
+		// Parsing a normal group of parentheses
 		Node* expression = parser.ParseExpression();
 
-		auto result = parser.ConsumeToken(Token::Types::RightParentheses);
+		auto result = parser.ConsumeToken(Token::RightParentheses);
 		if (!result.has_value())
 			return nullptr;
 
@@ -118,17 +167,9 @@ namespace Ö::AST
 
 	Node* CallParselet::Parse(Parser& parser, Node* left, Token token)
 	{
-		std::vector<Node*> arguments;
+		TupleExpression* arguments = (TupleExpression*)ParseTupleExpression(parser);
 
-		// Parse until we find a closing parentheses
-		if (!parser.MatchToken(Token::RightParentheses))
-		{
-			do
-			{
-				arguments.push_back(parser.ParseExpression());
-			} while (parser.MatchToken(Token::Comma));
-			parser.ConsumeToken(Token::RightParentheses);
-		}
+		if (parser.HasError()) return nullptr;
 
 		return new CallExpression(left, arguments);
 	}

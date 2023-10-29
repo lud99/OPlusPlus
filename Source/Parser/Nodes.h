@@ -26,6 +26,8 @@ namespace Ö::AST
 		UnaryExpression,
 		CallExpression,
 
+		TupleExpression,
+
 		BlockStatement,
 
 		FunctionDefinition,
@@ -222,15 +224,26 @@ namespace Ö::AST
 		std::string ToString() override;
 	};
 
-	struct CallExpression : public Expression
+	struct TupleExpression : public Expression
 	{
-		CallExpression(Node* callee, std::vector<Node*> arguments);
+		TupleExpression(std::vector<Node*> elements);
 
-		Node* m_Callee;
-		std::vector<Node*> m_Arguments;
+		std::vector<Node*> m_Elements;
 
 		virtual void Print(std::string padding) override;
 	};
+
+	struct CallExpression : public Expression
+	{
+		CallExpression(Node* callee, TupleExpression* arguments);
+
+		Node* m_Callee;
+		TupleExpression* m_Arguments;
+
+		virtual void Print(std::string padding) override;
+	};
+
+
 
 	struct ClassDeclarationStatement;
 	struct ClassDeclarationStatement : public Node
