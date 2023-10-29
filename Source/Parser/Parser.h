@@ -23,6 +23,20 @@ namespace Ö::AST
 	struct InfixParselet;
 	struct StatementParselet;
 
+	struct ParserError
+	{
+		enum Severity {
+			Info,
+			Warning,
+			Error
+		};
+
+		Severity severity;
+		std::string message;
+
+		Token token;
+	};
+
 	class Parser
 	{
 	public:
@@ -35,11 +49,13 @@ namespace Ö::AST
 
 		EXPORT float TemporaryEvaluator(Node* node);
 
-		Node* MakeError(const std::string& message);
-		void MakeErrorVoid(const std::string& message);
+		Node* MakeErrorButPretty(const std::string& message, ParserError::Severity severity = ParserError::Error);
+		Node* MakeErrorButPretty(const std::string& message, Token errorToken, ParserError::Severity severity = ParserError::Error);
 
-		EXPORT bool HasError() { return m_Error != ""; }
-		EXPORT const std::string& GetError() { return m_Error; };
+		EXPORT bool HasError() { return !m_Errors.empty(); }
+		EXPORT auto& GetErrors() { return m_Errors; };
+
+		EXPORT void PrintErrors();
 
 		// Lexer functions
 		Token ConsumeToken();
@@ -60,10 +76,11 @@ namespace Ö::AST
 		bool TokenIsIdentifier(Token token) { return !TokenIsTypename(token) && token.m_Type == Token::Identifier; }
 
 	private:
-		std::string m_Error = "";
+		std::vector<ParserError> m_Errors;
 
 		Tokens m_Tokens;
 		std::deque<Token> m_TokenStream;
+		Token m_LastConsumedToken;
 
 		Node root;
 

@@ -12,6 +12,7 @@ namespace Ö::Lexer
 	{
 		int line = 0;
 		int column = 0;
+		int index = 0;
 	};
 
 	struct Token

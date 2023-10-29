@@ -3,6 +3,7 @@
 #include <iostream>
 
 #include "Parselets.h"
+#include "../Utils.hpp"
 
 #define RETURN_IF_ERROR() if (HasError()) return nullptr;
 
@@ -156,7 +157,7 @@ namespace Ö::AST
 			if (HasError()) return nullptr;
 
 			if (!node)
-				return MakeError("Unexpected token " + token.TypeToString() + " in statement parser");
+				return MakeErrorButPretty("Unexpected token " + token.TypeToString() + " in statement parser");
 
 			return node;
 		}
@@ -182,14 +183,14 @@ namespace Ö::AST
 
 		Token token = ConsumeToken();
 		if (m_PrefixParselets.count(token.m_Type) == 0)
-			return MakeError("Unexpected token " + token.m_Value + " in expression, could not parse");
+			return MakeErrorButPretty("Unexpected token " + token.m_Value + " in expression, could not parse");
 
 		PrefixParselet* prefix = m_PrefixParselets.at(token.m_Type);
 		Node* left = prefix->Parse(*this, token);
 		if (HasError()) return nullptr;
 
 		if (left->m_Type == NodeType::Typename)
-			return MakeError("Cannot have typename " + left->ToString() + " in an expression");
+			return MakeErrorButPretty("Cannot have typename " + left->ToString() + " in an expression");
 
 		// Parse infix operators, such as normal binary operators or postfix unary operators (like a++)
 		while (!HasError() && PeekToken(0).m_Type != Token::Types::EndOfFile && precedence < GetPrecedenceOfCurrentToken())
@@ -205,7 +206,7 @@ namespace Ö::AST
 			{
 				// If the operator is a prefix, then error
 				if (m_PrefixParselets.count(token.m_Type) != 0)
-					return MakeError("Prefix operator used as infix");
+					return MakeErrorButPretty("Prefix operator used as infix");
 
 				return left;
 			}
@@ -292,15 +293,53 @@ namespace Ö::AST
 		}
 	}
 
-	Node* Parser::MakeError(const std::string& message)
+	Node* Parser::MakeErrorButPretty(const std::string& message, Token errorToken, ParserError::Severity severity)
 	{
-		//tokenPos = PeekToken(0).m_StartPosition;
-		m_Error = message;
+		ParserError error;
+		error.message = message;
+		error.severity = severity;
+		error.token = errorToken;
+
+		m_Errors.push_back(error);
 		return nullptr;
 	}
-	void Parser::MakeErrorVoid(const std::string& message)
+	Node* Parser::MakeErrorButPretty(const std::string& message, ParserError::Severity severity)
 	{
-		m_Error = message;
+		return MakeErrorButPretty(message, m_LastConsumedToken, severity);
+	}
+
+	void Parser::PrintErrors()
+	{
+		std::string source = Ö::Lexer::Lexer::ReconstructSourcecode(m_Tokens);
+		auto sourceLines = split(source, '\n');
+
+		for (auto& error : m_Errors)
+		{
+			auto startPosition = error.token.m_StartPosition;
+
+			std::string severity = std::string(magic_enum::enum_name(error.severity));
+			std::cout << "(Parser) " << severity << ": " << error.message << "\n";
+
+			std::string lineOfError = sourceLines[startPosition.line];
+
+			int indent = std::to_string(startPosition.line).length();
+
+			std::string leftPadding = " " + Replicate(indent, " ") + " | ";
+
+			if (startPosition.line != 0) 
+				std::cout << leftPadding << "\n";
+			std::cout << " " << startPosition.line + 1 << " | " << lineOfError << "\n";
+			std::cout << leftPadding;
+
+			int errorMarkerLength = std::max(error.token.ToFormattedValueString().length(), size_t(1));
+
+			std::cout << Replicate(startPosition.column, " ");
+			std::cout << Replicate(errorMarkerLength, "^");
+
+			std::cout << "\n\n";
+
+			//std::cout << error.positionInSource.line + 1 << ":" << error.positionInSource.column + 1;
+		}
 	}
 
 	Token Parser::ConsumeToken()
@@ -308,6 +347,7 @@ namespace Ö::AST
 		Token first = m_TokenStream.front();
 
 		m_TokenStream.pop_front();
+		m_LastConsumedToken = first;
 
 		return first;
 	}
@@ -317,7 +357,7 @@ namespace Ö::AST
 		Token next = PeekToken(0);
 		if (next.m_Type != expectedType)
 		{
-			MakeError("Expected token " + TokenTypeToString(expectedType) + " but got " + next.TypeToString());
+			MakeErrorButPretty("Expected " + TokenTypeToString(expectedType) + ", found " + next.TypeToString(), next);
 			return {};
 		}
 
@@ -352,7 +392,7 @@ namespace Ö::AST
 		Token next = PeekToken(peekDistance);
 		if (next.m_Type != expectedType)
 		{
-			MakeError("Expected token " + TokenTypeToString(expectedType) + " but got " + next.TypeToString());
+			MakeErrorButPretty("Expected " + TokenTypeToString(expectedType) + ", found " + next.TypeToString(), next);
 			return false;
 		}
 

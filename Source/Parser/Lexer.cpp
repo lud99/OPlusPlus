@@ -329,7 +329,7 @@ namespace Ö::Lexer
 				lineIndex -= m_Lines[i].length();
 		}
 
-		return { m_CurrentLine, lineIndex };
+		return { m_CurrentLine, lineIndex, m_Position };
 	}
 
 	Token Lexer::AddExistingToken(Token token)

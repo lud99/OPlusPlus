@@ -32,7 +32,7 @@ namespace Ö::AST
 	{
 		Token nextToken = parser.PeekToken(0);
 		if (nextToken.IsLiteral())
-			return parser.MakeError("Cannot have two literals next to each other");
+			return parser.MakeErrorButPretty("Cannot have two literals next to each other", nextToken);
 
 		if (token.m_Type == Token::IntLiteral)
 			return new IntLiteral(std::stoi(token.m_Value));
@@ -77,7 +77,7 @@ namespace Ö::AST
 			return nullptr;
 
 		if (!operand)
-			return parser.MakeError("Expected expression next to " + op.ToString());
+			return parser.MakeErrorButPretty("Expected expression next to " + op.ToString(), token);
 
 		return new UnaryExpression(operand, op);
 	}
@@ -102,7 +102,7 @@ namespace Ö::AST
 		{
 			// Two ops next to each other is only allowed if {binary} {unary prefix}, eg 2 + !2
 			if (!parser.m_DefinedOperators.GetUnaryPrefix(nextToken.m_Type))
-				return parser.MakeError("Cannot have two binary operators next to each other");
+				return parser.MakeErrorButPretty("Cannot have two binary operators next to each other", token);
 		}
 
 		Node* right = parser.ParseExpression(op.GetParsePrecedence());
@@ -111,7 +111,7 @@ namespace Ö::AST
 			return nullptr;
 
 		if (!right)
-			return parser.MakeError("Expected expression on right side of " + op.ToString());
+			return parser.MakeErrorButPretty("Expected expression on right side of " + op.ToString(), nextToken);
 
 		return new BinaryExpression(left, op, right);
 	}
@@ -151,11 +151,11 @@ namespace Ö::AST
 
 		auto result = parser.ConsumeToken(Token::RightParentheses);
 		if (!result.has_value())
-			return parser.MakeError("Found no closing parentheses for conditional statement");
+			return parser.MakeErrorButPretty("Found no closing parentheses for conditional statement");
 
 		Node* body = parser.Parse();
 		if (!body || body->m_Type != NodeType::BlockStatement)
-			return parser.MakeError("Expected left curly bracket after " + token.TypeToString() + " statement");
+			return parser.MakeErrorButPretty("Expected left curly bracket after " + token.TypeToString() + " statement");
 
 		if (token.m_Type == Token::While)
 			return (Node*) new WhileStatement(condition, (BlockStatement*)body);
@@ -163,6 +163,7 @@ namespace Ö::AST
 		assert(token.m_Type == Token::If);
 
 		// If no else
+		Token elseToken = parser.PeekToken(0);
 		if (!parser.MatchToken(Token::Else))
 			return (Node*) new IfStatement(condition, (BlockStatement*)body, nullptr);
 
@@ -171,7 +172,7 @@ namespace Ö::AST
 		if (parser.HasError()) return nullptr;
 
 		if (!IsValidElseBody(elseArm))
-			return parser.MakeError("Unexpected token after 'else' in if statement");
+			return parser.MakeErrorButPretty("Unexpected token after 'else' in if statement", elseToken);
 
 		return (Node*) new IfStatement(condition, (BlockStatement*)body, (BlockStatement*)elseArm);
 	}
@@ -187,12 +188,13 @@ namespace Ö::AST
 				break;
 
 			if (token.m_Type == Token::EndOfFile)
-				return parser.MakeError("No closing curly bracket");
+				return parser.MakeErrorButPretty("No closing curly bracket for block statement", token);
 
 			Node* line = parser.Parse();
 			if (parser.HasError()) return nullptr;
 
-			if (!line) return nullptr; // handle
+			if (!line)
+				return parser.MakeErrorButPretty("Could not parse block statement");
 
 			blockNode->m_Lines.push_back(line);
 		}
@@ -231,11 +233,14 @@ namespace Ö::AST
 
 		auto result = parser.ConsumeToken(Token::RightParentheses);
 		if (!result.has_value())
-			return parser.MakeError("Found no closing parentheses for conditional statement");
+			return parser.MakeErrorButPretty("Found no closing parentheses for conditional statement");
 
+		Token afterParantheses = parser.PeekToken(0);
 		Node* body = parser.Parse();
+		if (parser.HasError()) return nullptr;
+
 		if (!body || body->m_Type != NodeType::BlockStatement)
-			return parser.MakeError("Expected left curly bracket after " + token.TypeToString() + " statement");
+			return parser.MakeErrorButPretty("Expected left curly bracket after " + token.TypeToString() + " statement", afterParantheses);
 
 		return (Node*) new ForStatement(initialization, condition, advancement, (BlockStatement*)body);
 	}
@@ -286,7 +291,7 @@ namespace Ö::AST
 
 		if (parser.TokenIsTypename(token))
 		{
-			parser.MakeErrorVoid("Cannot have two types next to each other in statement");
+			parser.MakeErrorButPretty("Cannot have two types next to each other in statement", token);
 			return {};
 		}
 
@@ -334,6 +339,7 @@ namespace Ö::AST
 		std::vector<Node*> parameters = ParseFunctionPrototypeParameters(parser, token);
 
 		// Expect either a semicolon (function prototype) or a body
+		Token nextToken = parser.PeekToken(0);
 		if (parser.MatchToken(Token::Semicolon))
 			return new FunctionDefinitionStatement(returnType, name, parameters, nullptr);
 
@@ -341,7 +347,7 @@ namespace Ö::AST
 		Node* body = parser.Parse();
 		if (parser.HasError()) return nullptr;
 		if (!body || body->m_Type != NodeType::BlockStatement)
-			return parser.MakeError("Expected block statement for function definition");
+			return parser.MakeErrorButPretty("Expected block statement for function definition", nextToken);
 
 		return new FunctionDefinitionStatement(returnType, name, parameters, (BlockStatement*)body);
 	}
@@ -380,7 +386,7 @@ namespace Ö::AST
 		Node* body = parser.Parse();
 		if (parser.HasError()) return nullptr;
 		if (!body || body->m_Type != NodeType::BlockStatement)
-			return parser.MakeError("Expected block statement for closure");
+			return parser.MakeErrorButPretty("Expected block statement for closure", token);
 
 		return new ClosureExpression((BlockStatement*)body);
 	}
@@ -390,7 +396,7 @@ namespace Ö::AST
 		Node* body = parser.Parse();
 		if (parser.HasError()) return nullptr;
 		if (!body || body->m_Type != NodeType::BlockStatement)
-			return parser.MakeError("Expected block statement for loop");
+			return parser.MakeErrorButPretty("Expected block statement for loop", token);
 
 		return new LoopStatement((BlockStatement*)body);
 	}
