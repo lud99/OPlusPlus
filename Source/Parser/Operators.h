@@ -30,6 +30,7 @@ namespace Ö::Operators
 		MemberAccess,
 
 		// p = 3
+		Closure,
 		PrefixIncrement, PrefixDecrement,
 		UnaryPlus, UnaryMinus,
 		LogicalNot, BitwiseNot,

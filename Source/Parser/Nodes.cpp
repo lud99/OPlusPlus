@@ -91,6 +91,7 @@ namespace Ö::AST {
 
 	void CallExpression::Print(std::string padding)
 	{
+		// todo: print correctly
 		std::cout << padding << TypeToString() << " (" << m_Callee->ToString() << "):\n";
 
 		for (auto& argument : m_Arguments)
@@ -205,15 +206,23 @@ namespace Ö::AST {
 		m_ReturnValue = returnValue;
 	}
 
-	FunctionPrototypeStatement::FunctionPrototypeStatement(Type* returnType, Identifier* name, std::vector<Node*> parameters)
+	void ReturnStatement::Print(std::string padding)
 	{
-		m_Type = NodeType::FunctionPrototype;
+		std::cout << padding << TypeToString() << ": \n";
+		if (m_ReturnValue)
+			m_ReturnValue->Print(padding + "    ");
+	}
+
+	FunctionDefinitionStatement::FunctionDefinitionStatement(Type* returnType, Identifier* name, std::vector<Node*> parameters, BlockStatement* body)
+	{
+		m_Type = NodeType::FunctionDefinition;
 		m_ReturnType = returnType;
 		m_Name = name;
 		m_Parameters = parameters;
+		m_Body = body;
 	}
 
-	void FunctionPrototypeStatement::Print(std::string padding)
+	void FunctionDefinitionStatement::Print(std::string padding)
 	{
 		std::string newPadding = padding + "        ";
 		std::cout << padding << TypeToString() << ": \n";
@@ -227,5 +236,44 @@ namespace Ö::AST {
 		std::cout << padding + "    (parameters): \n";
 		for (auto& parameter : m_Parameters)
 			parameter->Print(newPadding);
+
+		std::cout << padding + "    (body): \n";
+		if (m_Body)
+			m_Body->Print(newPadding);
+	}
+
+	ClosureExpression::ClosureExpression(BlockStatement* body)
+	{
+		m_Type = NodeType::Closure;
+		m_Body = body;
+	}
+
+	void ClosureExpression::Print(std::string padding)
+	{
+		std::cout << padding << TypeToString() << ": \n";
+		m_Body->Print(padding + "    ");
+	}
+
+	LoopStatement::LoopStatement(BlockStatement* body)
+	{
+		m_Type = NodeType::LoopStatement;
+		m_Body = body;
+	}
+
+	void LoopStatement::Print(std::string padding)
+	{
+		std::cout << padding << TypeToString() << ": \n";
+		m_Body->Print(padding + "    ");
+	}
+	BreakStatement::BreakStatement(Node* breakValue)
+	{
+		m_Type = NodeType::Break;
+		m_BreakValue = breakValue;
+	}
+	void BreakStatement::Print(std::string padding)
+	{
+		std::cout << padding << TypeToString() << ": \n";
+		if (m_BreakValue)
+			m_BreakValue->Print(padding + "    ");
 	}
 }

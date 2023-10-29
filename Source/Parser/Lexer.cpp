@@ -279,10 +279,14 @@ namespace Ö
 			token.m_Type = Token::While;
 		else if (token.m_Value == "for")
 			token.m_Type = Token::For;
+		else if (token.m_Value == "loop")
+			token.m_Type = Token::Loop;
 		else if (token.m_Value == "continue")
 			token.m_Type = Token::Continue;
 		else if (token.m_Value == "break")
 			token.m_Type = Token::Break;
+		else if (token.m_Value == "closure")
+			token.m_Type = Token::Closure;
 		else if (token.m_Value == "global")
 			token.m_Type = Token::Global;
 		else if (token.m_Value == "and")

@@ -26,6 +26,8 @@ namespace Ö::AST
 		m_DefinedOperators.AddOperator(MemberAccess, ".", Midfix, Unary, Token::MemberAccessor, 2, Left);
 
 		// p = 3
+		m_DefinedOperators.AddOperator(Closure, "closure", Prefix, Unary, Token::Closure, 3, Right);
+
 		m_DefinedOperators.AddOperator(PrefixIncrement, "++", Prefix, Unary, Token::Increment, 3, Right);
 		m_DefinedOperators.AddOperator(PrefixDecrement, "--", Prefix, Unary, Token::Decrement, 3, Right);
 		m_DefinedOperators.AddOperator(UnaryPlus, "+", Prefix, Unary, Token::Add, 3, Right);
@@ -75,6 +77,10 @@ namespace Ö::AST
 
 		m_PrefixParselets[Token::Not] = new PrefixOperatorParselet();
 
+		m_PrefixParselets[Token::Loop] = new LoopParselet();
+		m_PrefixParselets[Token::Closure] = new ClosureParselet();
+
+
 		// Infix. Binary operators, a + b etc.
 		m_InfixParselets[Token::LeftParentheses] = new CallParselet();
 
@@ -105,7 +111,7 @@ namespace Ö::AST
 		m_StatementParselets[Token::For] = new ForStatementParselet();
 
 		m_StatementParselets[Token::Continue] = new SingleKeywordParselet();
-		m_StatementParselets[Token::Break] = new SingleKeywordParselet();
+		m_StatementParselets[Token::Break] = new BreakParselet();
 		m_StatementParselets[Token::Return] = new ReturnParselet();
 
 	}
@@ -149,7 +155,7 @@ namespace Ö::AST
 			if (HasError()) return nullptr;
 
 			if (!node)
-				return MakeError("Unhandled token, " + token.ToString());
+				return MakeError("Unexpected token " + token.ToString() + " in statement parser");
 
 			return node;
 		}
@@ -175,13 +181,14 @@ namespace Ö::AST
 
 		Token token = ConsumeToken();
 		if (m_PrefixParselets.count(token.m_Type) == 0)
-			return MakeError("Unexpected token " + token.m_Value + ", could not parse");
+			return MakeError("Unexpected token " + token.m_Value + " in expression, could not parse");
 
 		PrefixParselet* prefix = m_PrefixParselets.at(token.m_Type);
 		Node* left = prefix->Parse(*this, token);
+		if (HasError()) return nullptr;
 
-		///if (left->m_Type == NodeType::Typename)
-			//return MakeError("Cannot have type " + left->ToString() + " in an expression");
+		if (left->m_Type == NodeType::Typename)
+			return MakeError("Cannot have typename " + left->ToString() + " in an expression");
 
 		// Parse infix operators, such as normal binary operators or postfix unary operators (like a++)
 		while (!HasError() && PeekToken(0).m_Type != Token::Types::EndOfFile && precedence < GetPrecedenceOfCurrentToken())
@@ -286,6 +293,7 @@ namespace Ö::AST
 
 	Node* Parser::MakeError(const std::string& message)
 	{
+		//tokenPos = PeekToken(0).m_StartPosition;
 		m_Error = message;
 		return nullptr;
 	}

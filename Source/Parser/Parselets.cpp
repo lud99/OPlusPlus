@@ -97,7 +97,11 @@ namespace Ö::AST
 
 		Token nextToken = parser.PeekToken(0);
 		if (nextToken.IsOperator())
-			return parser.MakeError("Cannot have two binary operators next to each other");
+		{
+			// Two ops next to each other is only allowed if {binary} {unary prefix}, eg 2 + !2
+			if (!parser.m_DefinedOperators.GetUnaryPrefix(nextToken.m_Type))
+				return parser.MakeError("Cannot have two binary operators next to each other");
+		}
 
 		Node* right = parser.ParseExpression(op.GetParsePrecedence());
 
@@ -269,8 +273,6 @@ namespace Ö::AST
 		Node* assignedValue = parser.ParseExpression();
 		if (parser.HasError()) return nullptr;
 
-		//parser.ConsumeToken(endToken);
-
 		return new VariableDeclaration(type, name, assignedValue);
 	}
 
@@ -329,7 +331,17 @@ namespace Ö::AST
 	{
 		std::vector<Node*> parameters = ParseFunctionPrototypeParameters(parser, token);
 
-		return new FunctionPrototypeStatement(returnType, name, parameters);
+		// Expect either a semicolon (function prototype) or a body
+		if (parser.MatchToken(Token::Semicolon))
+			return new FunctionDefinitionStatement(returnType, name, parameters, nullptr);
+
+		// Otherwise parse body
+		Node* body = parser.Parse();
+		if (parser.HasError()) return nullptr;
+		if (!body || body->m_Type != NodeType::BlockStatement)
+			return parser.MakeError("Expected block statement for function definition");
+
+		return new FunctionDefinitionStatement(returnType, name, parameters, (BlockStatement*)body);
 	}
 
 	Node* TypenameStatementParselet::Parse(Parser& parser, Token token)
@@ -359,5 +371,34 @@ namespace Ö::AST
 		parser.ConsumeToken(Token::Semicolon);
 
 		return new VariableDeclaration(type, name, assignedValue);
+	}
+
+	Node* ClosureParselet::Parse(Parser& parser, Token token)
+	{
+		Node* body = parser.Parse();
+		if (parser.HasError()) return nullptr;
+		if (!body || body->m_Type != NodeType::BlockStatement)
+			return parser.MakeError("Expected block statement for closure");
+
+		return new ClosureExpression((BlockStatement*)body);
+	}
+
+	Node* LoopParselet::Parse(Parser& parser, Token token)
+	{
+		Node* body = parser.Parse();
+		if (parser.HasError()) return nullptr;
+		if (!body || body->m_Type != NodeType::BlockStatement)
+			return parser.MakeError("Expected block statement for loop");
+
+		return new LoopStatement((BlockStatement*)body);
+	}
+
+	Node* BreakParselet::Parse(Parser& parser, Token token)
+	{
+		Node* breakValue = parser.ParseExpression();
+		parser.ConsumeToken(Token::Semicolon);
+		if (parser.HasError()) return nullptr;
+
+		return (Node*) new BreakStatement(breakValue);
 	}
 }

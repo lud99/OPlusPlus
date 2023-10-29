@@ -44,6 +44,10 @@ namespace Ö::AST
 	{
 		Node* Parse(Parser& parser, Node* left, Token token) override;
 	};
+	struct ClosureParselet : public PrefixParselet
+	{
+		Node* Parse(Parser& parser, Token token) override;
+	};
 
 	struct BinaryOperatorParselet : public InfixParselet
 	{
@@ -67,9 +71,17 @@ namespace Ö::AST
 	{
 		Node* Parse(Parser& parser, Token token) override;
 	};
+	struct LoopParselet : public PrefixParselet
+	{
+		Node* Parse(Parser& parser, Token token) override;
+	};
 
 	// continue, break, return
 	struct SingleKeywordParselet : public StatementParselet
+	{
+		Node* Parse(Parser& parser, Token token) override;
+	};
+	struct BreakParselet : public StatementParselet
 	{
 		Node* Parse(Parser& parser, Token token) override;
 	};

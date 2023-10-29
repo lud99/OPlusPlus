@@ -73,6 +73,9 @@ namespace Ö
 			Else,
 			While,
 			For,
+			Loop,
+
+			Closure,
 
 			Break,
 			Continue,

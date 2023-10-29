@@ -28,12 +28,14 @@ namespace Ö::AST
 
 		BlockStatement,
 
-		FunctionPrototype,
 		FunctionDefinition,
 
 		IfStatement,
 		WhileStatement,
 		ForStatement,
+		LoopStatement,
+
+		Closure,
 
 		Continue,
 		Break,
@@ -106,6 +108,23 @@ namespace Ö::AST
 
 		virtual void Print(std::string padding) override;
 	};
+	struct LoopStatement : public Node
+	{
+		LoopStatement(BlockStatement* body);
+
+		BlockStatement* m_Body;
+
+		virtual void Print(std::string padding) override;
+	};
+
+	struct ClosureExpression : public Node
+	{
+		ClosureExpression(BlockStatement* body);
+
+		BlockStatement* m_Body;
+		
+		virtual void Print(std::string padding) override;
+	};
 
 	struct SingleKeywordStatement : public Node
 	{
@@ -116,6 +135,16 @@ namespace Ö::AST
 		ReturnStatement(Node* returnValue);
 
 		Node* m_ReturnValue;
+
+		virtual void Print(std::string padding) override;
+	};
+	struct BreakStatement : public Node
+	{
+		BreakStatement(Node* breakValue);
+
+		Node* m_BreakValue;
+
+		virtual void Print(std::string padding) override;
 	};
 
 	struct Identifier : public Node
@@ -148,13 +177,17 @@ namespace Ö::AST
 		virtual void Print(std::string padding) override;
 	};
 
-	struct FunctionPrototypeStatement : public Node
+	struct FunctionDefinitionStatement : public Node
 	{
-		FunctionPrototypeStatement(Type* returnType, Identifier* name, std::vector<Node*> parameters);
+		FunctionDefinitionStatement(Type* returnType, Identifier* name, std::vector<Node*> parameters, BlockStatement* body);
 
 		Type* m_ReturnType;
 		Identifier* m_Name;
 		std::vector<Node*> m_Parameters;
+
+		BlockStatement* m_Body = nullptr;
+
+		bool IsPrototype() { return m_Body == nullptr; }
 
 		virtual void Print(std::string padding) override;
 	};
