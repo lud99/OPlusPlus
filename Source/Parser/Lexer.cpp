@@ -273,67 +273,12 @@ namespace Ö::Lexer
 		return strs;
 	}
 
-	Token ResolveTokenKeyword(Token tok)
+	Token Lexer::ResolveTokenIdentifier(Token token)
 	{
-		Token token = tok;
-		/*if (token.m_Value == "void")
-			token.m_Type = Token::VoidType;
-		if (token.m_Value == "int")
-			token.m_Type = Token::IntType;
-		else if (token.m_Value == "float")
-			token.m_Type = Token::FloatType;
-		else if (token.m_Value == "double")
-			token.m_Type = Token::DoubleType;
-		else if (token.m_Value == "string")
-			token.m_Type = Token::StringType;
-		else if (token.m_Value == "char")
-			token.m_Type = Token::CharType;*/
+		if (m_IdentifierMappings.count(token.m_Value) == 0)
+			return token;
 
-		if (token.m_Value == "class")
-			token.m_Type = Token::ClassKeyword;
-
-		else if (token.m_Value == "return")
-			token.m_Type = Token::Return;
-		else if (token.m_Value == "if")
-			token.m_Type = Token::If;
-		else if (token.m_Value == "else")
-			token.m_Type = Token::Else;
-		else if (token.m_Value == "while")
-			token.m_Type = Token::While;
-		else if (token.m_Value == "for")
-			token.m_Type = Token::For;
-		else if (token.m_Value == "loop")
-			token.m_Type = Token::Loop;
-		else if (token.m_Value == "continue")
-			token.m_Type = Token::Continue;
-		else if (token.m_Value == "break")
-			token.m_Type = Token::Break;
-		else if (token.m_Value == "closure")
-			token.m_Type = Token::Closure;
-		else if (token.m_Value == "global")
-			token.m_Type = Token::Global;
-		else if (token.m_Value == "and")
-			token.m_Type = Token::And;
-		else if (token.m_Value == "or")
-			token.m_Type = Token::Or;
-		else if (token.m_Value == "not")
-			token.m_Type = Token::Not;
-		else if (token.m_Value == "xor")
-			token.m_Type = Token::Power;
-		else if (token.m_Value == "mod")
-			token.m_Type = Token::Remainder;
-
-		// Convert boolean tokens 'true' and 'false' to numbers
-		/*if (token.m_Type == Token::Identifier && (token.m_Value == "true" || token.m_Value == "false"))
-		{
-			if (token.m_Value == "true")
-				token.m_Value = "1";
-			else
-				token.m_Value = "0";
-
-			token.m_Type = Token::IntLiteral;
-		}*/
-
+		token.m_Type = m_IdentifierMappings[token.m_Value];
 		return token;
 	}
 
@@ -373,11 +318,6 @@ namespace Ö::Lexer
 		return m_Position;
 	}
 
-	// pos: 20
-	//0: 0-6
-	//1: 7-14
-	//2: 15-24
-
 	TokenPosition Lexer::CalculateLineAndColumn()
 	{
 		int lineIndex = m_Position;
@@ -392,13 +332,18 @@ namespace Ö::Lexer
 		return { m_CurrentLine, lineIndex };
 	}
 
-	Token Lexer::AddToken(Token token)
+	Token Lexer::AddExistingToken(Token token)
 	{
 		if (token.m_Type == Token::Empty)
 			return token;
 
 		m_Tokens.push_back(token);
 		return Token();
+	}
+
+	Token Lexer::AddNewToken(Token::Types type, std::string value = "")
+	{
+		return AddExistingToken(Token(type, CalculateLineAndColumn(), value));
 	}
 
 	std::string Lexer::MakeError(const std::string& message)
@@ -460,10 +405,10 @@ namespace Ö::Lexer
 					isInSingleLineComment = false;
 
 				if (shouldAddSemicolon())
-					AddToken(Token(Token::Semicolon, CalculateLineAndColumn(), ";"));
+					AddNewToken(Token::Semicolon, ";");
 
 				if (createCommentTokens)
-					AddToken(Token(Token::NewLine, CalculateLineAndColumn()));
+					AddNewToken(Token::NewLine, "\n");
 				
 				continue;
 			}
@@ -480,7 +425,7 @@ namespace Ö::Lexer
 				}
 				else
 					// Check if current token is a variable, because it might be 'null', 'string' or 'number' but be considered a variable still
-					token = AddToken(ResolveTokenKeyword(token));
+					token = AddExistingToken(ResolveTokenIdentifier(token));
 
 				continue;
 			}
@@ -501,7 +446,7 @@ namespace Ö::Lexer
 					continue;
 
 				isInString = false;
-				token = AddToken(token);
+				token = AddExistingToken(token);
 			}
 			// Otherwise to normal parsing. The 'else' is required, or else the first (") would be considered a part of the string 
 			else if (!isInString)
@@ -511,7 +456,7 @@ namespace Ö::Lexer
 				{
 					if (IsNext())
 					{
-						token = AddToken(token); // todo?
+						token = AddExistingToken(token); // todo?
 						//token = Token();
 						token.m_StartPosition = CalculateLineAndColumn();
 
@@ -541,7 +486,7 @@ namespace Ö::Lexer
 						if (IsNext() && Current() == '*' && Next() == '/')
 						{
 							isMultilineComment = false;
-							if (createCommentTokens) AddToken(token);
+							if (createCommentTokens) AddExistingToken(token);
 							token = Token();
 							Skip();
 							continue;
@@ -551,7 +496,7 @@ namespace Ö::Lexer
 					if (isInSingleLineComment && Current() == '\n')
 					{
 						isInSingleLineComment = false;
-						if (createCommentTokens) AddToken(token);
+						if (createCommentTokens) AddExistingToken(token);
 						token = Token();
 					}
 
@@ -563,7 +508,7 @@ namespace Ö::Lexer
 
 				else if (Current() == '#')
 				{
-					token = AddToken(Token(Token::MemberAccessor, CalculateLineAndColumn(), "#"));
+					token = AddNewToken(Token::MemberAccessor, "#");
 				}
 
 				// If parsing variable name (or a variable typeEntry, as long as it is a valid variable name)
@@ -581,7 +526,7 @@ namespace Ö::Lexer
 
 					if (error != "") return MakeError(error);
 
-					token = AddToken(ResolveTokenKeyword(token));
+					token = AddExistingToken(ResolveTokenIdentifier(token));
 					token.m_StartPosition = CalculateLineAndColumn();
 				}
 
@@ -604,7 +549,7 @@ namespace Ö::Lexer
 					}
 					if (error != "") return MakeError(error);
 
-					token = AddToken(token);
+					token = AddExistingToken(token);
 					token.m_StartPosition = CalculateLineAndColumn();
 				}
 
@@ -612,43 +557,41 @@ namespace Ö::Lexer
 
 				// Check for property access
 				if (Current() == '.')
-					AddToken(Token(Token::PropertyAccess, CalculateLineAndColumn(), "."));
+					AddNewToken(Token::PropertyAccess, ".");
 
 				// Check for curly brackets
 				if (Current() == '{')
 				{
-					AddToken(Token(Token::LeftCurlyBracket, CalculateLineAndColumn(), "{"));
+					AddNewToken(Token::LeftCurlyBracket, "{");
 				}
 				else if (Current() == '}')
 				{
-					AddToken(Token(Token::RightCurlyBracket, CalculateLineAndColumn(), "}"));
+					AddNewToken(Token::RightCurlyBracket, "}");
 				}
 				// Check for parathesis
 				if (Current() == '(')
 				{
-					AddToken(Token(Token::LeftParentheses, CalculateLineAndColumn(), "("));
+					AddNewToken(Token::LeftParentheses, "(");
 				}
 				else if (Current() == ')')
 				{
-					AddToken(Token(Token::RightParentheses, CalculateLineAndColumn(), ")"));
+					AddNewToken(Token::RightParentheses, ")");
 				}
 
-				//// Check for square brackets
-				//if (string[i] == '[')
-				//{
-				//	squareBracketsParsingDepth++;
-				//	AddToken(tokens, Token::LeftSquareBracket, "[", totalBracketDepth());
-				//}
-				//else if (string[i] == ']')
-				//{
-				//	AddToken(tokens, Token::RightSquareBracket, "]", totalBracketDepth());
-				//	squareBracketsParsingDepth--;
-				//}
-				//
+				// Check for square brackets
+				if (Current() == '[')
+				{
+					AddNewToken(Token::LeftSquareBracket, "[");
+				}
+				else if (Current() == ']')
+				{
+					AddNewToken(Token::RightSquareBracket, "]");
+				}
+				
 
 				if (IsNext() && (Current() == ':' && Next() == ':'))
 				{
-					token = AddToken(Token(Token::ScopeResultion, CalculateLineAndColumn(), "::"));
+					token = AddNewToken(Token::ScopeResultion, "::");
 					Skip();
 					continue;
 				}
@@ -666,31 +609,31 @@ namespace Ö::Lexer
 						// ==
 						if (Current() == '=' && Next() == '=')
 						{
-							AddToken(Token(Token::Equality, CalculateLineAndColumn(), "=="));
+							AddNewToken(Token::Equality, "==");
 							foundMatch = true;
 						}
 						// !=
 						if (Current() == '!' && Next() == '=')
 						{
-							AddToken(Token(Token::NotEqual, CalculateLineAndColumn(), "!="));
+							AddNewToken(Token::NotEqual, "!=");
 							foundMatch = true;
 						}
 						// <=
 						if (Current() == '<' && Next() == '=')
 						{
-							AddToken(Token(Token::LessThanOrEqual, CalculateLineAndColumn(), "<="));
+							AddNewToken(Token::LessThanOrEqual, "<=");
 							foundMatch = true;
 						}
 						// >=
 						if (Current() == '>' && Next() == '=')
 						{
-							AddToken(Token(Token::GreaterThanOrEqual, CalculateLineAndColumn(), ">="));
+							AddNewToken(Token::GreaterThanOrEqual, ">=");
 							foundMatch = true;
 						}
 						// =>
 						if (Current() == '=' && Next() == '>')
 						{
-							AddToken(Token(Token::RightArrow, CalculateLineAndColumn(), "=>"));
+							AddNewToken(Token::RightArrow, "=>");
 							foundMatch = true;
 						}
 					}
@@ -698,12 +641,12 @@ namespace Ö::Lexer
 					// >
 					if (Current() == '>' && !foundMatch)
 					{
-						AddToken(Token(Token::GreaterThan, CalculateLineAndColumn(), ">"));
+						AddNewToken(Token::GreaterThan, ">");
 						foundMatch = true;
 					}
 					if (Current() == '<' && !foundMatch)
 					{
-						AddToken(Token(Token::LessThan, CalculateLineAndColumn(), "<"));
+						AddNewToken(Token::LessThan, "<");
 						foundMatch = true;
 					}
 
@@ -720,9 +663,9 @@ namespace Ö::Lexer
 					if (Next() == '=' && (Current() == '+' || Current() == '-'))
 					{
 						if (Current() == '+')
-							AddToken(Token(Token::PlusEquals, CalculateLineAndColumn(), "+="));
+							AddNewToken(Token::PlusEquals, "+=");
 						else if (Current() == '-')
-							AddToken(Token(Token::MinusEquals, CalculateLineAndColumn(), "-="));
+							AddNewToken(Token::MinusEquals, "-=");
 
 						// Skip parsing the equals sign, or else there will be duplicates
 						Skip();
@@ -734,9 +677,9 @@ namespace Ö::Lexer
 				if (IsValidIncrement(m_Source, m_Position) || IsValidDecrement(m_Source, m_Position))
 				{
 					if (IsValidIncrement(m_Source, m_Position))
-						AddToken(Token(Token::Increment, CalculateLineAndColumn(), "++"));
+						AddNewToken(Token::Increment, "++");
 					if (IsValidDecrement(m_Source, m_Position))
-						AddToken(Token(Token::Decrement, CalculateLineAndColumn(), "--"));
+						AddNewToken(Token::Decrement, "--");
 
 					Skip();
 					continue;
@@ -745,44 +688,44 @@ namespace Ö::Lexer
 				// Logical and
 				if (IsNext() && (Current() == '&' && Next() == '&'))
 				{
-					token = AddToken(Token(Token::And, CalculateLineAndColumn(), "&&"));
+					token = AddNewToken(Token::And, "&&");
 					Skip();
 					continue;
 				}
 				// Logical or
 				if (IsNext() && (Current() == '|' && Next() == '|'))
 				{
-					token = AddToken(Token(Token::Or, CalculateLineAndColumn(), "||"));
+					token = AddNewToken(Token::Or, "||");
 					Skip();
 					continue;
 				}
 
 				// Not
 				if (Current() == '!')
-					token = AddToken(Token(Token::Not, CalculateLineAndColumn(), "!"));
+					token = AddNewToken(Token::Not, "!");
 				// Power
 				if (Current() == '^')
-					token = AddToken(Token(Token::Power, CalculateLineAndColumn(), "^"));
+					token = AddNewToken(Token::Power, "^");
 				// Remainder
 				if (Current() == '%')
-					token = AddToken(Token(Token::Remainder, CalculateLineAndColumn(), "%"));
+					token = AddNewToken(Token::Remainder, "%");
 
 				// Plus
 				if (Current() == '+')
-					AddToken(Token(Token::Add, CalculateLineAndColumn(), "+"));
+					AddNewToken(Token::Add, "+");
 				// Subtract
 				else if (Current() == '-')
-					AddToken(Token(Token::Subtract, CalculateLineAndColumn(), "-"));
+					AddNewToken(Token::Subtract, "-");
 				// Multiply
 				else if (Current() == '*')
-					AddToken(Token(Token::Multiply, CalculateLineAndColumn(), "*"));
+					AddNewToken(Token::Multiply, "*");
 				// Divide
 				else if (Current() == '/')
-					AddToken(Token(Token::Divide, CalculateLineAndColumn(), "/"));
+					AddNewToken(Token::Divide, "/");
 
 				// Equals sign. Make sure the last token wasn't a PlusEquals or similar, or else there will be duplicates
 				else if (Current() == '=')// && (tokens.back().Type != Token::PlusEquals || tokens.back().Type != Token::MinusEquals))
-					AddToken(Token(Token::SetEquals, CalculateLineAndColumn(), "="));
+					AddNewToken(Token::SetEquals, "=");
 
 				//if (string[i] == ':')
 				//{
@@ -794,11 +737,11 @@ namespace Ö::Lexer
 				//}
 
 				if (Current() == ',')
-					AddToken(Token(Token::Comma, CalculateLineAndColumn(), ","));
+					AddNewToken(Token::Comma, ",");
 
 				// Check for line ends
 				if (Current() == ';')
-					AddToken(Token(Token::Semicolon, CalculateLineAndColumn(), ";"));
+					AddNewToken(Token::Semicolon, ";");
 
 				if (Current() == '\n')
 				{
@@ -807,10 +750,10 @@ namespace Ö::Lexer
 					isInSingleLineComment = false;
 
 					if (shouldAddSemicolon())
-						AddToken(Token(Token::Semicolon, CalculateLineAndColumn(), ";"));
+						AddNewToken(Token::Semicolon, ";");
 
 					//if (createCommentTokens)
-					//	AddToken(Token(Token::NewLine, m_Position));
+					//	AddNewToken(Token::NewLine, m_Position));
 				}
 
 			}
@@ -847,10 +790,10 @@ namespace Ö::Lexer
 			}
 		}
 
-		AddToken(token);
+		AddExistingToken(token);
 
 		// Add eof token
-		AddToken(Token(Token::Types::EndOfFile, CalculateLineAndColumn()));
+		AddNewToken(Token::EndOfFile);
 
 		// Unclosed comment
 		if (isMultilineComment)
@@ -861,6 +804,25 @@ namespace Ö::Lexer
 			return "Expected the string to end";
 
 		return "";
+	}
+
+	Lexer::Lexer()
+	{
+		m_IdentifierMappings = {
+			{ "class", Token::ClassKeyword },
+			{ "return", Token::Return },
+			{ "if", Token::If },
+			{ "else", Token::Else },
+			{ "while", Token::While },
+			{ "for", Token::For },
+			{ "loop", Token::Loop },
+			{ "closure", Token::Closure },
+			{ "continue", Token::Continue },
+			{ "break", Token::Break },
+			{ "global", Token::Global },
+			{ "true", Token::BoolLiteral },
+			{ "false", Token::BoolLiteral },
+		};
 	}
 
 	std::string Lexer::ReconstructSourcecode(Tokens& tokens)

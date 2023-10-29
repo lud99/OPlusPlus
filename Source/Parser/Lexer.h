@@ -4,6 +4,7 @@
 
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 namespace Ö::Lexer
 {
@@ -22,6 +23,7 @@ namespace Ö::Lexer
 			DoubleLiteral,
 			StringLiteral,
 			CharLiteral,
+			BoolLiteral,
 
 			ClassKeyword,
 
@@ -154,6 +156,8 @@ namespace Ö::Lexer
 	class Lexer
 	{
 	public:
+		EXPORT Lexer();
+
 		EXPORT std::string CreateTokens(const std::string& source, bool createCommentTokens = false);
 
 		EXPORT static std::string ReconstructSourcecode(Tokens& tokens);
@@ -169,8 +173,10 @@ namespace Ö::Lexer
 		TokenPosition CalculateLineAndColumn();
 
 		Tokens& GetTokens() { return m_Tokens; };
+		Token AddExistingToken(Token token);
+		Token AddNewToken(Token::Types type, std::string value);
 
-		Token AddToken(Token token);
+		Token ResolveTokenIdentifier(Token token);
 
 		std::string MakeError(const std::string& message);
 
@@ -179,6 +185,8 @@ namespace Ö::Lexer
 
 		int m_Position = 0;
 		int m_CurrentLine = 0;
+
+		std::unordered_map<std::string, Token::Types> m_IdentifierMappings;
 
 		std::vector<std::string> m_Lines;
 		std::string m_Source = "";

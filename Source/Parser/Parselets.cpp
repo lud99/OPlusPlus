@@ -40,6 +40,8 @@ namespace Ö::AST
 			return new DoubleLiteral(StringToDouble(token.m_Value));
 		if (token.m_Type == Token::FloatLiteral)
 			abort();
+		if (token.m_Type == Token::BoolLiteral)
+			return new BoolLiteral(token.m_Value == "true" ? true : false);
 		if (token.m_Type == Token::StringLiteral)
 			return new StringLiteral(token.m_Value);
 

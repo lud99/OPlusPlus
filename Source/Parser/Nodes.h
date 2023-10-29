@@ -45,6 +45,7 @@ namespace Ö::AST
 		IntLiteral,
 		FloatLiteral,
 		DoubleLiteral,
+		BoolLiteral,
 		StringLiteral
 	};
 
@@ -251,6 +252,14 @@ namespace Ö::AST
 		double m_Value;
 
 		std::string ToString() override { return std::to_string(m_Value); }
+	};
+	struct BoolLiteral : public Literal
+	{
+		BoolLiteral(bool value);
+
+		bool m_Value;
+
+		std::string ToString() override { return m_Value ? "true" : "false"; }
 	};
 	struct StringLiteral : public Literal
 	{

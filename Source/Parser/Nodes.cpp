@@ -117,6 +117,11 @@ namespace Ö::AST {
 		m_Value = value;
 		m_Type = NodeType::DoubleLiteral;
 	}
+	BoolLiteral::BoolLiteral(bool value)
+	{
+		m_Value = value;
+		m_Type = NodeType::BoolLiteral;
+	}
 
 	StringLiteral::StringLiteral(std::string value)
 	{

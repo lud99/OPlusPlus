@@ -65,6 +65,7 @@ namespace Ö::AST
 		m_PrefixParselets[Token::IntLiteral] = new LiteralParselet();
 		m_PrefixParselets[Token::DoubleLiteral] = new LiteralParselet();
 		m_PrefixParselets[Token::FloatLiteral] = new LiteralParselet();
+		m_PrefixParselets[Token::BoolLiteral] = new LiteralParselet();
 		m_PrefixParselets[Token::StringLiteral] = new LiteralParselet();
 
 		m_PrefixParselets[Token::LeftParentheses] = new ParenthesesGroupParselet();
