@@ -18,6 +18,8 @@ static double StringToDouble(std::string s)
 
 namespace Ö::AST
 {
+	Node* ParseFunctionDefinition(Parser& parser, Token token, Type* returnType, Identifier* name);
+
 	// Identifers and literals
 
 	Node* IdentifierParselet::Parse(Parser& parser, Token token)
@@ -70,6 +72,7 @@ namespace Ö::AST
 	{
 		// Look ahead for a comma inside the parantheses
 		int i = 0;
+		bool isTuple = false;
 		while (true)
 		{
 			Token peekToken = parser.PeekToken(i);
@@ -77,23 +80,37 @@ namespace Ö::AST
 			if (peekToken.m_Type == Token::EndOfFile)
 				return parser.MakeErrorButPretty("No closing parentheses found", token);
 
+			if (peekToken.m_Type == Token::LeftParentheses)
+				break;
+
 			// If ')' is found before a comma, then it is not a tuple
 			// But if it is the first token we peek, '() would it look like', then it is an empty tuple
 			if (peekToken.m_Type == Token::RightParentheses)
 			{
 				// Tuple!
 				if (i == 0)
+					isTuple = true;
+
+				if (isTuple)
+				{
+					// If it has the format '(...) =>' then it is a lambda
+					if (parser.MatchTokenNoConsume(i + 1, Token::RightArrow))
+						return ParseFunctionDefinition(parser, token, nullptr, nullptr);
+
+					if (parser.MatchTokenNoConsume(i + 1, Token::LeftCurlyBracket))
+						return parser.MakeErrorButPretty("Expected '=>' after lamda parameters, block scopes are not supported in lambda");
+
+					// Otherwise a normal tuple
 					return ParseTupleExpression(parser);
-				
+				}
+
 				// No tuple :(
 				break;
 			}
 
 			// It is a tuple!
 			if (peekToken.m_Type == Token::Comma)
-			{
-				 return ParseTupleExpression(parser);
-			}
+				isTuple = true;
 
 			i++;
 		}
@@ -412,8 +429,9 @@ namespace Ö::AST
 			if (!expression)
 				return parser.MakeErrorButPretty("Expected expression after right arrow", nextToken);
 
-			parser.ConsumeToken(Token::Semicolon);
-			if (parser.HasError()) return nullptr;
+			//if (!parser.MatchTokenNoConsume(Token::Semicolon))
+				//return parser.MakeErrorButPretty("Expected ';' after lamba expression");
+			//if (parser.HasError()) return nullptr;
 
 			return new FunctionDefinitionStatement(returnType, name, parameters, expression);
 		}

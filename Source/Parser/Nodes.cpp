@@ -230,10 +230,10 @@ namespace Ö::AST {
 		std::cout << padding << TypeToString() << ": \n";
 
 		std::cout << padding + "    (return type): \n";
-		m_ReturnType->Print(newPadding);
+		if (m_ReturnType) m_ReturnType->Print(newPadding);
 
 		std::cout << padding + "    (name): \n";
-		m_Name->Print(newPadding);
+		if (m_Name) m_Name->Print(newPadding);
 
 		std::cout << padding + "    (parameters): \n";
 		for (auto& parameter : m_Parameters)
