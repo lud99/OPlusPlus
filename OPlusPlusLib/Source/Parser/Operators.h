@@ -8,9 +8,9 @@
 
 #include "Lexer.h"	
 
-namespace Ö::Operators
+namespace O::Operators
 {
-	using namespace Ö::Lexer;
+	using namespace O::Lexer;
 	enum Associativity
 	{
 		Left,

@@ -2,7 +2,7 @@
 
 #include "Parser.h"
 
-namespace Ö::AST
+namespace O::AST
 {
 
 	// Base classes
@@ -54,6 +54,10 @@ namespace Ö::AST
 		Node* Parse(Parser& parser, Node* left, Token token) override;
 	};
 	struct CallParselet : public InfixParselet
+	{
+		Node* Parse(Parser& parser, Node* left, Token token) override;
+	};
+	struct LambdaParselet : public InfixParselet
 	{
 		Node* Parse(Parser& parser, Node* left, Token token) override;
 	};

@@ -2,7 +2,7 @@
 
 #include <assert.h>
 
-namespace Ö
+namespace O
 {
 	// TypeTableEntry& SymbolTable::Symbol::GetTypeTableEntry()
 	// {
@@ -77,6 +77,16 @@ namespace Ö
     ClassSymbol::~ClassSymbol()
     {
         delete m_Symbols;
+    }
+
+    SymbolTable::SymbolTable()
+    {
+    }
+
+    SymbolTable::SymbolTable(SymbolTableType tableType, SymbolTable* upwardSymbolTable)
+    {
+        m_TableType = tableType;
+        m_UpwardSymbolTable = upwardSymbolTable;
     }
 
     VariableSymbol* SymbolTable::InsertVariable(std::string name, ValueType dataType, VariableSymbolType variableType)

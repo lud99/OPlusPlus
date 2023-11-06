@@ -1,0 +1,5 @@
+(int => int) f;
+
+
+/*((int => int) => float) g
+(int => (int => String)) h;*/

@@ -4,7 +4,9 @@
 #include <unordered_map>
 #include <cstdint>
 
-namespace Ö
+#include "../Operators.h"
+
+namespace O
 {
 	enum PrimitiveValueTypes
 	{
@@ -50,7 +52,49 @@ namespace Ö
 		TypeTableType type = TypeTableType::Primitive;
 		TypeTableEntry* redirect = nullptr;
 
+		// Set of types which this type has casts to
+		/*std::set<TypeTableEntry*> implicitTypecasts;
+		std::set<TypeTableEntry*> explicitTypecasts;
+
+		std::unordered_map<Operators::Operator, TypeTableEntry*> */
+
+		// int +(int other)
+
+		// destructuring
+		// [1, 2] = (1,2) or
+		// (1, 2) = (1, 2);
+		// { int age, string name } = Animal()
+
+		// a[0] -> a `subscript` 0
+		// a[0, 1, 2] -> a `subscript` (0, 1, 2)
+		// f (1, 2, 3); int f(int a, int b, int c) // destructuring the input tuple
+		// f (1, 2, 3); int f ((int, int, int) tuple) // destructuring the input tuple
+		// f (5); int f (int a) // function def has to destructure arguments tuple
+		// otherwise: int f (int) a => 
+		// ..and 1 + (2 + 3), is (2 + 3) a tuple? if not, then is this? f (5)
+
+		// instead of parsing tuples as default, call them "grouped expressions"
+		// that would solve all problems
+			// ',' is grouping operator. 5 + 2, 8 + 9. has the highest repcedence
+			// not a tuple, but a group. so a func def has a group of parameters
+			// and the same with function call f(1, 2, 3).
+			// a tuple is when a () is placed. remember '(' is a binary call operator
+
+		// (5, 5) is tuple. (5) is groupExpr
+		// (int a, int b) is group. (a, b) is tuple
+
+		// int + int. int["+"] = int add(int other) =>
+		// float + int, ej definierat.
+		// men om int implicit castas som float blir den definierat
+		// string + int, nej och int har ingen implicit cast
+		// string + int.ToString()
+
+		// type Name 
+		// Name + ... då vill vi resolva name till den underliggande typen
+
 		// A private type is a type that cannot be instantiated like any type
+		// TODO: Will be removed once types in the type table are restricted to scopes, 
+		// like the symbol table.
 		bool isPrivate = false;
 
 		TypeTableEntry& Resolve();

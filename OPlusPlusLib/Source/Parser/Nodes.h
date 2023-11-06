@@ -6,8 +6,9 @@
 
 #include "../macro.h"
 #include "Operators.h"
+#include "Semantics/SymbolTable.h"
 
-namespace Ö::AST
+namespace O::AST
 {
 	struct Node;
 
@@ -61,6 +62,9 @@ namespace Ö::AST
 
 		NodeType m_Type = NodeType::EmptyStatement;
 
+		// Filled in by the semantic analyzer later
+		ValueType m_ValueType;
+
 		EXPORT virtual std::string TypeToString();
 		EXPORT virtual void Print(std::string padding = "");
 		EXPORT virtual std::string ToString() { return ""; };
@@ -69,6 +73,8 @@ namespace Ö::AST
 	struct Scope : public Node
 	{
 		std::vector<Node*> m_Lines;
+
+		SymbolTable m_LocalSymbolTable;
 
 		virtual void Print(std::string padding) override;
 	};
@@ -185,11 +191,11 @@ namespace Ö::AST
 
 	struct FunctionDefinitionStatement : public Node
 	{
-		FunctionDefinitionStatement(Type* returnType, Identifier* name, std::vector<Node*> parameters, Node* body);
+		FunctionDefinitionStatement(Type* returnType, Identifier* name, std::vector<VariableDeclaration*> parameters, Node* body);
 
 		Type* m_ReturnType;
 		Identifier* m_Name;
-		std::vector<Node*> m_Parameters;
+		std::vector<VariableDeclaration*> m_Parameters;
 
 		Node* m_Body = nullptr;
 

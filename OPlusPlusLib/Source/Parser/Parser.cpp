@@ -7,7 +7,7 @@
 
 #define RETURN_IF_ERROR() if (HasError()) return nullptr;
 
-namespace Ö::AST
+namespace O::AST
 {
 	Parser::Parser(Tokens& tokens)
 	{
@@ -98,6 +98,8 @@ namespace Ö::AST
 
 		m_InfixParselets[Token::Equality] = new BinaryOperatorParselet();
 		m_InfixParselets[Token::SetEquals] = new BinaryOperatorParselet();
+
+		m_InfixParselets[Token::RightArrow] = new LambdaParselet();
 
 		// Unary postfix
 		m_InfixParselets[Token::Increment] = new PostfixOperatorParselet();
@@ -196,8 +198,8 @@ namespace Ö::AST
 		Node* left = prefix->Parse(*this, token);
 		if (HasError()) return nullptr;
 
-		if (left->m_Type == NodeType::Typename)
-			return MakeErrorButPretty("Cannot have typename " + left->ToString() + " in an expression");
+		//if (left->m_Type == NodeType::Typename)
+			//return MakeErrorButPretty("Cannot have typename " + left->ToString() + " in an expression");
 
 		// Parse infix operators, such as normal binary operators or postfix unary operators (like a++)
 		while (!HasError() && PeekToken(0).m_Type != Token::Types::EndOfFile && precedence < GetPrecedenceOfCurrentToken())
@@ -224,6 +226,148 @@ namespace Ö::AST
 		}
 		
 		return left;
+	}
+
+	std::tuple<Type*, Identifier*> Parser::ParseTypeAndName(Token token)
+	{
+		// parsing grouped type declaration, tuple or function prototype
+		if (token.m_Type == Token::LeftParentheses)
+		{
+			// Look ahead for a comma inside the parantheses
+			int i = 0;
+			bool isTuple = false;
+			while (true)
+			{
+				Token peekToken = PeekToken(i);
+
+				if (peekToken.m_Type == Token::EndOfFile)
+				{
+					MakeErrorButPretty("No closing parentheses found", token);
+					return {};
+				}
+
+				if (peekToken.m_Type == Token::LeftParentheses)
+				{
+					//ParseTypeAndName()
+				}
+
+				// If ')' is found before a comma, then it is not a tuple
+				// But if it is the first token we peek, '() would it look like', then it is an empty tuple
+				if (peekToken.m_Type == Token::RightParentheses)
+				{
+					// Looks like this: ()
+					if (i == 0)
+					{
+						MakeErrorButPretty("() is not a type");
+						return {};
+					}
+
+					if (isTuple)
+					{
+						// If it has the format '(...) =>' then it is a lambda
+						//if (MatchTokenNoConsume(i + 1, Token::RightArrow))
+						//	return ParseFunctionDefinition(token, nullptr, nullptr);
+
+						//if (MatchTokenNoConsume(i + 1, Token::LeftCurlyBracket))
+						//	return MakeErrorButPretty("Expected '=>' after lamda parameters, block scopes are not supported in lambda");
+
+						//// Otherwise a normal tuple
+						//return ParseTupleExpression();
+					}
+
+					// No tuple :(
+					break;
+				}
+
+				// It is a tuple!
+				if (peekToken.m_Type == Token::Comma)
+					isTuple = true;
+
+				i++;
+			}
+		}
+
+		std::string variableType = token.m_Value;
+
+		token = PeekToken(0);
+
+		if (TokenIsTypename(token))
+		{
+			MakeErrorButPretty("Cannot have two types next to each other in statement", token);
+			return {};
+		}
+
+		// todo: allow scope resolution (::), ?, [] etc 
+		ConsumeToken(Token::Identifier);
+		if (HasError()) return {};
+
+		std::string variableName = token.m_Value;
+
+		return std::make_tuple(new Type(variableType), new Identifier(variableName));
+	}
+
+	VariableDeclaration* Parser::ParseVariableDeclaration(Token token, Type* type, Identifier* name, bool consumeEndToken, Token::Types endToken)
+	{
+		// int a;
+		if (consumeEndToken)
+		{
+			if (MatchToken(endToken))
+				return new VariableDeclaration(type, name, nullptr);
+		}
+		else
+		{
+			if (MatchTokenNoConsume(endToken))
+				return new VariableDeclaration(type, name, nullptr);
+		}
+
+		// int a = ...;
+		ConsumeToken(Token::SetEquals);
+		if (HasError()) return nullptr;
+
+		Node* assignedValue = ParseExpression();
+		if (HasError()) return nullptr;
+
+		if (!assignedValue)
+		{
+			MakeErrorButPretty("Expected expression on right hand side of assignment, but got " +
+				PeekToken(0).ToFormattedValueString(), PeekToken(0));
+			return nullptr;
+		}
+
+		if (HasError()) return nullptr;
+
+		if (consumeEndToken)
+			ConsumeToken(endToken);
+
+		return new VariableDeclaration(type, name, assignedValue);
+	}
+
+	std::vector<VariableDeclaration*> Parser::ParseFunctionParameters(Token token)
+	{
+		std::vector<VariableDeclaration*> parameters;
+
+		// Parse until we find a closing parentheses
+		if (!MatchToken(Token::RightParentheses))
+		{
+			do
+			{
+				token = ConsumeToken();
+
+				auto [type, name] = ParseTypeAndName(token);
+				if (HasError()) return {};
+
+				Token::Types endToken = Token::Comma;
+				token = PeekToken(0);
+				if (token.m_Type == Token::RightParentheses)
+					endToken = Token::RightParentheses;
+
+				parameters.push_back(ParseVariableDeclaration(token, type, name, false /* dont consume comma */, endToken));
+			} while (MatchToken(Token::Comma));
+
+			ConsumeToken(Token::RightParentheses);
+		}
+
+		return parameters;
 	}
 
 	float Parser::TemporaryEvaluator(Node* node)
@@ -317,7 +461,7 @@ namespace Ö::AST
 
 	void Parser::PrintErrors()
 	{
-		std::string source = Ö::Lexer::Lexer::ReconstructSourcecode(m_Tokens);
+		std::string source = O::Lexer::Lexer::ReconstructSourcecode(m_Tokens);
 		auto sourceLines = split(source, '\n');
 
 		for (auto& error : m_Errors)

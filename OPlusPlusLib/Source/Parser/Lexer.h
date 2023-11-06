@@ -6,7 +6,7 @@
 #include <vector>
 #include <unordered_map>
 
-namespace Ö::Lexer
+namespace O::Lexer
 {
 	struct TokenPosition
 	{

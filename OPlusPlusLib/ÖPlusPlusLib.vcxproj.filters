@@ -51,6 +51,9 @@
     <ClInclude Include="Source\Parser\Parselets.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Source\Parser\Semantics\SymbolTable.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source\ÖPlusPlusLib.cpp">
@@ -72,6 +75,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Source\Parser\Parselets.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Parser\Semantics\SymbolTable.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

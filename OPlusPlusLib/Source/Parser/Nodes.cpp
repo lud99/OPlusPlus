@@ -1,6 +1,6 @@
 #include "Nodes.h"
 
-namespace Ö::AST {
+namespace O::AST {
 	std::string Node::TypeToString()
 	{
 		return std::string(magic_enum::enum_name(m_Type));
@@ -215,7 +215,7 @@ namespace Ö::AST {
 			m_ReturnValue->Print(padding + "    ");
 	}
 
-	FunctionDefinitionStatement::FunctionDefinitionStatement(Type* returnType, Identifier* name, std::vector<Node*> parameters, Node* body)
+	FunctionDefinitionStatement::FunctionDefinitionStatement(Type* returnType, Identifier* name, std::vector<VariableDeclaration*> parameters, Node* body)
 	{
 		m_Type = NodeType::FunctionDefinition;
 		m_ReturnType = returnType;

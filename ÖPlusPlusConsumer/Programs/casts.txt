@@ -1,0 +1,129 @@
+float = int
+int = float as int 
+string = int
+string = int as string
+int = string // error
+
+// primitiva datatyper har metoder, men ingen state
+// int, float, char
+// char[] är en heap allokerad array. om den deklareras måste den allokeras på samma rad
+
+char[] str = ['a', 'b', 'c'];
+str[0] = 'd'; //ok
+
+string str2 = "abc"
+
+struct String {
+	const char[] buffer;
+
+	String map (function<char => char> p) {
+		String newStr;
+
+		for (char c in buffer) {
+			newStr += p(c);
+		}
+
+		return newStr;
+	}
+
+	extern int Parse(int);
+
+	// types: (char => (bool, char))
+	// int
+	// float
+	// Animal
+	// (int, int)
+	// (Animal::Dog, string)
+
+	// function parameters: ( FunctionParameter (, FunctionParameter) ). 
+	// FunctionParameter = type (name (= expression)
+
+	String replaceIf ((char c => (bool shouldReplace, char replacement)) p) {
+		String newStr;
+
+		for (char c in buffer) {
+			let (newChar, shouldReplace) = p(c);
+			if (shouldReplace) {
+				s += new
+			}	
+		}
+
+		return newStr;
+	}
+}
+
+String s = "abc";
+s.replaceIf((char c) => {
+	if (c == 'a') {
+		return (true, 'A');
+	}
+
+	return (false, '');
+});
+
+struct array<T> {
+	int size = 0;
+	T[] data;
+
+	operator [int index] => data[index];
+	operator (+)T[] =>
+	operator ++T[] =>
+}
+
+struct Complex {
+	float a = 0;
+	float b = 0;
+
+	// addition
+	Complex operator (Complex this) + (Complex other) {
+		return { this.a + a, this.b + b }
+	}
+
+	Complex operator (Complex this) += (Complex other) {
+		a += other.a;
+		b += other.b;
+		return this;
+	}
+
+	// unary plus
+	Complex operator + (Complex this) => this;
+
+	// prefix increment
+	Complex operator ++ (Complex this) {
+		++this.a;
+		++this.b;
+		return this;
+	}
+
+	// postfix increment
+	Complex operator ++ { // also legal: Complex operator (Complex this) ++ {...}
+		++this.a;
+		++this.b;
+		return Complex { this.a, this. b } ;
+	}
+}
+
+struct OpenGLFunction<T> {
+	function<T> func;
+	string name;
+
+	// postfix operators doesn't have to have 'this' as a parameter
+	T operator () => func();
+	T operator (int[] buffer) {
+		// do somethignw ith buffer
+		func();
+	}
+}
+
+struct 3DArray<T> {
+	T[][][] data;
+
+	T operator (3DArray<T> this) [int x, int y, int z] => data[x][y][z];
+}
+
+char[].size // error
+
+struct string {
+	[] data;
+
+}

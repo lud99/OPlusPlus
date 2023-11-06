@@ -4,7 +4,7 @@
 #include <sstream>
 #include "../magic_enums.hpp"
 
-namespace Ö::Lexer
+namespace O::Lexer
 {
 	bool IsValidVariablePart(std::string string, int index, std::string& error);
 

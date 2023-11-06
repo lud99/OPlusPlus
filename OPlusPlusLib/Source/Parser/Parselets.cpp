@@ -16,7 +16,7 @@ static double StringToDouble(std::string s)
 	return result;
 }
 
-namespace Ö::AST
+namespace O::AST
 {
 	Node* ParseFunctionDefinition(Parser& parser, Token token, Type* returnType, Identifier* name);
 
@@ -73,7 +73,7 @@ namespace Ö::AST
 		// Look ahead for a comma inside the parantheses
 		int i = 0;
 		bool isTuple = false;
-		while (true)
+		while (false)
 		{
 			Token peekToken = parser.PeekToken(i);
 
@@ -91,7 +91,7 @@ namespace Ö::AST
 				if (i == 0)
 					isTuple = true;
 
-				if (isTuple)
+				//if (isTuple)
 				{
 					// If it has the format '(...) =>' then it is a lambda
 					if (parser.MatchTokenNoConsume(i + 1, Token::RightArrow))
@@ -326,93 +326,9 @@ namespace Ö::AST
 		return (Node*) new ReturnStatement(returnValue);
 	}
 
-	Node* ParseVariableDeclaration(Parser& parser, Token token, Type* type, Identifier* name, bool consumeEndToken = true, Token::Types endToken = Token::Semicolon)
-	{
-		// int a;
-		if (consumeEndToken)
-		{
-			if (parser.MatchToken(endToken))
-				return new VariableDeclaration(type, name, nullptr);
-		}
-		else
-		{
-			if (parser.MatchTokenNoConsume(endToken))
-				return new VariableDeclaration(type, name, nullptr);
-		}
-
-		// int a = ...;
-		parser.ConsumeToken(Token::SetEquals);
-		if (parser.HasError()) return nullptr;
-
-		Node* assignedValue = parser.ParseExpression();
-		if (parser.HasError()) return nullptr;
-		
-		if (!assignedValue)
-			return parser.MakeErrorButPretty("Expected expression on right hand side of assignment, but got " + 
-				parser.PeekToken(0).ToFormattedValueString(), parser.PeekToken(0));
-
-		if (parser.HasError()) return nullptr;
-
-		if (consumeEndToken)
-			parser.ConsumeToken(endToken);
-
-		return new VariableDeclaration(type, name, assignedValue);
-	}
-
-	std::tuple<Type*, Identifier*> ParseTypenameAndName(Parser& parser, Token token)
-	{
-		std::string variableType = token.m_Value;
-
-		token = parser.PeekToken(0);
-
-		if (parser.TokenIsTypename(token))
-		{
-			parser.MakeErrorButPretty("Cannot have two types next to each other in statement", token);
-			return {};
-		}
-
-		// todo: allow scope resolution (::)
-		parser.ConsumeToken(Token::Identifier);
-		if (parser.HasError()) return {};
-
-		std::string variableName = token.m_Value;
-
-		return std::make_tuple(new Type(variableType), new Identifier(variableName));
-	}
-
-	std::vector<Node*> ParseFunctionPrototypeParameters(Parser& parser, Token token)
-	{
-		std::vector<Node*> parameters;
-
-		// Parse until we find a closing parentheses
-		if (!parser.MatchToken(Token::RightParentheses))
-		{
-			do
-			{
-				token = parser.ConsumeToken();
-
-				auto [type, name] = ParseTypenameAndName(parser, token);
-				if (parser.HasError()) return {};
-
-				Token::Types endToken = Token::Comma;
-				token = parser.PeekToken(0);
-				if (token.m_Type == Token::RightParentheses)
-					endToken = Token::RightParentheses;
-
-				Node* variableDeclaration = ParseVariableDeclaration(parser, token, type, name, false /* dont consume comma */, endToken);
-
-				parameters.push_back(variableDeclaration);
-			} while (parser.MatchToken(Token::Comma));
-
-			parser.ConsumeToken(Token::RightParentheses);
-		}
-
-		return parameters;
-	}
-
 	Node* ParseFunctionDefinition(Parser& parser, Token token, Type* returnType, Identifier* name)
 	{
-		std::vector<Node*> parameters = ParseFunctionPrototypeParameters(parser, token);
+		std::vector<VariableDeclaration*> parameters = parser.ParseFunctionParameters(token);
 
 		// Expect either a semicolon (function prototype) or a body
 		Token nextToken = parser.PeekToken(0);
@@ -450,7 +366,7 @@ namespace Ö::AST
 		// The statement could now be either a variable declaration, or a function declaration
 		// int a; int a = ...; int a(...); int a (...) {...}
 
-		auto [type, name] = ParseTypenameAndName(parser, token);
+		auto [type, name] = parser.ParseTypeAndName(token);
 		if (parser.HasError()) return nullptr;
 
 		// If function
@@ -458,7 +374,7 @@ namespace Ö::AST
 			return ParseFunctionDefinition(parser, token, type, name);
 
 		// Otherwise it's a variable declaration (int a; or int a = ...;)
-		return ParseVariableDeclaration(parser, token, type, name);
+		return parser.ParseVariableDeclaration(token, type, name);
 	}
 
 	Node* ClosureParselet::Parse(Parser& parser, Token token)
@@ -543,5 +459,11 @@ namespace Ö::AST
 			//parser.ConsumeToken(Token::Semicolon);
 
 		return classDeclaration;
+	}
+
+	Node* LambdaParselet::Parse(Parser& parser, Node* left, Token token)
+	{
+		parameters = left;
+		new FunctionDefinitionStatement(returnType, nullptr, parameters, nullptr);
 	}
 }

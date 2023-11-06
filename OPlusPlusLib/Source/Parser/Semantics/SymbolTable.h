@@ -6,10 +6,9 @@
 #include <cstdint>
 #include <functional>
 
-#include "../ValueTypes.h"
-#include "../../TypeTable.h"
+#include "TypeTable.h"
 
-namespace Ö
+namespace O
 {
 	enum class SymbolType
 	{
@@ -73,7 +72,7 @@ namespace Ö
     class Symbol
     {
     public:
-        Symbol();
+        Symbol() {};
         Symbol(std::string name, SymbolType symbolType, ValueType dataType);
 
     public:
@@ -150,9 +149,9 @@ namespace Ö
 
 		Symbol* LookupOne(std::string name);
 
-		std::vector<VariableSymbol*> LookupVariables(std::string name);
+		/*std::vector<VariableSymbol*> LookupVariables(std::string name);
 		std::vector<VariableSymbol*> LookupMethods(std::string name);
-		std::vector<VariableSymbol*> LookupFunctions(std::string name);
+		std::vector<VariableSymbol*> LookupFunctions(std::string name);*/
 
 
 		ClassSymbol* LookupClassByType(ValueType type);
@@ -165,6 +164,8 @@ namespace Ö
 		bool HasAndIs(std::string name, SymbolType type);
 
 		auto& GetSymbols() { return m_Symbols; }
+
+        ~SymbolTable();
 
     private:
         Symbol* Insert(Symbol* symbol);

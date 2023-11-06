@@ -14,9 +14,9 @@
 #include "Lexer.h"
 #include "Operators.h"
 
-namespace Ö::AST
+namespace O::AST
 {
-	using namespace Ö::Lexer;
+	using namespace O::Lexer;
 	typedef std::vector<Tokens> LinesOfTokens;
 
 	struct PrefixParselet;
@@ -46,6 +46,10 @@ namespace Ö::AST
 		
 		Node* Parse();
 		Node* ParseExpression(int precedence = 0);
+
+		std::tuple<Type*, Identifier*> ParseTypeAndName(Token token);
+		VariableDeclaration* ParseVariableDeclaration(Token token, Type* type, Identifier* name, bool consumeEndToken = true, Token::Types endToken = Token::Semicolon);
+		std::vector<VariableDeclaration*> ParseFunctionParameters(Token token);
 
 		EXPORT float TemporaryEvaluator(Node* node);
 

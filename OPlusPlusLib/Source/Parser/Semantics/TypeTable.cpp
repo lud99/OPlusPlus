@@ -2,7 +2,7 @@
 
 #include <assert.h>
 
-namespace Ö
+namespace O
 {
 	TypeTableEntry& TypeTableEntry::Resolve()
 	{
