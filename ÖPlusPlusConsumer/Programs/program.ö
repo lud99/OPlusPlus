@@ -1,6 +1,9 @@
-(int, int => ((float, int) => bool)) f;
+(int, int = > ((int, float) = > int)) f;
 
 (5, 5);
+(() => int) f;
+
+(5) * (5 + 2);
 
 /*((int => int) => float) g
 (int => (int => String)) h;*/

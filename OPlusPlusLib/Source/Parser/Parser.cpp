@@ -157,8 +157,38 @@ namespace O::AST
 		if (MatchToken(Token::Semicolon))
 			return new Node();
 
+		bool shouldParseAsExpression = m_StatementParselets.count(token.m_Type) == 0;
+
+		// If a token is a "real" identifier (so not a typename), then also parse as expression
+		if (TokenIsIdentifier(token))
+			shouldParseAsExpression = true;
+
+		// If an expression with parentheses that is not a type
+
+		if (token.m_Type == Token::LeftParentheses)
+		{
+			int i = 1;
+			// If the first non-'(' token we find is a typename
+			while (true)
+			{
+				Token next = PeekToken(i);
+				if (next.m_Type != Token::LeftParentheses)
+				{
+					if (!TokenIsTypename(next) && next.m_Type != Token::RightParentheses && next.m_Type != Token::Comma && next.m_Type != Token::RightArrow)
+					{
+						shouldParseAsExpression = true;
+						break;
+					}
+
+					break;
+				}
+				i++;
+			}
+		}
+		
+
 		// If no statement parselets, then try to parse it as an expression
-		if (m_StatementParselets.count(token.m_Type) == 0 || (token.m_Type == Token::Identifier && TokenIsIdentifier(token)))
+		if (shouldParseAsExpression)
 		{
 			Node* node = ParseExpression();
 			if (HasError()) return nullptr;
@@ -237,11 +267,6 @@ namespace O::AST
 
 	Type* Parser::ParseType(Token token)
 	{
-		// The statement could now be either:
-		// (... => ...) ((int => int), int => int) f
-		// (typename)
-		// (..., ...)
-
 		// Base case
 		if (TokenIsTypename(token))
 		{
@@ -258,7 +283,7 @@ namespace O::AST
 		// If not a typename and not a parentheses, then invalid type
 		else if (token.m_Type != Token::LeftParentheses)
 		{
-			MakeErrorButPretty(token.ToFormattedValueString() + " is not a valid type", token);
+			MakeErrorButPretty("Expected a type but got '" + token.ToFormattedValueString() + "'", token);
 			return {};
 		}
 
@@ -274,6 +299,10 @@ namespace O::AST
 
 		if (MatchToken(Token::RightParentheses))
 		{
+			// Function call '() => ...' with no parameters
+			if (PeekToken().m_Type == Token::RightArrow)
+				return nullptr;
+
 			MakeErrorButPretty("Expected type between parentheses", token);
 			return nullptr;
 		}
@@ -283,9 +312,12 @@ namespace O::AST
 		{
 			Token currentToken = ConsumeToken();
 
-			commaSeparatedTypes.push_back(ParseType(currentToken));
-
+			Type* type = ParseType(currentToken);
 			if (HasError()) return nullptr;
+
+			// 'ParseType()' can succeed but still return a nullptr in the case of a function with no arguments
+			if (type)
+				commaSeparatedTypes.push_back(type);
 
 			Token nextToken = PeekToken();
 			if (nextToken.m_Type == Token::RightArrow)
