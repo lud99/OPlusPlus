@@ -328,7 +328,15 @@ namespace O::AST
 
 	Node* ParseFunctionDefinition(Parser& parser, Token token, Type* returnType, Identifier* name)
 	{
-		std::vector<VariableDeclaration*> parameters = parser.ParseFunctionParameters(token);
+		TupleExpression* parameters = ParseTuple(parser, token);
+
+		// Validate the parameters
+		for (auto& parameter : parameters->m_Elements)
+		{
+			// todo: use the  token that has the error
+			if (parameter->m_Type != NodeType::VariableDeclaration)
+				return parser.MakeErrorButPretty("Invalid function prototype, expected variable declaration"); 
+		}
 
 		// Expect either a semicolon (function prototype) or a body
 		Token nextToken = parser.PeekToken(0);
@@ -339,6 +347,9 @@ namespace O::AST
 		nextToken = parser.PeekToken(0);
 		if (parser.MatchToken(Token::RightArrow))
 		{
+			if (parser.PeekToken().m_Type == Token::LeftCurlyBracket)
+				return parser.MakeErrorButPretty("Expected expression after right arrow", nextToken);
+
 			Node* expression = parser.ParseExpression();
 			if (parser.HasError()) return nullptr;
 
@@ -454,16 +465,34 @@ namespace O::AST
 		//Node* definition = ParseClassDefinitionBody(parser, nextToken);
 		if (parser.HasError()) return nullptr;
 
-		// A semicolon after class declaration is legal, but not necessary
-		//if (parser.MatchTokenNoConsume(Token::Semicolon))
-			//parser.ConsumeToken(Token::Semicolon);
-
 		return classDeclaration;
 	}
 
 	Node* LambdaParselet::Parse(Parser& parser, Node* left, Token token)
 	{
-		parameters = left;
-		new FunctionDefinitionStatement(returnType, nullptr, parameters, nullptr);
+		//Node* body = parser.ParseExpression();
+
+		auto opOp = parser.m_DefinedOperators.GetBinary(token.m_Type);
+		assert(opOp.has_value());
+		auto& op = opOp.value();
+
+		//Token nextToken = parser.PeekToken(0);
+		//if (nextToken.IsOperator())
+			//return parser.MakeError("Cannot have two binary operators next to each other");
+
+		// Detemine if to parse the body as a statement or an expression
+		Node* body = nullptr;
+		if (parser.PeekToken().m_Type == Token::LeftCurlyBracket)
+			body = parser.Parse();
+		else
+			body = parser.ParseExpression(op.GetParsePrecedence());
+
+		if (parser.HasError())
+			return nullptr;
+
+		if (!body)
+			return parser.MakeErrorButPretty("Expected body for lambda", token);
+
+		return new LambdaExpression(nullptr, (TupleExpression*)left, body);
 	}
 }

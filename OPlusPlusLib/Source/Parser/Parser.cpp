@@ -61,6 +61,9 @@ namespace O::AST
 		m_DefinedOperators.AddOperator(CompoundAssignmentSum, "+=", Midfix, Binary, Token::PlusEquals, 16, Right);
 		m_DefinedOperators.AddOperator(CompoundAssignmentDifference, "-=", Midfix, Binary, Token::MinusEquals, 16, Right);
 
+		// p = 17
+		m_DefinedOperators.AddOperator(Lambda, "=>", Midfix, Binary, Token::RightArrow, 17, Right);
+
 		// Parselets for variables and literals
 		m_PrefixParselets[Token::Identifier] = new IdentifierParselet();
 		m_PrefixParselets[Token::IntLiteral] = new LiteralParselet();
@@ -98,6 +101,9 @@ namespace O::AST
 
 		m_InfixParselets[Token::Equality] = new BinaryOperatorParselet();
 		m_InfixParselets[Token::SetEquals] = new BinaryOperatorParselet();
+
+		m_InfixParselets[Token::PlusEquals] = new BinaryOperatorParselet();
+		m_InfixParselets[Token::MinusEquals] = new BinaryOperatorParselet();
 
 		m_InfixParselets[Token::RightArrow] = new LambdaParselet();
 
@@ -198,8 +204,8 @@ namespace O::AST
 		Node* left = prefix->Parse(*this, token);
 		if (HasError()) return nullptr;
 
-		//if (left->m_Type == NodeType::Typename)
-			//return MakeErrorButPretty("Cannot have typename " + left->ToString() + " in an expression");
+		if (left->m_Type == NodeType::Typename)
+			return MakeErrorButPretty("Cannot have typename " + left->ToString() + " in an expression");
 
 		// Parse infix operators, such as normal binary operators or postfix unary operators (like a++)
 		while (!HasError() && PeekToken(0).m_Type != Token::Types::EndOfFile && precedence < GetPrecedenceOfCurrentToken())

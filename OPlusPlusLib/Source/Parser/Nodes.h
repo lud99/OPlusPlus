@@ -6,7 +6,6 @@
 
 #include "../macro.h"
 #include "Operators.h"
-#include "Semantics/SymbolTable.h"
 
 namespace O::AST
 {
@@ -33,6 +32,7 @@ namespace O::AST
 
 		FunctionDefinition,
 		ExpressionFunctionDefinition,
+		LambdaExpression,
 
 		IfStatement,
 		WhileStatement,
@@ -62,9 +62,6 @@ namespace O::AST
 
 		NodeType m_Type = NodeType::EmptyStatement;
 
-		// Filled in by the semantic analyzer later
-		ValueType m_ValueType;
-
 		EXPORT virtual std::string TypeToString();
 		EXPORT virtual void Print(std::string padding = "");
 		EXPORT virtual std::string ToString() { return ""; };
@@ -73,8 +70,6 @@ namespace O::AST
 	struct Scope : public Node
 	{
 		std::vector<Node*> m_Lines;
-
-		SymbolTable m_LocalSymbolTable;
 
 		virtual void Print(std::string padding) override;
 	};
@@ -189,13 +184,14 @@ namespace O::AST
 		virtual void Print(std::string padding) override;
 	};
 
+	struct TupleExpression;
 	struct FunctionDefinitionStatement : public Node
 	{
-		FunctionDefinitionStatement(Type* returnType, Identifier* name, std::vector<VariableDeclaration*> parameters, Node* body);
+		FunctionDefinitionStatement(Type* returnType, Identifier* name, TupleExpression* parameters, Node* body);
 
 		Type* m_ReturnType;
 		Identifier* m_Name;
-		std::vector<VariableDeclaration*> m_Parameters;
+		TupleExpression* m_Parameters;
 
 		Node* m_Body = nullptr;
 
@@ -245,6 +241,18 @@ namespace O::AST
 
 		Node* m_Callee;
 		TupleExpression* m_Arguments;
+
+		virtual void Print(std::string padding) override;
+	};
+
+	struct LambdaExpression : public Node
+	{
+		LambdaExpression(Type* returnType, TupleExpression* parameters, Node* body);
+
+		Type* m_ReturnType;
+		TupleExpression* m_Parameters;
+
+		Node* m_Body = nullptr;
 
 		virtual void Print(std::string padding) override;
 	};

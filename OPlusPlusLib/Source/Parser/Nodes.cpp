@@ -311,9 +311,32 @@ namespace O::AST {
 
 	void TupleExpression::Print(std::string padding)
 	{
-		std::cout << padding << TypeToString() << ": \n";
+		std::cout << padding << TypeToString() << " (" << m_Elements.size() << "): \n";
 
 		for (auto& element : m_Elements)
 			element->Print(padding + "    ");
+	}
+
+	LambdaExpression::LambdaExpression(Type* returnType, TupleExpression* parameters, Node* body)
+	{
+		m_Type = NodeType::LambdaExpression;
+		m_ReturnType = returnType;
+		m_Parameters = parameters;
+		m_Body = body;
+	}
+	void LambdaExpression::Print(std::string padding)
+	{
+		std::string newPadding = padding + "        ";
+		std::cout << padding << TypeToString() << ": \n";
+
+		std::cout << padding + "    (return type): \n";
+		if (m_ReturnType) m_ReturnType->Print(newPadding);
+
+		std::cout << padding + "    (parameters): \n";
+		m_Parameters->Print(newPadding);
+
+		std::cout << padding + "    (body): \n";
+		if (m_Body)
+			m_Body->Print(newPadding);
 	}
 }
