@@ -47,9 +47,13 @@ namespace O::AST
 		Node* Parse();
 		Node* ParseExpression(int precedence = 0);
 
-		std::tuple<Type*, Identifier*> ParseTypeAndName(Token token);
+		Type* ParseType(Token token);
+		Identifier* ParseIdentifier(Token token);
+
 		VariableDeclaration* ParseVariableDeclaration(Token token, Type* type, Identifier* name, bool consumeEndToken = true, Token::Types endToken = Token::Semicolon);
 		std::vector<VariableDeclaration*> ParseFunctionParameters(Token token);
+
+
 
 		EXPORT float TemporaryEvaluator(Node* node);
 
@@ -96,5 +100,7 @@ namespace O::AST
 	public:
 		Operators::DefinedOperators m_DefinedOperators;
 		TypeTable m_TypeTable;
+
+		bool m_ParseOnlyTypeExpressions = false;
 	};
 }

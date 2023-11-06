@@ -19,6 +19,8 @@ static double StringToDouble(std::string s)
 namespace O::AST
 {
 	Node* ParseFunctionDefinition(Parser& parser, Token token, Type* returnType, Identifier* name);
+	//TupleExpression* ParseTuple(Parser& parser, Token token);
+
 
 	// Identifers and literals
 
@@ -26,7 +28,7 @@ namespace O::AST
 	{
 		// Check if the identifier is a typename
 		if (parser.m_TypeTable.HasType(token.m_Value))
-			return new Type(token.m_Value);
+			return new BasicType(token.m_Value);
 		else
 			return new Identifier(token.m_Value);
 	}
@@ -91,17 +93,17 @@ namespace O::AST
 				if (i == 0)
 					isTuple = true;
 
-				//if (isTuple)
+				if (isTuple)
 				{
 					// If it has the format '(...) =>' then it is a lambda
-					if (parser.MatchTokenNoConsume(i + 1, Token::RightArrow))
+					/*if (parser.MatchTokenNoConsume(i + 1, Token::RightArrow))
 						return ParseFunctionDefinition(parser, token, nullptr, nullptr);
 
 					if (parser.MatchTokenNoConsume(i + 1, Token::LeftCurlyBracket))
-						return parser.MakeErrorButPretty("Expected '=>' after lamda parameters, block scopes are not supported in lambda");
+						return parser.MakeErrorButPretty("Expected '=>' after lamda parameters, block scopes are not supported in lambda");*/
 
 					// Otherwise a normal tuple
-					return ParseTupleExpression(parser);
+					abort();//return ParseTuple(parser, token);
 				}
 
 				// No tuple :(
@@ -328,10 +330,10 @@ namespace O::AST
 
 	Node* ParseFunctionDefinition(Parser& parser, Token token, Type* returnType, Identifier* name)
 	{
-		TupleExpression* parameters = ParseTuple(parser, token);
+		std::vector<VariableDeclaration*> parameters = parser.ParseFunctionParameters(token);
 
 		// Validate the parameters
-		for (auto& parameter : parameters->m_Elements)
+		for (auto& parameter : parameters)
 		{
 			// todo: use the  token that has the error
 			if (parameter->m_Type != NodeType::VariableDeclaration)
@@ -377,8 +379,12 @@ namespace O::AST
 		// The statement could now be either a variable declaration, or a function declaration
 		// int a; int a = ...; int a(...); int a (...) {...}
 
-		auto [type, name] = parser.ParseTypeAndName(token);
+		Type* type = parser.ParseType(token);
 		if (parser.HasError()) return nullptr;
+
+		Identifier* name = parser.ParseIdentifier(parser.ConsumeToken());
+		if (parser.HasError()) return nullptr;
+
 
 		// If function
 		if (parser.MatchToken(Token::LeftParentheses))
@@ -386,6 +392,11 @@ namespace O::AST
 
 		// Otherwise it's a variable declaration (int a; or int a = ...;)
 		return parser.ParseVariableDeclaration(token, type, name);
+	}
+
+	Node* ParenthesizedTypenameStatementParselet::Parse(Parser& parser, Token token)
+	{
+		return parser.ParseType(token);
 	}
 
 	Node* ClosureParselet::Parse(Parser& parser, Token token)

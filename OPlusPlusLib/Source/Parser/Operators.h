@@ -53,7 +53,10 @@ namespace O::Operators
 		// p = 16
 		DirectAssignment,
 		CompoundAssignmentSum, CompoundAssignmentDifference,
-		CompoundAssignmentProduct, CompoundAssignmentQuotinent
+		CompoundAssignmentProduct, CompoundAssignmentQuotinent,
+
+		// p = 17
+		Lambda
 	};
 
 	enum Affix
@@ -89,7 +92,7 @@ namespace O::Operators
 		// If its the same then it is left associative
 		int GetParsePrecedence()
 		{
-			constexpr int HighestPrecedence = 17;
+			constexpr int HighestPrecedence = 18;
 			// My precedence is specified as lowest being executed first, but parsed last.
 			// The pratt parser is inverted so lowest means it is parsed first, and therefor executed last
 			int invertedPrecedence = HighestPrecedence - m_Precedence + 1;

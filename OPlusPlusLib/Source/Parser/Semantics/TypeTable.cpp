@@ -20,9 +20,9 @@ namespace O
 	TypeTable::TypeTable()
 	{
 		// Add the build in primitives to the typeEntry table 
-		const std::string builtInTypes[] = { "void", "int", "float", "string" };
+		std::vector<std::string> builtInTypes = { "void", "int", "bool", "float", "string" };
 
-		for (uint16_t i = 0; i < 4; i++)
+		for (uint16_t i = 0; i < builtInTypes.size(); i++)
 			m_Types[builtInTypes[i]] = { builtInTypes[i], i };
 
 		m_CurrentFreeTypeId = m_Types.size();

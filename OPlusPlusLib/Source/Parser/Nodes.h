@@ -6,6 +6,7 @@
 
 #include "../macro.h"
 #include "Operators.h"
+#include "Semantics/SymbolTable.h"
 
 namespace O::AST
 {
@@ -17,7 +18,10 @@ namespace O::AST
 		Root,
 		Program,
 
-		Typename,
+		BasicType,
+		TupleType,
+		FunctionType,
+
 		Identifier,
 		VariableDeclaration,
 
@@ -70,6 +74,8 @@ namespace O::AST
 	struct Scope : public Node
 	{
 		std::vector<Node*> m_Lines;
+
+		SymbolTable m_LocalSymbolTable;
 
 		virtual void Print(std::string padding) override;
 	};
@@ -163,14 +169,35 @@ namespace O::AST
 		std::string ToString() override { return m_Name; }
 	};
 
+	// Any sort of type
+	struct Type : public Node {};
 
-	struct Type : public Node
+	// Represents basic types. int, float, Animal, int?[] etc
+	struct BasicType : public Type
 	{
-		Type(const std::string& typeName);
+		BasicType(const std::string& typeName);
 
 		std::string m_TypeName;
 
 		std::string ToString() override { return m_TypeName; }
+	};
+
+	struct TupleType : public Type
+	{
+		TupleType(std::vector<Type*> elements);
+
+		std::vector<Type*> m_Elements;
+
+		void Print(std::string padding) override;
+	};
+	struct FunctionType : public Type
+	{
+		FunctionType(std::vector<Type*> parameters, Type* returnType);
+
+		std::vector<Type*> m_Parameters;
+		Type* m_ReturnType;
+
+		void Print(std::string padding) override;
 	};
 
 	struct VariableDeclaration : public Node
@@ -184,14 +211,13 @@ namespace O::AST
 		virtual void Print(std::string padding) override;
 	};
 
-	struct TupleExpression;
 	struct FunctionDefinitionStatement : public Node
 	{
-		FunctionDefinitionStatement(Type* returnType, Identifier* name, TupleExpression* parameters, Node* body);
+		FunctionDefinitionStatement(Type* returnType, Identifier* name, std::vector<VariableDeclaration*> parameters, Node* body);
 
 		Type* m_ReturnType;
 		Identifier* m_Name;
-		TupleExpression* m_Parameters;
+		std::vector<VariableDeclaration*> m_Parameters;
 
 		Node* m_Body = nullptr;
 

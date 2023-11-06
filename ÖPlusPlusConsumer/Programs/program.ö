@@ -1,5 +1,6 @@
-(int => int) f;
+(int, int => ((float, int) => bool)) f;
 
+(5, 5);
 
 /*((int => int) => float) g
 (int => (int => String)) h;*/

@@ -32,7 +32,7 @@ namespace O
 
 			break;
 		}
-		case O::AST::NodeType::Typename:
+		case O::AST::NodeType::BasicType:
 			break;
 		case O::AST::NodeType::Identifier:
 			break;
@@ -40,13 +40,13 @@ namespace O
 		// Perform typechecking and create the variable symbol
 		case O::AST::NodeType::VariableDeclaration:
 		{
-			VariableDeclaration* variableDeclaration = (VariableDeclaration*)node;
+			//VariableDeclaration* variableDeclaration = (VariableDeclaration*)node;
 
-			const std::string& typeName = variableDeclaration->m_VariableType->m_TypeName;
-			if (!m_TypeTable.HasType(typeName))
-				abort(); // TODO: error
+			//const std::string& typeName = variableDeclaration->m_VariableType->m_Type;
+			//if (!m_TypeTable.HasType(typeName))
+			//	abort(); // TODO: error
 
-
+			break;
 		}
 		case O::AST::NodeType::AssignmentExpression:
 			break;

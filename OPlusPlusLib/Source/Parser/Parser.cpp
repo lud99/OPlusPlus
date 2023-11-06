@@ -115,6 +115,7 @@ namespace O::AST
 		m_StatementParselets[Token::LeftCurlyBracket] = new BlockStatementParselet();
 
 		m_StatementParselets[Token::Identifier] = new TypenameStatementParselet();
+		m_StatementParselets[Token::LeftParentheses] = new ParenthesizedTypenameStatementParselet();
 
 		m_StatementParselets[Token::While] = new ConditionalStatementParselet();
 		m_StatementParselets[Token::If] = new ConditionalStatementParselet();
@@ -204,7 +205,7 @@ namespace O::AST
 		Node* left = prefix->Parse(*this, token);
 		if (HasError()) return nullptr;
 
-		if (left->m_Type == NodeType::Typename)
+		if (left->m_Type == NodeType::BasicType)
 			return MakeErrorButPretty("Cannot have typename " + left->ToString() + " in an expression");
 
 		// Parse infix operators, such as normal binary operators or postfix unary operators (like a++)
@@ -234,82 +235,125 @@ namespace O::AST
 		return left;
 	}
 
-	std::tuple<Type*, Identifier*> Parser::ParseTypeAndName(Token token)
+	Type* Parser::ParseType(Token token)
 	{
-		// parsing grouped type declaration, tuple or function prototype
-		if (token.m_Type == Token::LeftParentheses)
-		{
-			// Look ahead for a comma inside the parantheses
-			int i = 0;
-			bool isTuple = false;
-			while (true)
-			{
-				Token peekToken = PeekToken(i);
+		// The statement could now be either:
+		// (... => ...) ((int => int), int => int) f
+		// (typename)
+		// (..., ...)
 
-				if (peekToken.m_Type == Token::EndOfFile)
-				{
-					MakeErrorButPretty("No closing parentheses found", token);
-					return {};
-				}
-
-				if (peekToken.m_Type == Token::LeftParentheses)
-				{
-					//ParseTypeAndName()
-				}
-
-				// If ')' is found before a comma, then it is not a tuple
-				// But if it is the first token we peek, '() would it look like', then it is an empty tuple
-				if (peekToken.m_Type == Token::RightParentheses)
-				{
-					// Looks like this: ()
-					if (i == 0)
-					{
-						MakeErrorButPretty("() is not a type");
-						return {};
-					}
-
-					if (isTuple)
-					{
-						// If it has the format '(...) =>' then it is a lambda
-						//if (MatchTokenNoConsume(i + 1, Token::RightArrow))
-						//	return ParseFunctionDefinition(token, nullptr, nullptr);
-
-						//if (MatchTokenNoConsume(i + 1, Token::LeftCurlyBracket))
-						//	return MakeErrorButPretty("Expected '=>' after lamda parameters, block scopes are not supported in lambda");
-
-						//// Otherwise a normal tuple
-						//return ParseTupleExpression();
-					}
-
-					// No tuple :(
-					break;
-				}
-
-				// It is a tuple!
-				if (peekToken.m_Type == Token::Comma)
-					isTuple = true;
-
-				i++;
-			}
-		}
-
-		std::string variableType = token.m_Value;
-
-		token = PeekToken(0);
-
+		// Base case
 		if (TokenIsTypename(token))
 		{
-			MakeErrorButPretty("Cannot have two types next to each other in statement", token);
+			Token nextToken = PeekToken();
+			if (TokenIsTypename(nextToken))
+			{
+				MakeErrorButPretty("Cannot have two typenames next to each other in type", token);
+				return {};
+			}
+
+			// todo: allow ::, ?, [] etc
+			return new BasicType(token.m_Value);
+		}
+		// If not a typename and not a parentheses, then invalid type
+		else if (token.m_Type != Token::LeftParentheses)
+		{
+			MakeErrorButPretty(token.ToFormattedValueString() + " is not a valid type", token);
 			return {};
 		}
 
-		// todo: allow scope resolution (::), ?, [] etc 
-		ConsumeToken(Token::Identifier);
-		if (HasError()) return {};
+		enum TypeOfType {
+			Function,
+			Tuple,
+			SingleType
+		};
+		TypeOfType typeOfType = SingleType;
+
+		std::vector<Type*> commaSeparatedTypes;
+		Type* functionReturnType = nullptr;
+
+		if (MatchToken(Token::RightParentheses))
+		{
+			MakeErrorButPretty("Expected type between parentheses", token);
+			return nullptr;
+		}
+				
+		// Parse until we find a closing parentheses
+		while (true)
+		{
+			Token currentToken = ConsumeToken();
+
+			commaSeparatedTypes.push_back(ParseType(currentToken));
+
+			if (HasError()) return nullptr;
+
+			Token nextToken = PeekToken();
+			if (nextToken.m_Type == Token::RightArrow)
+			{
+				Token arrowToken = ConsumeToken();
+
+				typeOfType = Function;
+				currentToken = ConsumeToken();
+
+				// After parsing the right arrow, there can only be one type remaining
+				functionReturnType = ParseType(currentToken);
+				if (HasError()) return nullptr;
+
+				nextToken = PeekToken();
+				if (nextToken.m_Type == Token::Comma || nextToken.m_Type == Token::RightArrow)
+				{
+					MakeErrorButPretty("Can only return one type. Use parentheses if you wish to return a tuple or another function", arrowToken);
+					return nullptr;
+				}
+
+				break;
+			} 
+			else if (nextToken.m_Type == Token::Comma && typeOfType != Function)
+			{
+				ConsumeToken();
+				typeOfType = Tuple;
+			}
+
+			// Stop parsing type
+			if (nextToken.m_Type == Token::RightParentheses)
+				break;
+
+			// Invalid token found after type
+			if (nextToken.m_Type != Token::RightArrow && nextToken.m_Type != Token::Comma)
+			{
+				MakeErrorButPretty("Expected a type, ',' or '=>', but got '" + nextToken.ToFormattedValueString() + "'");
+				return nullptr;
+			}
+		}
+
+		ConsumeToken(Token::RightParentheses);
+
+		// Determine the type of what we found
+		if (typeOfType == Tuple)
+			return new TupleType(commaSeparatedTypes);
+		
+		if (typeOfType == Function)
+			return new FunctionType(commaSeparatedTypes, functionReturnType);
+
+		if (typeOfType == SingleType)
+			return commaSeparatedTypes.front();
+
+		abort();
+
+		return nullptr;
+	}
+
+	Identifier* Parser::ParseIdentifier(Token token)
+	{
+		if (!TokenIsIdentifier(token))
+		{
+			MakeErrorButPretty("Expected identifier, but got '" + token.ToFormattedValueString() + "'", token);
+			return nullptr;
+		}
 
 		std::string variableName = token.m_Value;
 
-		return std::make_tuple(new Type(variableType), new Identifier(variableName));
+		return new Identifier(variableName);
 	}
 
 	VariableDeclaration* Parser::ParseVariableDeclaration(Token token, Type* type, Identifier* name, bool consumeEndToken, Token::Types endToken)
@@ -359,7 +403,10 @@ namespace O::AST
 			{
 				token = ConsumeToken();
 
-				auto [type, name] = ParseTypeAndName(token);
+				Type* type = ParseType(token);
+				if (HasError()) return {};
+
+				Identifier* name = ParseIdentifier(ConsumeToken());
 				if (HasError()) return {};
 
 				Token::Types endToken = Token::Comma;

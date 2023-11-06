@@ -16,10 +16,10 @@ namespace O::AST {
 		m_Type = NodeType::Identifier;
 	}
 
-	Type::Type(const std::string& typeName)
+	BasicType::BasicType(const std::string& typeName)
 	{
 		m_TypeName = typeName;
-		m_Type = NodeType::Typename;
+		m_Type = NodeType::BasicType;
 	}
 
 	VariableDeclaration::VariableDeclaration(Type* variableType, Identifier* variableName, Node* assignedValue)
@@ -338,5 +338,44 @@ namespace O::AST {
 		std::cout << padding + "    (body): \n";
 		if (m_Body)
 			m_Body->Print(newPadding);
+	}
+
+	FunctionType::FunctionType(std::vector<Type*> parameters, Type* returnType)
+	{
+		m_Type = NodeType::FunctionType;
+		m_Parameters = parameters;
+		m_ReturnType = returnType;
+	}
+
+	void FunctionType::Print(std::string padding)
+	{
+		std::string newPadding = padding + "        ";
+		std::cout << padding << TypeToString() << ": \n";
+
+		std::cout << padding + "    (parameter types): \n";
+		for (auto& type : m_Parameters)
+		{
+			type->Print(newPadding);
+		}
+
+		std::cout << padding + "    (return type): \n";
+		m_ReturnType->Print(newPadding);
+	}
+
+	TupleType::TupleType(std::vector<Type*> elements)
+	{
+		m_Type = NodeType::TupleType;
+		m_Elements = elements;
+	}
+
+	void TupleType::Print(std::string padding)
+	{
+		std::string newPadding = padding + "        ";
+		std::cout << padding << TypeToString() << ": \n";
+
+		for (auto& type : m_Elements)
+		{
+			type->Print(newPadding);
+		}
 	}
 }

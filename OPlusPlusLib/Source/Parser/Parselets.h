@@ -98,6 +98,10 @@ namespace O::AST
 	{
 		Node* Parse(Parser& parser, Token token) override;
 	};
+	struct ParenthesizedTypenameStatementParselet : public StatementParselet
+	{
+		Node* Parse(Parser& parser, Token token) override;
+	};
 
 	struct ClassDefinitionParselet : public StatementParselet
 	{
