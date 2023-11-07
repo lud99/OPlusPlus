@@ -1,9 +1,17 @@
-(int, int = > ((int, float) = > int)) f;
+
+
+(heltal, heltal => (heltal, heltal)) lambda = (heltal a, heltal b) => (a, b);
+
+/*
 
 (5, 5);
 (() => int) f;
 
 (5) * (5 + 2);
+
+(int, int => int) lambda = (int a, int b) => a + b;
+
+f((int, int))*/
 
 /*((int => int) => float) g
 (int => (int => String)) h;*/

@@ -20,7 +20,7 @@ namespace O
 	TypeTable::TypeTable()
 	{
 		// Add the build in primitives to the typeEntry table 
-		std::vector<std::string> builtInTypes = { "void", "int", "bool", "float", "string" };
+		std::vector<std::string> builtInTypes = { "tom", "heltal", "bål", "flyt", "sträng" };
 
 		for (uint16_t i = 0; i < builtInTypes.size(); i++)
 			m_Types[builtInTypes[i]] = { builtInTypes[i], i };

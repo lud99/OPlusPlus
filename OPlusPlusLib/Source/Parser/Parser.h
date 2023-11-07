@@ -49,9 +49,10 @@ namespace O::AST
 
 		Type* ParseType(Token token);
 		Identifier* ParseIdentifier(Token token);
+		TupleExpression* ParseTupleExpression(Token token);
 
 		VariableDeclaration* ParseVariableDeclaration(Token token, Type* type, Identifier* name, bool consumeEndToken = true, Token::Types endToken = Token::Semicolon);
-		std::vector<VariableDeclaration*> ParseFunctionParameters(Token token);
+		FunctionParameters* ParseFunctionParameters(Token token);
 
 
 

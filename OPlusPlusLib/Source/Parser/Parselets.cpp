@@ -75,7 +75,7 @@ namespace O::AST
 		// Look ahead for a comma inside the parantheses
 		int i = 0;
 		bool isTuple = false;
-		while (false)
+		while (true)
 		{
 			Token peekToken = parser.PeekToken(i);
 
@@ -86,24 +86,23 @@ namespace O::AST
 				break;
 
 			// If ')' is found before a comma, then it is not a tuple
-			// But if it is the first token we peek, '() would it look like', then it is an empty tuple
+			// But if it is the first token we peek, '() would it look like', then it is invalid syntax
 			if (peekToken.m_Type == Token::RightParentheses)
 			{
-				// Tuple!
 				if (i == 0)
-					isTuple = true;
+					return parser.MakeErrorButPretty("Expected expression in parentheses", peekToken);
 
 				if (isTuple)
 				{
 					// If it has the format '(...) =>' then it is a lambda
-					/*if (parser.MatchTokenNoConsume(i + 1, Token::RightArrow))
-						return ParseFunctionDefinition(parser, token, nullptr, nullptr);
+					if (parser.MatchTokenNoConsume(i + 1, Token::RightArrow))
+						return parser.ParseFunctionParameters(token);
 
 					if (parser.MatchTokenNoConsume(i + 1, Token::LeftCurlyBracket))
-						return parser.MakeErrorButPretty("Expected '=>' after lamda parameters, block scopes are not supported in lambda");*/
+						return parser.MakeErrorButPretty("Expected '=>' after lamda parameters, block scopes are not supported in lambda");
 
 					// Otherwise a normal tuple
-					abort();//return ParseTuple(parser, token);
+					return parser.ParseTupleExpression(token);
 				}
 
 				// No tuple :(
@@ -330,10 +329,10 @@ namespace O::AST
 
 	Node* ParseFunctionDefinition(Parser& parser, Token token, Type* returnType, Identifier* name)
 	{
-		std::vector<VariableDeclaration*> parameters = parser.ParseFunctionParameters(token);
+		FunctionParameters* parameters = parser.ParseFunctionParameters(token);
 
 		// Validate the parameters
-		for (auto& parameter : parameters)
+		for (auto& parameter : parameters->m_Parameters)
 		{
 			// todo: use the  token that has the error
 			if (parameter->m_Type != NodeType::VariableDeclaration)

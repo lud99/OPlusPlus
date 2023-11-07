@@ -29,14 +29,14 @@ namespace O::AST
 		BinaryExpression,
 		UnaryExpression,
 		CallExpression,
-
 		TupleExpression,
 
-		BlockStatement,
-
+		FunctionParameters,
 		FunctionDefinition,
 		ExpressionFunctionDefinition,
 		LambdaExpression,
+
+		BlockStatement,
 
 		IfStatement,
 		WhileStatement,
@@ -179,7 +179,11 @@ namespace O::AST
 
 		std::string m_TypeName;
 
-		std::string ToString() override { return m_TypeName; }
+		bool m_IsArray = false;
+		bool m_IsNullable = false;
+
+		std::string ToString() override;
+		//void Print(std::string padding) override;
 	};
 
 	struct TupleType : public Type
@@ -211,13 +215,22 @@ namespace O::AST
 		virtual void Print(std::string padding) override;
 	};
 
+	struct FunctionParameters : public Node
+	{
+		FunctionParameters(std::vector<VariableDeclaration*> parameters);
+
+		std::vector<VariableDeclaration*> m_Parameters;
+
+		virtual void Print(std::string padding) override;
+	};
+
 	struct FunctionDefinitionStatement : public Node
 	{
-		FunctionDefinitionStatement(Type* returnType, Identifier* name, std::vector<VariableDeclaration*> parameters, Node* body);
+		FunctionDefinitionStatement(Type* returnType, Identifier* name, FunctionParameters* parameters, Node* body);
 
 		Type* m_ReturnType;
 		Identifier* m_Name;
-		std::vector<VariableDeclaration*> m_Parameters;
+		FunctionParameters* m_Parameters;
 
 		Node* m_Body = nullptr;
 

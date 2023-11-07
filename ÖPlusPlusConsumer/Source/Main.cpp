@@ -8,7 +8,9 @@ int main(const char* args)
 {
 	using namespace O;
 
-	std::ifstream file("Programs/program.ö");
+	setlocale(LC_ALL, "");
+
+	std::ifstream file("Programs/array.ö");
 	if (!file.good())
 	{
 		std::cout << "Could not open file :(\n";

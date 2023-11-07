@@ -163,11 +163,11 @@ namespace O::Lexer
 
 		EXPORT static std::string ReconstructSourcecode(Tokens& tokens);
 
-		char ConsumeNext();
-		char Next();
+		unsigned char ConsumeNext();
+		unsigned char Next();
 		bool IsNext();
-		char Previous();
-		char Current();
+		unsigned char Previous();
+		unsigned char Current();
 		int CharactersLeft();
 		int Skip();
 

@@ -165,6 +165,7 @@ namespace O::AST
 
 		// If an expression with parentheses that is not a type
 
+
 		if (token.m_Type == Token::LeftParentheses)
 		{
 			int i = 1;
@@ -278,7 +279,17 @@ namespace O::AST
 			}
 
 			// todo: allow ::, ?, [] etc
-			return new BasicType(token.m_Value);
+			BasicType* type = new BasicType(token.m_Value);
+
+			if (nextToken.m_Type == Token::LeftSquareBracket)
+			{
+				ConsumeToken(Token::LeftSquareBracket);
+				ConsumeToken(Token::RightSquareBracket);
+
+				type->m_IsArray = true;
+			}
+
+			return type;
 		}
 		// If not a typename and not a parentheses, then invalid type
 		else if (token.m_Type != Token::LeftParentheses)
@@ -353,7 +364,7 @@ namespace O::AST
 			// Invalid token found after type
 			if (nextToken.m_Type != Token::RightArrow && nextToken.m_Type != Token::Comma)
 			{
-				MakeErrorButPretty("Expected a type, ',' or '=>', but got '" + nextToken.ToFormattedValueString() + "'");
+				MakeErrorButPretty("Expected a type, ',' or '=>', but got '" + nextToken.ToFormattedValueString() + "'", nextToken);
 				return nullptr;
 			}
 		}
@@ -386,6 +397,28 @@ namespace O::AST
 		std::string variableName = token.m_Value;
 
 		return new Identifier(variableName);
+	}
+
+	TupleExpression* Parser::ParseTupleExpression(Token token)
+	{
+		std::vector<Node*> elements;
+
+		// Parse until we find a closing parentheses
+		if (!MatchToken(Token::RightParentheses))
+		{
+			do
+			{
+				Node* node = ParseExpression();
+				if (!node || HasError())
+					return {};
+
+				elements.push_back(node);
+			} while (MatchToken(Token::Comma));
+
+			ConsumeToken(Token::RightParentheses);
+		}
+
+		return new TupleExpression(elements);
 	}
 
 	VariableDeclaration* Parser::ParseVariableDeclaration(Token token, Type* type, Identifier* name, bool consumeEndToken, Token::Types endToken)
@@ -424,7 +457,7 @@ namespace O::AST
 		return new VariableDeclaration(type, name, assignedValue);
 	}
 
-	std::vector<VariableDeclaration*> Parser::ParseFunctionParameters(Token token)
+	FunctionParameters* Parser::ParseFunctionParameters(Token token)
 	{
 		std::vector<VariableDeclaration*> parameters;
 
@@ -452,7 +485,7 @@ namespace O::AST
 			ConsumeToken(Token::RightParentheses);
 		}
 
-		return parameters;
+		return new FunctionParameters(parameters);
 	}
 
 	float Parser::TemporaryEvaluator(Node* node)

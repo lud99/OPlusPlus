@@ -41,7 +41,7 @@ namespace O::Lexer
 		return std::string(magic_enum::enum_name(type));
 	}
 
-	bool IsValidNumberChar(char ch)
+	bool IsValidNumberChar(unsigned char ch)
 	{
 		if (ch == ' ') return false;
 		if (isdigit(ch) || ch == '.' || ch == '-')
@@ -49,17 +49,17 @@ namespace O::Lexer
 
 		return false;
 	}
-	bool IsValidVariableChar(char ch)
+	bool IsValidVariableChar(unsigned char ch)
 	{
 		if (ch == ' ') return false;
-		if (isalpha(ch) || ch == '_')
+		if (isalpha(ch) || ch == '_' || ch == 'ö' || ch == 'å' || ch  == 'ä')
 			return true;
 		return false;
 	}
 	bool IsValidNumberPart(const std::string& string, int index, std::string& error)
 	{
 		// 5....1;
-		char current = string[index];
+		unsigned char current = string[index];
 
 		if (isdigit(current))
 			return true;
@@ -202,7 +202,7 @@ namespace O::Lexer
 	}
 	bool IsValidVariablePart(std::string string, int index, std::string& error)
 	{
-		char current = string[index];
+		unsigned char current = string[index];
 
 		// At end or start
 		if (index == 0 || index == string.length() - 1)
@@ -252,7 +252,7 @@ namespace O::Lexer
 		return false;
 	}
 
-	std::vector<std::string> split(const std::string& txt, char ch)
+	std::vector<std::string> split(const std::string& txt, unsigned ch)
 	{
 		std::vector<std::string> strs;
 		size_t pos = txt.find(ch);
@@ -282,11 +282,11 @@ namespace O::Lexer
 		return token;
 	}
 
-	char Lexer::ConsumeNext()
+	unsigned char Lexer::ConsumeNext()
 	{
 		return '0';
 	}
-	char Lexer::Next()
+	unsigned char Lexer::Next()
 	{
 		if (IsNext())
 			return m_Source[m_Position + 1];
@@ -297,14 +297,14 @@ namespace O::Lexer
 	{
 		return CharactersLeft() > 1;
 	}
-	char Lexer::Previous()
+	unsigned char Lexer::Previous()
 	{
 		if (m_Position > 0)
 			return m_Source[m_Position - 1];
 
 		return 0;
 	}
-	char Lexer::Current()
+	unsigned char Lexer::Current()
 	{
 		return m_Source[m_Position];
 	}
@@ -809,19 +809,19 @@ namespace O::Lexer
 	Lexer::Lexer()
 	{
 		m_IdentifierMappings = {
-			{ "class", Token::ClassKeyword },
-			{ "return", Token::Return },
-			{ "if", Token::If },
-			{ "else", Token::Else },
-			{ "while", Token::While },
-			{ "for", Token::For },
+			{ "klass", Token::ClassKeyword },
+			{ "returnera", Token::Return },
+			{ "om", Token::If },
+			{ "annars", Token::Else },
+			{ "medan", Token::While },
+			{ "för", Token::For },
 			{ "loop", Token::Loop },
 			{ "closure", Token::Closure },
-			{ "continue", Token::Continue },
-			{ "break", Token::Break },
+			{ "fortsätt", Token::Continue },
+			{ "förstör", Token::Break },
 			{ "global", Token::Global },
-			{ "true", Token::BoolLiteral },
-			{ "false", Token::BoolLiteral },
+			{ "sann", Token::BoolLiteral },
+			{ "falsk", Token::BoolLiteral },
 		};
 	}
 

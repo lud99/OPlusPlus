@@ -22,6 +22,22 @@ namespace O::AST {
 		m_Type = NodeType::BasicType;
 	}
 
+	std::string BasicType::ToString()
+	{
+		std::string str = m_TypeName;
+		if (m_IsArray)
+			str += "[]";
+
+		return str;
+	}
+
+	/*void BasicType::Print(std::string padding)
+	{
+		std::cout << padding << TypeToString() << ": " << ToString() << "\n";
+		if (m_IsArray)
+			std::cout << "(array)";
+	}*/
+
 	VariableDeclaration::VariableDeclaration(Type* variableType, Identifier* variableName, Node* assignedValue)
 	{
 		m_Type = NodeType::VariableDeclaration;
@@ -215,7 +231,7 @@ namespace O::AST {
 			m_ReturnValue->Print(padding + "    ");
 	}
 
-	FunctionDefinitionStatement::FunctionDefinitionStatement(Type* returnType, Identifier* name, std::vector<VariableDeclaration*> parameters, Node* body)
+	FunctionDefinitionStatement::FunctionDefinitionStatement(Type* returnType, Identifier* name, FunctionParameters* parameters, Node* body)
 	{
 		m_Type = NodeType::FunctionDefinition;
 		m_ReturnType = returnType;
@@ -236,8 +252,7 @@ namespace O::AST {
 		if (m_Name) m_Name->Print(newPadding);
 
 		std::cout << padding + "    (parameters): \n";
-		for (auto& parameter : m_Parameters)
-			parameter->Print(newPadding);
+		m_Parameters->Print(newPadding);
 
 		std::cout << padding + "    (body): \n";
 		if (m_Body)
@@ -376,6 +391,18 @@ namespace O::AST {
 		for (auto& type : m_Elements)
 		{
 			type->Print(newPadding);
+		}
+	}
+	FunctionParameters::FunctionParameters(std::vector<VariableDeclaration*> parameters)
+	{
+		m_Type = NodeType::FunctionParameters;
+		m_Parameters = parameters;
+	}
+	void FunctionParameters::Print(std::string padding)
+	{
+		for (auto& parameter : m_Parameters)
+		{
+			parameter->Print(padding + "    ");
 		}
 	}
 }
