@@ -24,6 +24,9 @@ namespace O::Operators
 	enum Name
 	{
 		// Unary
+		// p = 1
+		Nullable,
+
 		// p = 2
 		PostfixIncrement, PostfixDecrement,
 		Call,

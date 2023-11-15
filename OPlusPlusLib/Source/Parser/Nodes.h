@@ -19,6 +19,7 @@ namespace O::AST
 		Program,
 
 		BasicType,
+		ArrayType,
 		TupleType,
 		FunctionType,
 
@@ -170,7 +171,10 @@ namespace O::AST
 	};
 
 	// Any sort of type
-	struct Type : public Node {};
+	struct Type : public Node 
+	{
+		bool m_IsNullable = false;
+	};
 
 	// Represents basic types. int, float, Animal, int?[] etc
 	struct BasicType : public Type
@@ -178,12 +182,18 @@ namespace O::AST
 		BasicType(const std::string& typeName);
 
 		std::string m_TypeName;
-
-		bool m_IsArray = false;
-		bool m_IsNullable = false;
-
+	
 		std::string ToString() override;
 		//void Print(std::string padding) override;
+	};
+	struct ArrayType : public Type
+	{
+		ArrayType(Type* underlyingType);
+
+		Type* m_UnderlyingType;
+
+		//std::string ToString() override;
+		void Print(std::string padding) override;
 	};
 
 	struct TupleType : public Type

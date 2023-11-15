@@ -20,10 +20,14 @@ namespace O
 	TypeTable::TypeTable()
 	{
 		// Add the build in primitives to the typeEntry table 
-		std::vector<std::string> builtInTypes = { "tom", "heltal", "bål", "flyt", "sträng" };
+		std::vector<std::string> builtInTypes = { "void", "int", "bool", "float", "string" };
 
 		for (uint16_t i = 0; i < builtInTypes.size(); i++)
 			m_Types[builtInTypes[i]] = { builtInTypes[i], i };
+
+		// Add relation for types
+		AddSubtypeRelation(m_Types["float"], PrimitiveValueTypes::Integer);
+		AddSubtypeRelation(m_Types["int"], PrimitiveValueTypes::Bool);
 
 		m_CurrentFreeTypeId = m_Types.size();
 	}
@@ -50,8 +54,14 @@ namespace O
 	{
 		assert (!HasType(typeName));
 
-		m_Types[typeName] = { typeName, m_CurrentFreeTypeId++, type, redirect, true };
+		m_Types[typeName] = { typeName, m_CurrentFreeTypeId++, type, redirect };
+		m_Types[typeName].isPrivate = true;
 		return m_Types[typeName];
+	}
+	void TypeTable::AddSubtypeRelation(TypeTableEntry& type, ValueType subtypeId)
+	{
+		type.subtypes.insert(subtypeId);
+		GetEntryFromId(subtypeId).supertypes.insert(type.id);
 	}
 	TypeTableEntry& TypeTable::ResolveEntry(TypeTableEntry entry)
 	{

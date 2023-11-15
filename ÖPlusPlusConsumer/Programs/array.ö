@@ -1,6 +1,1 @@
-klass Animal {
-	heltal age;
-	sträng name;
-}
-
-Animal?[] animals;
+int?[][][] a;

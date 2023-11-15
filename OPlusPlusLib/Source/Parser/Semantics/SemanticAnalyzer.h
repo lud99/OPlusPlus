@@ -23,6 +23,9 @@ namespace O
 
 		void Analyze(AST::Node* node, SymbolTable* upwardSymbolTable, SymbolTable* localSymbolTable);
 
+		ValueType GetTypeOfNode(AST::Node* node);
+		bool Typecheck(TypeTableEntry& lhs, TypeTableEntry& rhs);
+
 	public:
 
 	private:

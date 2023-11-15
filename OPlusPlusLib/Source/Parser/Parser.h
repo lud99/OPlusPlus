@@ -21,6 +21,10 @@ namespace O::AST
 
 	struct PrefixParselet;
 	struct InfixParselet;
+
+	struct PrefixTypeParselet;
+	struct InfixTypeParselet;
+	
 	struct StatementParselet;
 
 	struct ParserError
@@ -47,7 +51,9 @@ namespace O::AST
 		Node* Parse();
 		Node* ParseExpression(int precedence = 0);
 
-		Type* ParseType(Token token);
+		Type* ParseType_(Token token);
+		Type* ParseType(int precedence = 0);
+		Type* ParseType(Token token, int precedence = 0);
 		Identifier* ParseIdentifier(Token token);
 		TupleExpression* ParseTupleExpression(Token token);
 
@@ -80,6 +86,7 @@ namespace O::AST
 		bool EnsureToken(int peekDistance, Token::Types expectedType);
 
 		int GetPrecedenceOfCurrentToken();
+		int GetPrecedenceOfCurrentTokenType();
 
 		bool TokenIsTypename(Token token) { return m_TypeTable.HasType(token.m_Value); }
 		bool TokenIsIdentifier(Token token) { return !TokenIsTypename(token) && token.m_Type == Token::Identifier; }
@@ -96,10 +103,15 @@ namespace O::AST
 		std::unordered_map<Token::Types, PrefixParselet*> m_PrefixParselets;
 		std::unordered_map<Token::Types, InfixParselet*> m_InfixParselets;
 
+		std::unordered_map<Token::Types, PrefixTypeParselet*> m_PrefixTypeParselets;
+		std::unordered_map<Token::Types, InfixTypeParselet*> m_InfixTypeParselets;
+
+
 		std::unordered_map<Token::Types, StatementParselet*> m_StatementParselets;
 
 	public:
 		Operators::DefinedOperators m_DefinedOperators;
+		Operators::DefinedOperators m_DefinedTypeModifierOperators;
 		TypeTable m_TypeTable;
 
 		bool m_ParseOnlyTypeExpressions = false;

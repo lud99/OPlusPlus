@@ -60,6 +60,8 @@ namespace O::Lexer
 
 			RightArrow,
 
+			QuestionMark,
+
 			And,
 			Or,
 			Not,

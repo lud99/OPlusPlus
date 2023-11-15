@@ -25,8 +25,8 @@ namespace O::AST {
 	std::string BasicType::ToString()
 	{
 		std::string str = m_TypeName;
-		if (m_IsArray)
-			str += "[]";
+		if (m_IsNullable)
+			str += "?";
 
 		return str;
 	}
@@ -404,5 +404,19 @@ namespace O::AST {
 		{
 			parameter->Print(padding + "    ");
 		}
+	}
+	ArrayType::ArrayType(Type* underlyingType)
+	{
+		m_Type = NodeType::ArrayType;
+		m_UnderlyingType = underlyingType;
+	}
+	/*std::string ArrayType::ToString()
+	{
+		return ->ToString();
+	}*/
+	void ArrayType::Print(std::string padding)
+	{
+		std::cout << padding << TypeToString() << (m_IsNullable ? "?" : "") << ": \n";
+		m_UnderlyingType->Print(padding + "    ");
 	}
 }

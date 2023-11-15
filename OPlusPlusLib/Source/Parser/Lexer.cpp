@@ -597,7 +597,6 @@ namespace O::Lexer
 				}
 
 				// Check for conditions. ==, !=, <, >, <=, >= 
-				// TODO: seperate function with error checking
 				{
 					bool foundMatch = false;
 
@@ -703,6 +702,8 @@ namespace O::Lexer
 				// Not
 				if (Current() == '!')
 					token = AddNewToken(Token::Not, "!");
+				if (Current() == '?')
+					token = AddNewToken(Token::QuestionMark, "?");
 				// Power
 				if (Current() == '^')
 					token = AddNewToken(Token::Power, "^");
@@ -808,7 +809,7 @@ namespace O::Lexer
 
 	Lexer::Lexer()
 	{
-		m_IdentifierMappings = {
+		/*m_IdentifierMappings = {
 			{ "klass", Token::ClassKeyword },
 			{ "returnera", Token::Return },
 			{ "om", Token::If },
@@ -822,6 +823,21 @@ namespace O::Lexer
 			{ "global", Token::Global },
 			{ "sann", Token::BoolLiteral },
 			{ "falsk", Token::BoolLiteral },
+		};*/
+		m_IdentifierMappings = {
+			{ "class", Token::ClassKeyword },
+			{ "return", Token::Return },
+			{ "if", Token::If },
+			{ "else", Token::Else },
+			{ "while", Token::While },
+			{ "for", Token::For },
+			{ "loop", Token::Loop },
+			{ "closure", Token::Closure },
+			{ "continue", Token::Continue },
+			{ "break", Token::Break },
+			{ "global", Token::Global },
+			{ "true", Token::BoolLiteral },
+			{ "false", Token::BoolLiteral },
 		};
 	}
 

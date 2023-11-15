@@ -393,11 +393,6 @@ namespace O::AST
 		return parser.ParseVariableDeclaration(token, type, name);
 	}
 
-	Node* ParenthesizedTypenameStatementParselet::Parse(Parser& parser, Token token)
-	{
-		return parser.ParseType(token);
-	}
-
 	Node* ClosureParselet::Parse(Parser& parser, Token token)
 	{
 		Node* body = parser.Parse();
@@ -504,5 +499,122 @@ namespace O::AST
 			return parser.MakeErrorButPretty("Expected body for lambda", token);
 
 		return new LambdaExpression(nullptr, (TupleExpression*)left, body);
+	}
+
+	Type* TypenameParselet::Parse(Parser& parser, Token token)
+	{
+		if (!parser.m_TypeTable.HasType(token.m_Value))
+			return (Type*)parser.MakeErrorButPretty("Expected typename");
+
+		return new BasicType(token.m_Value);
+	}
+
+	Type* ArrayTypeModifierParselet::Parse(Parser& parser, Type* left, Token token)
+	{
+		parser.ConsumeToken(Token::RightSquareBracket);
+		if (parser.HasError()) return nullptr;
+
+		return new ArrayType(left);
+	}
+	Type* NullableTypeModifierParselet::Parse(Parser& parser, Type* left, Token token)
+	{
+		left->m_IsNullable = true;
+		return left;
+	}
+	Type* ParenthesizedTypeParselet::Parse(Parser& parser, Token token)
+	{
+
+		/*Type* type = parser.ParseType();
+		parser.ConsumeToken(Token::RightParentheses);
+
+		if (parser.HasError())
+			return nullptr;
+
+		return type;*/
+
+		enum TypeOfType {
+			Function,
+			Tuple,
+			SingleType
+		};
+		TypeOfType typeOfType = SingleType;
+
+		std::vector<Type*> commaSeparatedTypes;
+		Type* functionReturnType = nullptr;
+
+		if (parser.MatchToken(Token::RightParentheses))
+		{
+			// Function call '() => ...' with no parameters
+			if (parser.PeekToken().m_Type == Token::RightArrow)
+				return nullptr;
+
+			parser.MakeErrorButPretty("Expected type between parentheses", token);
+			return nullptr;
+		}
+
+		// Parse until we find a closing parentheses
+		while (parser.PeekToken().m_Type != Token::RightParentheses)
+		{
+			Type* type = parser.ParseType();
+			if (parser.HasError()) return nullptr;
+
+			// 'ParseType()' can succeed but still return a nullptr in the case of a function with no arguments
+			if (type)
+				commaSeparatedTypes.push_back(type);
+
+			Token nextToken = parser.PeekToken();
+			if (nextToken.m_Type == Token::RightArrow)
+			{
+				Token arrowToken = parser.ConsumeToken();
+
+				typeOfType = Function;
+				Token currentToken = parser.ConsumeToken();
+
+				// After parsing the right arrow, there can only be one type remaining
+				functionReturnType = parser.ParseType(currentToken);
+				if (parser.HasError()) return nullptr;
+
+				nextToken = parser.PeekToken();
+				if (nextToken.m_Type == Token::Comma || nextToken.m_Type == Token::RightArrow)
+				{
+					parser.MakeErrorButPretty("Can only return one type. Use parentheses if you wish to return a tuple or another function", arrowToken);
+					return nullptr;
+				}
+
+				break;
+			}
+			else if (nextToken.m_Type == Token::Comma && typeOfType != Function)
+			{
+				parser.ConsumeToken();
+				typeOfType = Tuple;
+			}
+
+			// Stop parsing type
+			if (nextToken.m_Type == Token::RightParentheses)
+				break;
+
+			// Invalid token found after type
+			if (nextToken.m_Type != Token::RightArrow && nextToken.m_Type != Token::Comma)
+			{
+				parser.MakeErrorButPretty("Expected a type, ',' or '=>', but got '" + nextToken.ToFormattedValueString() + "'", nextToken);
+				return nullptr;
+			}
+		}
+
+		parser.ConsumeToken(Token::RightParentheses);
+
+		// Determine the type of what we found
+		if (typeOfType == Tuple)
+			return new TupleType(commaSeparatedTypes);
+
+		if (typeOfType == Function)
+			return new FunctionType(commaSeparatedTypes, functionReturnType);
+
+		if (typeOfType == SingleType)
+			return commaSeparatedTypes.front();
+
+		abort();
+
+		return nullptr;
 	}
 }

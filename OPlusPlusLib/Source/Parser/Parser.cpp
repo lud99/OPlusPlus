@@ -64,6 +64,11 @@ namespace O::AST
 		// p = 17
 		m_DefinedOperators.AddOperator(Lambda, "=>", Midfix, Binary, Token::RightArrow, 17, Right);
 
+
+		// Type modifier operators
+		m_DefinedTypeModifierOperators.AddOperator(Subscript, "[]", Postfix, Unary, Token::LeftSquareBracket, 2, Right);
+		m_DefinedTypeModifierOperators.AddOperator(Nullable, "?", Postfix, Unary, Token::QuestionMark, 1, Right);
+
 		// Parselets for variables and literals
 		m_PrefixParselets[Token::Identifier] = new IdentifierParselet();
 		m_PrefixParselets[Token::IntLiteral] = new LiteralParselet();
@@ -111,11 +116,18 @@ namespace O::AST
 		m_InfixParselets[Token::Increment] = new PostfixOperatorParselet();
 		m_InfixParselets[Token::Decrement] = new PostfixOperatorParselet();
 
+
+		// Type parselets
+		m_PrefixTypeParselets[Token::LeftParentheses] = new ParenthesizedTypeParselet();
+		m_PrefixTypeParselets[Token::Identifier] = new TypenameParselet();
+		m_InfixTypeParselets[Token::LeftSquareBracket] = new ArrayTypeModifierParselet();
+		m_InfixTypeParselets[Token::QuestionMark] = new NullableTypeModifierParselet();
+
 		// Statements
 		m_StatementParselets[Token::LeftCurlyBracket] = new BlockStatementParselet();
 
 		m_StatementParselets[Token::Identifier] = new TypenameStatementParselet();
-		m_StatementParselets[Token::LeftParentheses] = new ParenthesizedTypenameStatementParselet();
+		m_StatementParselets[Token::LeftParentheses] = (StatementParselet*)new ParenthesizedTypeParselet();
 
 		m_StatementParselets[Token::While] = new ConditionalStatementParselet();
 		m_StatementParselets[Token::If] = new ConditionalStatementParselet();
@@ -266,7 +278,75 @@ namespace O::AST
 		return left;
 	}
 
-	Type* Parser::ParseType(Token token)
+	Type* Parser::ParseType(int precedence)
+	{
+		if (HasError())
+			return nullptr;
+
+		if (MatchToken(Token::Types::EndOfFile))
+			return nullptr;
+
+		// Animal?
+		// (int, int)
+		// (Animal?)[][][]
+
+		// (((Animal[])[])[])
+
+		// Parse prefix operators
+		Token token = ConsumeToken();
+		return ParseType(token, precedence);
+	}
+
+	Type* Parser::ParseType(Token token, int precedence)
+	{
+		if (m_PrefixTypeParselets.count(token.m_Type) == 0)
+		{
+			// If the operator is a infix, then error
+			if (m_InfixTypeParselets.count(token.m_Type) != 0)
+			{
+				MakeErrorButPretty("Infix operator used as prefix");
+				return nullptr;
+			}
+
+			MakeErrorButPretty("Unexpected token " + token.m_Value + " in type, could not parse");
+			return nullptr;
+		}
+
+		PrefixTypeParselet* prefix = m_PrefixTypeParselets.at(token.m_Type);
+		Type* left = (Type*)prefix->Parse(*this, token);
+		if (HasError()) return nullptr;
+
+		// Parse infix operators, such as normal binary operators or postfix unary operators (like a++)
+		while (!HasError() && PeekToken(0).m_Type != Token::Types::EndOfFile && precedence < GetPrecedenceOfCurrentTokenType())
+		{
+			token = PeekToken(0);
+			if (token.m_Type == Token::Types::EndOfFile)
+				return nullptr;
+
+			token = ConsumeToken();
+
+			// If no infix, then return the parsed prefix 
+			if (m_InfixTypeParselets.count(token.m_Type) == 0)
+			{
+				// If the operator is a prefix, then error
+				if (m_PrefixTypeParselets.count(token.m_Type) != 0)
+				{
+					MakeErrorButPretty("Prefix operator used as infix");
+					return nullptr;
+				}
+
+				return nullptr;
+			}
+
+			InfixTypeParselet* infix = m_InfixTypeParselets.at(token.m_Type);
+
+			left = (Type*)infix->Parse(*this, left, token);
+		}
+
+		return left;
+	}
+
+	Type* Parser::ParseType_(Token token)
 	{
 		// Base case
 		if (TokenIsTypename(token))
@@ -278,15 +358,22 @@ namespace O::AST
 				return {};
 			}
 
+			// Animal?[][][]
+			// (Animal[])
+
 			// todo: allow ::, ?, [] etc
 			BasicType* type = new BasicType(token.m_Value);
 
-			if (nextToken.m_Type == Token::LeftSquareBracket)
+			if (MatchToken(Token::QuestionMark))
 			{
-				ConsumeToken(Token::LeftSquareBracket);
+				type->m_IsNullable = true;
+			}
+
+			if (MatchToken(Token::LeftSquareBracket))
+			{
 				ConsumeToken(Token::RightSquareBracket);
 
-				type->m_IsArray = true;
+				return new ArrayType(type);
 			}
 
 			return type;
@@ -677,6 +764,17 @@ namespace O::AST
 
 		// Default value if no precedence exists
 		if (!op.has_value()) 
+			return 0;
+
+		return op.value().GetParsePrecedence();
+	}
+
+	int Parser::GetPrecedenceOfCurrentTokenType()
+	{
+		auto op = m_DefinedTypeModifierOperators.GetAny(PeekToken(0).m_Type);
+
+		// Default value if no precedence exists
+		if (!op.has_value())
 			return 0;
 
 		return op.value().GetParsePrecedence();

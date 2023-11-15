@@ -2,6 +2,7 @@
 
 #include <string>
 #include <unordered_map>
+#include <set>
 #include <cstdint>
 
 #include "../Operators.h"
@@ -24,19 +25,14 @@ namespace O
 		Function,
 		Method,
 		Primitive,
+		Array,
+		Nullable,
 		Typedef
 	};
 
 	static std::string TypeTableTypeToString(TypeTableType type)
 	{
-		std::string types[] = {
-			"Class",
-			"Function",
-			"Method",
-			"Primitive",
-			"Typedef"
-		};
-		return types[(int)type];
+		return std::string(magic_enum::enum_name(type));
 	}
 
 	class TypeTableEntry;
@@ -52,6 +48,10 @@ namespace O
 
 		TypeTableType type = TypeTableType::Primitive;
 		TypeTableEntry* redirect = nullptr;
+
+
+		std::set<ValueType> supertypes;
+		std::set<ValueType> subtypes;
 
 		// Set of types which this type has casts to
 		/*std::set<TypeTableEntry*> implicitTypecasts;
@@ -111,11 +111,12 @@ namespace O
 		ValueType GetType(const std::string& typeName) { return GetTypeEntry(typeName).id; }
 		TypeTableEntry& GetTypeEntry(const std::string& typeName) { return m_Types.at(typeName); }
 
-
 		TypeTableEntry& GetEntryFromId(ValueType id);
 
 		TypeTableEntry& Add(const std::string& typeName, TypeTableType type, TypeTableEntry* redirect = nullptr);
 		TypeTableEntry& AddPrivateType(const std::string& typeName, TypeTableType type, TypeTableEntry* redirect = nullptr);
+
+		void AddSubtypeRelation(TypeTableEntry& type, ValueType subtypeId);
 
 		TypeTableEntry& ResolveEntry(TypeTableEntry entry);
 
