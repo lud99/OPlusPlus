@@ -41,4 +41,10 @@ int main(const char* args)
 
 	if (tree)
 		tree->Print();
+
+	SemanticAnalyzer anal(tree);
+	anal.Analyze(tree, nullptr, nullptr);
+
+	auto& typetable = anal.GetTypeTable();
+	int a = 5;
 }

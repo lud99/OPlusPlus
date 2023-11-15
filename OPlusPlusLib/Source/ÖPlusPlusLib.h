@@ -6,6 +6,7 @@
 
 #include "Parser/Lexer.h"
 #include "Parser/Parser.h"
+#include "Parser/Semantics/SemanticAnalyzer.h"
 //#include "Interpreter/Bytecode/BytecodeInterpreter.h"
 
 // Prints hello 

@@ -42,16 +42,7 @@ namespace O
 		{
 			VariableDeclaration* variableDeclaration = (VariableDeclaration*)node;
 
-			NodeType variableType = variableDeclaration->m_VariableType->m_Type;
-
-			if (variableType == NodeType::BasicType)
-			{
-				variableDeclaration->m_VariableType
-			}
-			else if (variableType == NodeType::ArrayType)
-			{
-
-			}
+			ValueType variableType = GetTypeOfNode(variableDeclaration->m_VariableType);
 
 			//const std::string& typeName = variableDeclaration->m_VariableType->m_Type;
 			//if (!m_TypeTable.HasType(typeName))
@@ -120,10 +111,15 @@ namespace O
 		case O::AST::NodeType::BasicType:
 		{
 			BasicType* basicType = (BasicType*)node;
-			m_TypeTable.GetType(basicType->m_TypeName);
+			return m_TypeTable.GetType(basicType->m_TypeName);
 		}
 		case O::AST::NodeType::ArrayType:
-			break;
+		{
+			ArrayType* arrType = (ArrayType*)node;
+			
+			ValueType type = GetTypeOfNode(arrType->m_UnderlyingType);
+			return m_TypeTable.AddArray(type);
+		}
 		case O::AST::NodeType::TupleType:
 			break;
 		case O::AST::NodeType::FunctionType:
@@ -134,26 +130,8 @@ namespace O
 
 			// Perform typechecking and create the variable symbol
 		case O::AST::NodeType::VariableDeclaration:
-		{
-			VariableDeclaration* variableDeclaration = (VariableDeclaration*)node;
+			return PrimitiveValueTypes::Void;
 
-			NodeType variableType = variableDeclaration->m_VariableType->m_Type;
-
-			if (variableType == NodeType::BasicType)
-			{
-				variableDeclaration->m_VariableType
-			}
-			else if (variableType == NodeType::ArrayType)
-			{
-
-			}
-
-			//const std::string& typeName = variableDeclaration->m_VariableType->m_Type;
-			//if (!m_TypeTable.HasType(typeName))
-			//	abort(); // TODO: error
-
-			break;
-		}
 		case O::AST::NodeType::AssignmentExpression:
 			break;
 		case O::AST::NodeType::BinaryExpression:
@@ -199,5 +177,8 @@ namespace O
 		default:
 			break;
 		}
+	}
+	SemanticAnalyzer::~SemanticAnalyzer()
+	{
 	}
 }

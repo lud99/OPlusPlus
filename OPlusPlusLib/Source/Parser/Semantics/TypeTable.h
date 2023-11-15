@@ -35,6 +35,18 @@ namespace O
 		return std::string(magic_enum::enum_name(type));
 	}
 
+	struct TypeRelation
+	{
+		enum ConversionType
+		{
+			Implicit,
+			Explicit
+		};
+
+		ConversionType conversionType;
+		ValueType relatedType;
+	};
+
 	class TypeTableEntry;
 	class TypeTableEntry
 	{
@@ -49,49 +61,10 @@ namespace O
 		TypeTableType type = TypeTableType::Primitive;
 		TypeTableEntry* redirect = nullptr;
 
+		ValueType underlyingType; // for arrays
 
-		std::set<ValueType> supertypes;
-		std::set<ValueType> subtypes;
-
-		// Set of types which this type has casts to
-		/*std::set<TypeTableEntry*> implicitTypecasts;
-		std::set<TypeTableEntry*> explicitTypecasts;
-
-		std::unordered_map<Operators::Operator, TypeTableEntry*> */
-
-		// int +(int other)
-
-		// destructuring
-		// [1, 2] = (1,2) or
-		// (1, 2) = (1, 2);
-		// { int age, string name } = Animal()
-
-		// a[0] -> a `subscript` 0
-		// a[0, 1, 2] -> a `subscript` (0, 1, 2)
-		// f (1, 2, 3); int f(int a, int b, int c) // destructuring the input tuple
-		// f (1, 2, 3); int f ((int, int, int) tuple) // destructuring the input tuple
-		// f (5); int f (int a) // function def has to destructure arguments tuple
-		// otherwise: int f (int) a => 
-		// ..and 1 + (2 + 3), is (2 + 3) a tuple? if not, then is this? f (5)
-
-		// instead of parsing tuples as default, call them "grouped expressions"
-		// that would solve all problems
-			// ',' is grouping operator. 5 + 2, 8 + 9. has the highest repcedence
-			// not a tuple, but a group. so a func def has a group of parameters
-			// and the same with function call f(1, 2, 3).
-			// a tuple is when a () is placed. remember '(' is a binary call operator
-
-		// (5, 5) is tuple. (5) is groupExpr
-		// (int a, int b) is group. (a, b) is tuple
-
-		// int + int. int["+"] = int add(int other) =>
-		// float + int, ej definierat.
-		// men om int implicit castas som float blir den definierat
-		// string + int, nej och int har ingen implicit cast
-		// string + int.ToString()
-
-		// type Name 
-		// Name + ... då vill vi resolva name till den underliggande typen
+		std::vector<TypeRelation> supertypes;
+		std::vector<TypeRelation> subtypes;
 
 		// A private type is a type that cannot be instantiated like any type
 		// TODO: Will be removed once types in the type table are restricted to scopes, 
@@ -106,25 +79,27 @@ namespace O
 	public:
 		TypeTable();
 
-		bool HasType(const std::string& typeName) { return m_Types.count(typeName) != 0; }
+		bool HasType(const std::string& typeName) { return m_TypeNames.count(typeName) != 0; }
 		
-		ValueType GetType(const std::string& typeName) { return GetTypeEntry(typeName).id; }
-		TypeTableEntry& GetTypeEntry(const std::string& typeName) { return m_Types.at(typeName); }
+		ValueType GetType(const std::string& typeName) { return m_TypeNames.at(typeName); }
+		TypeTableEntry& GetTypeEntry(const std::string& typeName) { return m_Types[m_TypeNames.at(typeName)]; }
 
 		TypeTableEntry& GetEntryFromId(ValueType id);
 
 		TypeTableEntry& Add(const std::string& typeName, TypeTableType type, TypeTableEntry* redirect = nullptr);
 		TypeTableEntry& AddPrivateType(const std::string& typeName, TypeTableType type, TypeTableEntry* redirect = nullptr);
 
-		void AddSubtypeRelation(TypeTableEntry& type, ValueType subtypeId);
+		ValueType AddArray(ValueType underlyingType);
+
+		void AddTypeRelation(TypeTableEntry& type, ValueType relatedType, TypeRelation::ConversionType subtypeConversion, TypeRelation::ConversionType supertypeConversion);
+		void AddTypeRelation(TypeTableEntry& type, TypeTableEntry& relatedType, TypeRelation::ConversionType subtypeConversion, TypeRelation::ConversionType supertypeConversion);
 
 		TypeTableEntry& ResolveEntry(TypeTableEntry entry);
 
-		const std::unordered_map<std::string, TypeTableEntry>& AllTypes() { return m_Types; }
+		//const std::unordered_map<std::string, TypeTableEntry>& AllTypes() { return m_Types; }
 
 	private:
-		std::unordered_map<std::string, TypeTableEntry> m_Types;
-
-		ValueType m_CurrentFreeTypeId = 0;
+		std::vector<TypeTableEntry> m_Types;
+		std::unordered_map<std::string, ValueType> m_TypeNames;
 	};
 }

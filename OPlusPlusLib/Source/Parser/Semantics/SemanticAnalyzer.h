@@ -18,13 +18,17 @@ namespace O
 		// Creates symbol tables for each scope used in compilation
 
 	public:
-		SemanticAnalyzer(AST::Node* program);
+		EXPORT SemanticAnalyzer(AST::Node* program);
 
 
-		void Analyze(AST::Node* node, SymbolTable* upwardSymbolTable, SymbolTable* localSymbolTable);
+		EXPORT void Analyze(AST::Node* node, SymbolTable* upwardSymbolTable, SymbolTable* localSymbolTable);
 
 		ValueType GetTypeOfNode(AST::Node* node);
 		bool Typecheck(TypeTableEntry& lhs, TypeTableEntry& rhs);
+
+		EXPORT auto& GetTypeTable() { return m_TypeTable; };
+
+		EXPORT ~SemanticAnalyzer();
 
 	public:
 
