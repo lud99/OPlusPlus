@@ -133,7 +133,18 @@ namespace O
 			return m_TypeTable.AddTuple(elementTypes);
 		}
 		case O::AST::NodeType::FunctionType:
-			break;
+		{
+			FunctionType* functionType = (FunctionType*)node;
+
+			std::vector<TypeTableEntry> parameterTypes;
+			for (AST::Type* parameter : functionType->m_Parameters)
+			{
+				parameterTypes.push_back(GetTypeOfNode(parameter));
+			}
+			TypeTableEntry returnType = GetTypeOfNode(functionType->m_ReturnType);
+
+			return m_TypeTable.AddFunction(parameterTypes, returnType);
+		}
 
 		case O::AST::NodeType::Identifier:
 			break;
