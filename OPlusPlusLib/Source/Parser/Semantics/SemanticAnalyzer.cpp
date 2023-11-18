@@ -121,7 +121,17 @@ namespace O
 			return m_TypeTable.AddArray(type);
 		}
 		case O::AST::NodeType::TupleType:
-			break;
+		{
+			TupleType* tupleType = (TupleType*)node;
+
+			std::vector<TypeTableEntry> elementTypes;
+			for (AST::Type* element : tupleType->m_Elements)
+			{
+				elementTypes.push_back(GetTypeOfNode(element));
+			}
+
+			return m_TypeTable.AddTuple(elementTypes);
+		}
 		case O::AST::NodeType::FunctionType:
 			break;
 

@@ -127,7 +127,7 @@ namespace O::AST
 		m_StatementParselets[Token::LeftCurlyBracket] = new BlockStatementParselet();
 
 		m_StatementParselets[Token::Identifier] = new TypenameStatementParselet();
-		m_StatementParselets[Token::LeftParentheses] = (StatementParselet*)new ParenthesizedTypeParselet();
+		m_StatementParselets[Token::LeftParentheses] = new TypenameStatementParselet();//(StatementParselet*)new ParenthesizedTypeParselet();
 
 		m_StatementParselets[Token::While] = new ConditionalStatementParselet();
 		m_StatementParselets[Token::If] = new ConditionalStatementParselet();
@@ -344,133 +344,6 @@ namespace O::AST
 		}
 
 		return left;
-	}
-
-	Type* Parser::ParseType_(Token token)
-	{
-		// Base case
-		if (TokenIsTypename(token))
-		{
-			Token nextToken = PeekToken();
-			if (TokenIsTypename(nextToken))
-			{
-				MakeErrorButPretty("Cannot have two typenames next to each other in type", token);
-				return {};
-			}
-
-			// Animal?[][][]
-			// (Animal[])
-
-			// todo: allow ::, ?, [] etc
-			BasicType* type = new BasicType(token.m_Value);
-
-			if (MatchToken(Token::QuestionMark))
-			{
-				type->m_IsNullable = true;
-			}
-
-			if (MatchToken(Token::LeftSquareBracket))
-			{
-				ConsumeToken(Token::RightSquareBracket);
-
-				return new ArrayType(type);
-			}
-
-			return type;
-		}
-		// If not a typename and not a parentheses, then invalid type
-		else if (token.m_Type != Token::LeftParentheses)
-		{
-			MakeErrorButPretty("Expected a type but got '" + token.ToFormattedValueString() + "'", token);
-			return {};
-		}
-
-		enum TypeOfType {
-			Function,
-			Tuple,
-			SingleType
-		};
-		TypeOfType typeOfType = SingleType;
-
-		std::vector<Type*> commaSeparatedTypes;
-		Type* functionReturnType = nullptr;
-
-		if (MatchToken(Token::RightParentheses))
-		{
-			// Function call '() => ...' with no parameters
-			if (PeekToken().m_Type == Token::RightArrow)
-				return nullptr;
-
-			MakeErrorButPretty("Expected type between parentheses", token);
-			return nullptr;
-		}
-				
-		// Parse until we find a closing parentheses
-		while (true)
-		{
-			Token currentToken = ConsumeToken();
-
-			Type* type = ParseType(currentToken);
-			if (HasError()) return nullptr;
-
-			// 'ParseType()' can succeed but still return a nullptr in the case of a function with no arguments
-			if (type)
-				commaSeparatedTypes.push_back(type);
-
-			Token nextToken = PeekToken();
-			if (nextToken.m_Type == Token::RightArrow)
-			{
-				Token arrowToken = ConsumeToken();
-
-				typeOfType = Function;
-				currentToken = ConsumeToken();
-
-				// After parsing the right arrow, there can only be one type remaining
-				functionReturnType = ParseType(currentToken);
-				if (HasError()) return nullptr;
-
-				nextToken = PeekToken();
-				if (nextToken.m_Type == Token::Comma || nextToken.m_Type == Token::RightArrow)
-				{
-					MakeErrorButPretty("Can only return one type. Use parentheses if you wish to return a tuple or another function", arrowToken);
-					return nullptr;
-				}
-
-				break;
-			} 
-			else if (nextToken.m_Type == Token::Comma && typeOfType != Function)
-			{
-				ConsumeToken();
-				typeOfType = Tuple;
-			}
-
-			// Stop parsing type
-			if (nextToken.m_Type == Token::RightParentheses)
-				break;
-
-			// Invalid token found after type
-			if (nextToken.m_Type != Token::RightArrow && nextToken.m_Type != Token::Comma)
-			{
-				MakeErrorButPretty("Expected a type, ',' or '=>', but got '" + nextToken.ToFormattedValueString() + "'", nextToken);
-				return nullptr;
-			}
-		}
-
-		ConsumeToken(Token::RightParentheses);
-
-		// Determine the type of what we found
-		if (typeOfType == Tuple)
-			return new TupleType(commaSeparatedTypes);
-		
-		if (typeOfType == Function)
-			return new FunctionType(commaSeparatedTypes, functionReturnType);
-
-		if (typeOfType == SingleType)
-			return commaSeparatedTypes.front();
-
-		abort();
-
-		return nullptr;
 	}
 
 	Identifier* Parser::ParseIdentifier(Token token)

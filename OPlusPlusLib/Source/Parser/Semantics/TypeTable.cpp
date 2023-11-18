@@ -44,6 +44,33 @@ namespace O
 
 		return m_Types[id];
 	}
+	TypeTableEntry& TypeTable::AddGeneric(TypeTableType type, std::vector<TypeTableEntry> typeArguments)
+	{
+		assert(!typeArguments.empty());
+		if (type == TypeTableType::Array)
+			assert(typeArguments.size() == 1);
+		// TODO: Validate the rest of generic types
+
+		std::string name = TypeTableTypeToString(type) + "<";
+		for (int i = 0; i < typeArguments.size() - 1; i++)
+		{
+			name += typeArguments[i].name + ", ";
+		}
+		name += typeArguments.back().name + ">";
+
+		if (HasType(name))
+			return GetType(name);
+
+		TypeTableEntry& typeEntry = Add(name, type);
+
+		// Set the type arguments
+		for (auto& argument : typeArguments)
+		{
+			typeEntry.typeArguments.push_back(argument.id);
+		}
+
+		return typeEntry;
+	}
 	TypeTableEntry& TypeTable::AddPrivateType(const std::string& typeName, TypeTableType type, TypeTableEntry* redirect)
 	{
 		assert (!HasType(typeName));
@@ -58,15 +85,20 @@ namespace O
 	}
 	TypeTableEntry& TypeTable::AddArray(TypeTableEntry& underlyingType)
 	{
-		std::string name = underlyingType.name + "[]";
-		if (HasType(name))
-			return GetType(name);
-
-		TypeTableEntry& type = Add(name, TypeTableType::Array);
-		type.underlyingType = underlyingType.id;
-
-		return type;
+		return AddGeneric(TypeTableType::Array, { underlyingType });
 	}
+	TypeTableEntry& TypeTable::AddTuple(std::vector<TypeTableEntry> underlyingTypes)
+	{
+		return AddGeneric(TypeTableType::Tuple, underlyingTypes);
+	}
+	TypeTableEntry& TypeTable::AddFunction(std::vector<TypeTableEntry> argumentTypes, TypeTableEntry returnType)
+	{
+		std::vector<TypeTableEntry> typeArguments = argumentTypes;
+		typeArguments.push_back(returnType);
+
+		return AddGeneric(TypeTableType::Function, typeArguments);
+	}
+
 	void TypeTable::AddTypeRelation(TypeTableEntry& type, ValueType relatedType, TypeRelation::ConversionType subtypeConversion, TypeRelation::ConversionType supertypeConversion)
 	{
 		AddTypeRelation(type, GetType(relatedType), subtypeConversion, supertypeConversion);

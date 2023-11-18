@@ -26,6 +26,7 @@ namespace O
 		Method,
 		Primitive,
 		Array,
+		Tuple,
 		Nullable,
 		Typedef
 	};
@@ -61,7 +62,7 @@ namespace O
 		TypeTableType type = TypeTableType::Primitive;
 		TypeTableEntry* redirect = nullptr;
 
-		ValueType underlyingType; // for arrays
+		std::vector<ValueType> typeArguments; // Type arguments for generic types
 
 		std::vector<TypeRelation> supertypes;
 		std::vector<TypeRelation> subtypes;
@@ -87,9 +88,15 @@ namespace O
 		TypeTableEntry& GetType(ValueType typeId) { return m_Types[typeId]; }
 
 		TypeTableEntry& Add(const std::string& typeName, TypeTableType type, TypeTableEntry* redirect = nullptr);
+
+		TypeTableEntry& AddGeneric(TypeTableType type, std::vector<TypeTableEntry> typeArguments);
+		// const std::string& typeName, TypeTableType type, TypeTableEntry* redirect = nullptr);
+
 		TypeTableEntry& AddPrivateType(const std::string& typeName, TypeTableType type, TypeTableEntry* redirect = nullptr);
 
 		TypeTableEntry& AddArray(TypeTableEntry& underlyingType);
+		TypeTableEntry& AddTuple(std::vector<TypeTableEntry> underlyingTypes);
+		TypeTableEntry& AddFunction(std::vector<TypeTableEntry> argumentTypes, TypeTableEntry returnType);
 
 		void AddTypeRelation(TypeTableEntry& type, ValueType relatedType, TypeRelation::ConversionType subtypeConversion, TypeRelation::ConversionType supertypeConversion);
 		void AddTypeRelation(TypeTableEntry& type, TypeTableEntry& relatedType, TypeRelation::ConversionType subtypeConversion, TypeRelation::ConversionType supertypeConversion);

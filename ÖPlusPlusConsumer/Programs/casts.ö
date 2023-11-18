@@ -1,3 +1,5 @@
 (int, int) tuple;
+(int, int) t;
+(int, int)[] arr;
 
-//int[][][] a = 5;
+//int[][][] a = 5; 
