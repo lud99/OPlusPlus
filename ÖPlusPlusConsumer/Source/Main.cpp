@@ -46,5 +46,15 @@ int main(const char* args)
 	anal.Analyze(tree, nullptr, nullptr);
 
 	auto& typetable = anal.GetTypeTable();
-	int a = 5;
+	std::cout << "Type Table:\n";
+	for (auto& entry : typetable.AllTypes())
+	{
+		std::cout << "#" << entry.id << ": " << entry.name << ", "
+			<< TypeTableTypeToString(entry.type);
+
+		if (entry.redirect)
+			std::cout << " and is typedef";
+		std::cout << "\n";
+	}
+	std::cout << "\n";
 }

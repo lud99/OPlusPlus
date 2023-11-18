@@ -42,7 +42,7 @@ namespace O
 		{
 			VariableDeclaration* variableDeclaration = (VariableDeclaration*)node;
 
-			ValueType variableType = GetTypeOfNode(variableDeclaration->m_VariableType);
+			TypeTableEntry& variableType = GetTypeOfNode(variableDeclaration->m_VariableType);
 
 			//const std::string& typeName = variableDeclaration->m_VariableType->m_Type;
 			//if (!m_TypeTable.HasType(typeName))
@@ -97,16 +97,16 @@ namespace O
 		}
 	}
 
-	ValueType SemanticAnalyzer::GetTypeOfNode(AST::Node* node)
+	TypeTableEntry& SemanticAnalyzer::GetTypeOfNode(AST::Node* node)
 	{
 		switch (node->m_Type)
 		{
 		case O::AST::NodeType::EmptyStatement:
-			return PrimitiveValueTypes::Void;
+			return m_TypeTable.GetType(PrimitiveValueTypes::Void);
 
 		case O::AST::NodeType::Program:
 		case O::AST::NodeType::BlockStatement:
-			return PrimitiveValueTypes::Void;
+			return m_TypeTable.GetType(PrimitiveValueTypes::Void);
 
 		case O::AST::NodeType::BasicType:
 		{
@@ -116,8 +116,8 @@ namespace O
 		case O::AST::NodeType::ArrayType:
 		{
 			ArrayType* arrType = (ArrayType*)node;
-			
-			ValueType type = GetTypeOfNode(arrType->m_UnderlyingType);
+
+			TypeTableEntry& type = GetTypeOfNode(arrType->m_UnderlyingType);
 			return m_TypeTable.AddArray(type);
 		}
 		case O::AST::NodeType::TupleType:
@@ -130,7 +130,7 @@ namespace O
 
 			// Perform typechecking and create the variable symbol
 		case O::AST::NodeType::VariableDeclaration:
-			return PrimitiveValueTypes::Void;
+			return m_TypeTable.GetType(PrimitiveValueTypes::Void);
 
 		case O::AST::NodeType::AssignmentExpression:
 			break;

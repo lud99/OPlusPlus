@@ -80,23 +80,23 @@ namespace O
 		TypeTable();
 
 		bool HasType(const std::string& typeName) { return m_TypeNames.count(typeName) != 0; }
+		//bool HasType(ValueType typeId) { return m_T != 0; }
 		
-		ValueType GetType(const std::string& typeName) { return m_TypeNames.at(typeName); }
-		TypeTableEntry& GetTypeEntry(const std::string& typeName) { return m_Types[m_TypeNames.at(typeName)]; }
-
-		TypeTableEntry& GetEntryFromId(ValueType id);
+		//ValueType GetType(const std::string& typeName) { return m_TypeNames.at(typeName); }
+		TypeTableEntry& GetType(const std::string& typeName) { return m_Types[m_TypeNames.at(typeName)]; }
+		TypeTableEntry& GetType(ValueType typeId) { return m_Types[typeId]; }
 
 		TypeTableEntry& Add(const std::string& typeName, TypeTableType type, TypeTableEntry* redirect = nullptr);
 		TypeTableEntry& AddPrivateType(const std::string& typeName, TypeTableType type, TypeTableEntry* redirect = nullptr);
 
-		ValueType AddArray(ValueType underlyingType);
+		TypeTableEntry& AddArray(TypeTableEntry& underlyingType);
 
 		void AddTypeRelation(TypeTableEntry& type, ValueType relatedType, TypeRelation::ConversionType subtypeConversion, TypeRelation::ConversionType supertypeConversion);
 		void AddTypeRelation(TypeTableEntry& type, TypeTableEntry& relatedType, TypeRelation::ConversionType subtypeConversion, TypeRelation::ConversionType supertypeConversion);
 
 		TypeTableEntry& ResolveEntry(TypeTableEntry entry);
 
-		//const std::unordered_map<std::string, TypeTableEntry>& AllTypes() { return m_Types; }
+		const auto& AllTypes() { return m_Types; }
 
 	private:
 		std::vector<TypeTableEntry> m_Types;

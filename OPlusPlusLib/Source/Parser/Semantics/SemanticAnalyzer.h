@@ -23,7 +23,7 @@ namespace O
 
 		EXPORT void Analyze(AST::Node* node, SymbolTable* upwardSymbolTable, SymbolTable* localSymbolTable);
 
-		ValueType GetTypeOfNode(AST::Node* node);
+		TypeTableEntry& GetTypeOfNode(AST::Node* node);
 		bool Typecheck(TypeTableEntry& lhs, TypeTableEntry& rhs);
 
 		EXPORT auto& GetTypeTable() { return m_TypeTable; };

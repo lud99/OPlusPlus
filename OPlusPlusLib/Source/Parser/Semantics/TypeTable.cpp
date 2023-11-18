@@ -33,11 +33,6 @@ namespace O
 		AddTypeRelation(m_Types[PrimitiveValueTypes::Integer], PrimitiveValueTypes::Bool, TypeRelation::Implicit, TypeRelation::Explicit);
 	}
 
-	TypeTableEntry& TypeTable::GetEntryFromId(ValueType id)
-	{
-		return m_Types[id];
-	}
-
 	TypeTableEntry& TypeTable::Add(const std::string& typeName, TypeTableType type, TypeTableEntry* redirect)
 	{
 		assert (!HasType(typeName));
@@ -61,16 +56,20 @@ namespace O
 
 		return m_Types[id];
 	}
-	ValueType TypeTable::AddArray(ValueType underlyingType)
+	TypeTableEntry& TypeTable::AddArray(TypeTableEntry& underlyingType)
 	{
-		TypeTableEntry& type = Add("", TypeTableType::Array);
-		type.underlyingType = underlyingType;
+		std::string name = underlyingType.name + "[]";
+		if (HasType(name))
+			return GetType(name);
 
-		return type.id;
+		TypeTableEntry& type = Add(name, TypeTableType::Array);
+		type.underlyingType = underlyingType.id;
+
+		return type;
 	}
 	void TypeTable::AddTypeRelation(TypeTableEntry& type, ValueType relatedType, TypeRelation::ConversionType subtypeConversion, TypeRelation::ConversionType supertypeConversion)
 	{
-		AddTypeRelation(type, GetEntryFromId(relatedType), subtypeConversion, supertypeConversion);
+		AddTypeRelation(type, GetType(relatedType), subtypeConversion, supertypeConversion);
 	}
 	void TypeTable::AddTypeRelation(TypeTableEntry& type, TypeTableEntry& relatedType, TypeRelation::ConversionType subtypeConversion, TypeRelation::ConversionType supertypeConversion)
 	{
