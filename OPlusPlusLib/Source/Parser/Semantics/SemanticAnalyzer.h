@@ -24,7 +24,7 @@ namespace O
 		EXPORT void AnalyzeProgram();
 
 
-		TypeTableEntry& GetTypeOfNode(AST::Node* node, TypeTable& localTypeTable);
+		TypeTableEntry& GetTypeOfNode(AST::Node* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable);
 		bool Typecheck(TypeTableEntry& lhs, TypeTableEntry& rhs);
 
 		EXPORT auto& GetGlobalTypeTable() { return m_GlobalTypeTable; };
@@ -46,7 +46,7 @@ namespace O
 		void MakeError(const std::string& message, CompileTimeError::Severity severity = CompileTimeError::Error);
 
 		void MakeErrorAlreadyDefined(const std::string symbolName, SymbolType symbolType);
-
+		void MakeErrorNotDefined(const std::string symbolName);
 
 	private:
 		AST::Node* m_Program;

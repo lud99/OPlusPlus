@@ -192,7 +192,7 @@ namespace O
 	void TypeTable::InsertPrimitiveTypes()
 	{
 		// Insert the build in primitives to the typeEntry table 
-		std::vector<std::string> typeKeywords = { "void", "int", "bool", "float", "string" };
+		std::vector<std::string> typeKeywords = { "void", "int", "bool", "double", "string" };
 
 		for (uint16_t i = 0; i < typeKeywords.size(); i++)
 		{
@@ -201,7 +201,7 @@ namespace O
 		}
 
 		// Insert relation for types
-		AddTypeRelation(m_Types[PrimitiveValueTypes::Float], PrimitiveValueTypes::Integer, TypeRelation::Implicit, TypeRelation::Explicit);
+		AddTypeRelation(m_Types[PrimitiveValueTypes::Double], PrimitiveValueTypes::Integer, TypeRelation::Implicit, TypeRelation::Explicit);
 		AddTypeRelation(m_Types[PrimitiveValueTypes::Integer], PrimitiveValueTypes::Bool, TypeRelation::Implicit, TypeRelation::Explicit);
 	}
 

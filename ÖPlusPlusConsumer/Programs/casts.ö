@@ -1,8 +1,1 @@
-int a = 5;
-
-while (true)
-{
-	int c = 99;
-}
-
-//int[][][] a = 5; 
+(int, int) tuple = (5, 9.0);

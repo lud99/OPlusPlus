@@ -469,8 +469,6 @@ namespace O::AST
 			break;
 		case NodeType::VariableDeclaration:
 			break;
-		case NodeType::AssignmentExpression:
-			break;
 		case NodeType::BinaryExpression:
 		{
 			BinaryExpression* expr = (BinaryExpression*)node;

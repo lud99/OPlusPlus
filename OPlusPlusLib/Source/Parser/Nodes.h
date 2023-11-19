@@ -27,7 +27,6 @@ namespace O::AST
 		Identifier,
 		VariableDeclaration,
 
-		AssignmentExpression,
 		BinaryExpression,
 		UnaryExpression,
 		CallExpression,
@@ -293,8 +292,8 @@ namespace O::AST
 	{
 		CallExpression(Node* callee, TupleExpression* arguments);
 
-		Node* m_Callee;
-		TupleExpression* m_Arguments;
+		Node* m_Callee; // The 'name' of the function called
+		TupleExpression* m_Arguments; // TODO: Not semantically correct
 
 		virtual void Print(std::string padding) override;
 	};

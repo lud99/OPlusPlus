@@ -14,7 +14,7 @@ namespace O
 		Void = 0,
 		Integer = 1,
 		Bool = 2,
-		Float = 3,
+		Double = 3,
 		String = 4,
 	};
 	typedef uint16_t ValueType;
