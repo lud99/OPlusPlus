@@ -37,24 +37,20 @@ int main(const char* args)
 	AST::Node* tree = parser.ParseProgram();
 
 	if (parser.HasError())
-		parser.PrintErrors();
+	{
+		parser.PrintErrors(lexer.GetTokens());
+		return 0;
+	}
+
+	SemanticAnalyzer anal(tree);
+	anal.AnalyzeProgram();
+
+	if (anal.HasError())
+	{
+		anal.PrintErrors(lexer.GetTokens());
+		return 0;
+	}
 
 	if (tree)
 		tree->Print();
-
-	SemanticAnalyzer anal(tree);
-	anal.Analyze(tree, nullptr, nullptr);
-
-	auto& typetable = anal.GetTypeTable();
-	std::cout << "Type Table:\n";
-	for (auto& entry : typetable.AllTypes())
-	{
-		std::cout << "#" << entry.id << ": " << entry.name << ", "
-			<< TypeTableTypeToString(entry.type);
-
-		if (entry.redirect)
-			std::cout << " and is typedef";
-		std::cout << "\n";
-	}
-	std::cout << "\n";
 }

@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <functional>
 
+#include "../../magic_enums.hpp"
 #include "TypeTable.h"
 
 namespace O
@@ -38,36 +39,13 @@ namespace O
         Member
     };
 
-	// TODO: Add for other symbols aswell
-	struct SymbolName
-	{
-		std::string name;
-		std::vector<ValueType> parameterTypes;
-
-		SymbolName() {};
-		SymbolName(std::string n) : name(n) {};
-
-		std::size_t operator()(const SymbolName& symbol) const noexcept
-		{
-			std::string fullName = name + " ";
-			for (auto& param : parameterTypes)
-				fullName += std::to_string(param);
-
-			return std::hash<std::string>{}(fullName);
-		}
-	};
 
 	static std::string SymbolTypeToString(SymbolType type)
 	{
-		std::string types[] = {
-			"Class",
-			"Function",
-			"Method",
-			"Variable"
-		};
-		return types[(int)type];
+        return std::string(magic_enum::enum_name(type));
 	}
 
+    typedef std::string SymbolName;
     class SymbolTable;
     class Symbol
     {
@@ -141,8 +119,8 @@ namespace O
 		CallableSymbol* InsertCallable(CallableSymbol callable);
 		ClassSymbol* InsertClass(std::string name, ValueType dataType);
 
-		std::vector<Symbol*> Lookup(std::function<bool(Symbol*)> predicate);
-		std::vector<Symbol*> LookupThisTable(std::function<bool(Symbol*)> predicate);
+        std::vector<Symbol*> LookupAny(std::function<bool(Symbol*)> predicate);
+        //std::vector<Symbol*> LookupThisTable(std::string name); // std::function<bool(Symbol*)> predicate);
 
 		std::vector<Symbol*> Lookup(std::string name);
 		std::vector<Symbol*> Lookup(Symbol* symbol);
@@ -161,9 +139,12 @@ namespace O
 		//void Remove(int scope);
 
 		bool Has(std::string name);
-		bool HasAndIs(std::string name, SymbolType type);
+        bool HasAndIs(std::string name, SymbolType type);
+        bool Has(Symbol* symbol);
 
 		auto& GetSymbols() { return m_Symbols; }
+
+        EXPORT void Print(TypeTable& localTypeTable, std::string padding);
 
         ~SymbolTable();
 
@@ -180,7 +161,7 @@ namespace O
 	private:
         SymbolTableType m_TableType = SymbolTableType::Local;
 
-		std::vector<std::vector<Symbol*>> m_Symbols;
+		std::unordered_map<SymbolName, std::vector<Symbol*>> m_Symbols;
 		SymbolTable* m_UpwardSymbolTable = nullptr;
 	};
 }

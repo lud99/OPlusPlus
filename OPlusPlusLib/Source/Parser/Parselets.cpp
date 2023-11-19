@@ -27,7 +27,7 @@ namespace O::AST
 	Node* IdentifierParselet::Parse(Parser& parser, Token token)
 	{
 		// Check if the identifier is a typename
-		if (parser.m_TypeTable.HasType(token.m_Value))
+		if (parser.m_TypeTable.Has(token.m_Value))
 			return new BasicType(token.m_Value);
 		else
 			return new Identifier(token.m_Value);
@@ -36,7 +36,7 @@ namespace O::AST
 	{
 		Token nextToken = parser.PeekToken(0);
 		if (nextToken.IsLiteral())
-			return parser.MakeErrorButPretty("Cannot have two literals next to each other", nextToken);
+			return parser.MakeError("Cannot have two literals next to each other", nextToken);
 
 		if (token.m_Type == Token::IntLiteral)
 			return new IntLiteral(std::stoi(token.m_Value));
@@ -80,7 +80,7 @@ namespace O::AST
 			Token peekToken = parser.PeekToken(i);
 
 			if (peekToken.m_Type == Token::EndOfFile)
-				return parser.MakeErrorButPretty("No closing parentheses found", token);
+				return parser.MakeError("No closing parentheses found", token);
 
 			if (peekToken.m_Type == Token::LeftParentheses)
 				break;
@@ -90,7 +90,7 @@ namespace O::AST
 			if (peekToken.m_Type == Token::RightParentheses)
 			{
 				if (i == 0)
-					return parser.MakeErrorButPretty("Expected expression in parentheses", peekToken);
+					return parser.MakeError("Expected expression in parentheses", peekToken);
 
 				if (isTuple)
 				{
@@ -99,7 +99,7 @@ namespace O::AST
 						return parser.ParseFunctionParameters(token);
 
 					if (parser.MatchTokenNoConsume(i + 1, Token::LeftCurlyBracket))
-						return parser.MakeErrorButPretty("Expected '=>' after lamda parameters, block scopes are not supported in lambda");
+						return parser.MakeError("Expected '=>' after lamda parameters, block scopes are not supported in lambda");
 
 					// Otherwise a normal tuple
 					return parser.ParseTupleExpression(token);
@@ -144,7 +144,7 @@ namespace O::AST
 			return nullptr;
 
 		if (!operand)
-			return parser.MakeErrorButPretty("Expected expression next to " + op.ToString(), token);
+			return parser.MakeError("Expected expression next to " + op.ToString(), token);
 
 		return new UnaryExpression(operand, op);
 	}
@@ -169,7 +169,7 @@ namespace O::AST
 		{
 			// Two ops next to each other is only allowed if {binary} {unary prefix}, eg 2 + !2
 			if (!parser.m_DefinedOperators.GetUnaryPrefix(nextToken.m_Type))
-				return parser.MakeErrorButPretty("Cannot have two binary operators next to each other", token);
+				return parser.MakeError("Cannot have two binary operators next to each other", token);
 		}
 
 		Node* right = parser.ParseExpression(op.GetParsePrecedence());
@@ -178,7 +178,7 @@ namespace O::AST
 			return nullptr;
 
 		if (!right)
-			return parser.MakeErrorButPretty("Expected expression on right side of " + op.ToString(), nextToken);
+			return parser.MakeError("Expected expression on right side of " + op.ToString(), nextToken);
 
 		return new BinaryExpression(left, op, right);
 	}
@@ -210,11 +210,11 @@ namespace O::AST
 
 		auto result = parser.ConsumeToken(Token::RightParentheses);
 		if (!result.has_value())
-			return parser.MakeErrorButPretty("Found no closing parentheses for conditional statement");
+			return parser.MakeError("Found no closing parentheses for conditional statement");
 
 		Node* body = parser.Parse();
 		if (!body || body->m_Type != NodeType::BlockStatement)
-			return parser.MakeErrorButPretty("Expected left curly bracket after " + token.TypeToString() + " statement");
+			return parser.MakeError("Expected left curly bracket after " + token.TypeToString() + " statement");
 
 		if (token.m_Type == Token::While)
 			return (Node*) new WhileStatement(condition, (BlockStatement*)body);
@@ -231,7 +231,7 @@ namespace O::AST
 		if (parser.HasError()) return nullptr;
 
 		if (!IsValidElseBody(elseArm))
-			return parser.MakeErrorButPretty("Unexpected token after 'else' in if statement", elseToken);
+			return parser.MakeError("Unexpected token after 'else' in if statement", elseToken);
 
 		return (Node*) new IfStatement(condition, (BlockStatement*)body, (BlockStatement*)elseArm);
 	}
@@ -247,13 +247,13 @@ namespace O::AST
 				break;
 
 			if (token.m_Type == Token::EndOfFile)
-				return parser.MakeErrorButPretty("No closing curly bracket for block statement", token);
+				return parser.MakeError("No closing curly bracket for block statement", token);
 
 			Node* line = parser.Parse();
 			if (parser.HasError()) return nullptr;
 
 			if (!line)
-				return parser.MakeErrorButPretty("Could not parse block statement");
+				return parser.MakeError("Could not parse block statement");
 
 			blockNode->m_Lines.push_back(line);
 		}
@@ -291,14 +291,14 @@ namespace O::AST
 
 		auto result = parser.ConsumeToken(Token::RightParentheses);
 		if (!result.has_value())
-			return parser.MakeErrorButPretty("Found no closing parentheses for conditional statement");
+			return parser.MakeError("Found no closing parentheses for conditional statement");
 
 		Token afterParantheses = parser.PeekToken(0);
 		Node* body = parser.Parse();
 		if (parser.HasError()) return nullptr;
 
 		if (!body || body->m_Type != NodeType::BlockStatement)
-			return parser.MakeErrorButPretty("Expected left curly bracket after " + token.TypeToString() + " statement", afterParantheses);
+			return parser.MakeError("Expected left curly bracket after " + token.TypeToString() + " statement", afterParantheses);
 
 		return (Node*) new ForStatement(initialization, condition, advancement, (BlockStatement*)body);
 	}
@@ -336,7 +336,7 @@ namespace O::AST
 		{
 			// todo: use the  token that has the error
 			if (parameter->m_Type != NodeType::VariableDeclaration)
-				return parser.MakeErrorButPretty("Invalid function prototype, expected variable declaration"); 
+				return parser.MakeError("Invalid function prototype, expected variable declaration"); 
 		}
 
 		// Expect either a semicolon (function prototype) or a body
@@ -349,16 +349,16 @@ namespace O::AST
 		if (parser.MatchToken(Token::RightArrow))
 		{
 			if (parser.PeekToken().m_Type == Token::LeftCurlyBracket)
-				return parser.MakeErrorButPretty("Expected expression after right arrow", nextToken);
+				return parser.MakeError("Expected expression after right arrow", nextToken);
 
 			Node* expression = parser.ParseExpression();
 			if (parser.HasError()) return nullptr;
 
 			if (!expression)
-				return parser.MakeErrorButPretty("Expected expression after right arrow", nextToken);
+				return parser.MakeError("Expected expression after right arrow", nextToken);
 
 			//if (!parser.MatchTokenNoConsume(Token::Semicolon))
-				//return parser.MakeErrorButPretty("Expected ';' after lamba expression");
+				//return parser.MakeError("Expected ';' after lamba expression");
 			//if (parser.HasError()) return nullptr;
 
 			return new FunctionDefinitionStatement(returnType, name, parameters, expression);
@@ -368,7 +368,7 @@ namespace O::AST
 		Node* body = parser.Parse();
 		if (parser.HasError()) return nullptr;
 		if (!body || body->m_Type != NodeType::BlockStatement)
-			return parser.MakeErrorButPretty("Expected block statement or '=>' after function definition", nextToken);
+			return parser.MakeError("Expected block statement or '=>' after function definition", nextToken);
 
 		return new FunctionDefinitionStatement(returnType, name, parameters, body);
 	}
@@ -398,7 +398,7 @@ namespace O::AST
 		Node* body = parser.Parse();
 		if (parser.HasError()) return nullptr;
 		if (!body || body->m_Type != NodeType::BlockStatement)
-			return parser.MakeErrorButPretty("Expected block statement for closure", token);
+			return parser.MakeError("Expected block statement for closure", token);
 
 		return new ClosureExpression((BlockStatement*)body);
 	}
@@ -407,7 +407,7 @@ namespace O::AST
 	{
 		Node* body = parser.Parse();
 		if (!body || body->m_Type != NodeType::BlockStatement)
-			return parser.MakeErrorButPretty("Expected block statement after 'loop'", token);
+			return parser.MakeError("Expected block statement after 'loop'", token);
 		if (parser.HasError()) return nullptr;
 
 		return new LoopStatement((BlockStatement*)body);
@@ -429,10 +429,10 @@ namespace O::AST
 
 		std::string className = nameOpt.value().m_Value;
 
-		if (parser.m_TypeTable.HasType(className))
-			return parser.MakeErrorButPretty("Class '" + className + "' has already been declared elsewhere");
+		if (parser.m_TypeTable.Has(className))
+			return parser.MakeError("Class '" + className + "' has already been declared elsewhere");
 
-		parser.m_TypeTable.Add(className, TypeTableType::Class);
+		parser.m_TypeTable.Insert(className, TypeEntryType::Class);
 
 		Token nextToken = parser.ConsumeToken();
 		if (parser.HasError()) return nullptr;
@@ -449,12 +449,12 @@ namespace O::AST
 				break;
 
 			if (parser.MatchToken(Token::EndOfFile))
-				return parser.MakeErrorButPretty("No closing curly bracket for class definition", token);
+				return parser.MakeError("No closing curly bracket for class definition", token);
 
 			Node* line = parser.Parse();
 			if (parser.HasError()) return nullptr;
 			if (!line)
-				return parser.MakeErrorButPretty("Could not parse class definition");
+				return parser.MakeError("Could not parse class definition");
 
 			// Add the node to the right spot
 			if (line->m_Type == NodeType::VariableDeclaration)
@@ -464,7 +464,7 @@ namespace O::AST
 			else if (line->m_Type == NodeType::ClassDeclaration)
 				classDeclaration->m_NestedClassDeclarations.push_back((ClassDeclarationStatement*)line);
 			else if (line->m_Type != NodeType::EmptyStatement)
-				return parser.MakeErrorButPretty("Unsupported statement in class declaration '" + line->TypeToString() + "'", token);
+				return parser.MakeError("Unsupported statement in class declaration '" + line->TypeToString() + "'", token);
 		}
 
 		//Node* definition = ParseClassDefinitionBody(parser, nextToken);
@@ -496,15 +496,15 @@ namespace O::AST
 			return nullptr;
 
 		if (!body)
-			return parser.MakeErrorButPretty("Expected body for lambda", token);
+			return parser.MakeError("Expected body for lambda", token);
 
 		return new LambdaExpression(nullptr, (TupleExpression*)left, body);
 	}
 
 	Type* TypenameParselet::Parse(Parser& parser, Token token)
 	{
-		if (!parser.m_TypeTable.HasType(token.m_Value))
-			return (Type*)parser.MakeErrorButPretty("Expected typename");
+		if (!parser.m_TypeTable.Has(token.m_Value))
+			return (Type*)parser.MakeError("Expected typename");
 
 		return new BasicType(token.m_Value);
 	}
@@ -548,7 +548,7 @@ namespace O::AST
 			if (parser.PeekToken().m_Type == Token::RightArrow)
 				return nullptr;
 
-			parser.MakeErrorButPretty("Expected type between parentheses", token);
+			parser.MakeError("Expected type between parentheses", token);
 			return nullptr;
 		}
 
@@ -577,7 +577,7 @@ namespace O::AST
 				nextToken = parser.PeekToken();
 				if (nextToken.m_Type == Token::Comma || nextToken.m_Type == Token::RightArrow)
 				{
-					parser.MakeErrorButPretty("Can only return one type. Use parentheses if you wish to return a tuple or another function", arrowToken);
+					parser.MakeError("Can only return one type. Use parentheses if you wish to return a tuple or another function", arrowToken);
 					return nullptr;
 				}
 
@@ -596,7 +596,7 @@ namespace O::AST
 			// Invalid token found after type
 			if (nextToken.m_Type != Token::RightArrow && nextToken.m_Type != Token::Comma)
 			{
-				parser.MakeErrorButPretty("Expected a type, ',' or '=>', but got '" + nextToken.ToFormattedValueString() + "'", nextToken);
+				parser.MakeError("Expected a type, ',' or '=>', but got '" + nextToken.ToFormattedValueString() + "'", nextToken);
 				return nullptr;
 			}
 		}

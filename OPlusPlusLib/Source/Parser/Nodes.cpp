@@ -214,8 +214,20 @@ namespace O::AST {
 	void Scope::Print(std::string padding)
 	{
 		std::cout << padding << TypeToString() << ": \n";
+
+		std::string newPadding = padding + "        ";
+
+		std::cout << padding << "    " << (m_Type == NodeType::Program ? "Global type table" : "Local type table") << ": \n";
+		m_LocalTypeTable.Print(newPadding);
+		std::cout << "\n";
+
+		std::cout << padding << "    " << (m_Type == NodeType::Program ? "Global symbol table" : "Local symbol table") << ": \n";
+		m_LocalSymbolTable.Print(m_LocalTypeTable, newPadding);
+		std::cout << "\n";
+
+		std::cout << padding << "    (lines):\n";
 		for (auto& line : m_Lines)
-			line->Print(padding + "    ");
+			line->Print(newPadding);
 	}
 
 	ReturnStatement::ReturnStatement(Node* returnValue)
@@ -244,6 +256,10 @@ namespace O::AST {
 	{
 		std::string newPadding = padding + "        ";
 		std::cout << padding << TypeToString() << ": \n";
+
+		std::cout << padding << "    Parameters symbol table" << ": \n";
+		m_ParametersSymbolTable.Print(m_ParametersTypeTable, newPadding);
+		std::cout << "\n";
 
 		std::cout << padding + "    (return type): \n";
 		if (m_ReturnType) m_ReturnType->Print(newPadding);

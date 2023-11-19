@@ -210,7 +210,7 @@ namespace O::AST
 			if (HasError()) return nullptr;
 
 			if (!node)
-				return MakeErrorButPretty("Unexpected token " + token.TypeToString() + " in statement parser");
+				return MakeError("Unexpected token " + token.TypeToString() + " in statement parser");
 
 			return node;
 		}
@@ -239,9 +239,9 @@ namespace O::AST
 		{
 			// If the operator is a infix, then error
 			if (m_InfixParselets.count(token.m_Type) != 0)
-				return MakeErrorButPretty("Infix operator used as prefix");
+				return MakeError("Infix operator used as prefix");
 
-			return MakeErrorButPretty("Unexpected token " + token.m_Value + " in expression, could not parse");
+			return MakeError("Unexpected token " + token.m_Value + " in expression, could not parse");
 		}
 
 		PrefixParselet* prefix = m_PrefixParselets.at(token.m_Type);
@@ -249,7 +249,7 @@ namespace O::AST
 		if (HasError()) return nullptr;
 
 		if (left->m_Type == NodeType::BasicType)
-			return MakeErrorButPretty("Cannot have typename " + left->ToString() + " in an expression");
+			return MakeError("Cannot have typename " + left->ToString() + " in an expression");
 
 		// Parse infix operators, such as normal binary operators or postfix unary operators (like a++)
 		while (!HasError() && PeekToken(0).m_Type != Token::Types::EndOfFile && precedence < GetPrecedenceOfCurrentToken())
@@ -265,7 +265,7 @@ namespace O::AST
 			{
 				// If the operator is a prefix, then error
 				if (m_PrefixParselets.count(token.m_Type) != 0)
-					return MakeErrorButPretty("Prefix operator used as infix");
+					return MakeError("Prefix operator used as infix");
 
 				return left;
 			}
@@ -304,11 +304,11 @@ namespace O::AST
 			// If the operator is a infix, then error
 			if (m_InfixTypeParselets.count(token.m_Type) != 0)
 			{
-				MakeErrorButPretty("Infix operator used as prefix");
+				MakeError("Infix operator used as prefix");
 				return nullptr;
 			}
 
-			MakeErrorButPretty("Unexpected token " + token.m_Value + " in type, could not parse");
+			MakeError("Unexpected token " + token.m_Value + " in type, could not parse");
 			return nullptr;
 		}
 
@@ -331,7 +331,7 @@ namespace O::AST
 				// If the operator is a prefix, then error
 				if (m_PrefixTypeParselets.count(token.m_Type) != 0)
 				{
-					MakeErrorButPretty("Prefix operator used as infix");
+					MakeError("Prefix operator used as infix");
 					return nullptr;
 				}
 
@@ -350,7 +350,7 @@ namespace O::AST
 	{
 		if (!TokenIsIdentifier(token))
 		{
-			MakeErrorButPretty("Expected identifier, but got '" + token.ToFormattedValueString() + "'", token);
+			MakeError("Expected identifier, but got '" + token.ToFormattedValueString() + "'", token);
 			return nullptr;
 		}
 
@@ -404,7 +404,7 @@ namespace O::AST
 
 		if (!assignedValue)
 		{
-			MakeErrorButPretty("Expected expression on right hand side of assignment, but got " +
+			MakeError("Expected expression on right hand side of assignment, but got " +
 				PeekToken(0).ToFormattedValueString(), PeekToken(0));
 			return nullptr;
 		}
@@ -522,56 +522,16 @@ namespace O::AST
 		}
 	}
 
-	Node* Parser::MakeErrorButPretty(const std::string& message, Token errorToken, ParserError::Severity severity)
+	Node* Parser::MakeError(const std::string& message, Token errorToken, CompileTimeError::Severity severity)
 	{
-		ParserError error;
-		error.message = message;
-		error.severity = severity;
-		error.token = errorToken;
-
-		m_Errors.push_back(error);
+		MakeError_Void(message, errorToken, severity);
 		return nullptr;
 	}
-	Node* Parser::MakeErrorButPretty(const std::string& message, ParserError::Severity severity)
+
+	Node* Parser::MakeError(const std::string& message, CompileTimeError::Severity severity)
 	{
-		return MakeErrorButPretty(message, m_LastConsumedToken, severity);
-	}
-
-	void Parser::PrintErrors()
-	{
-		std::string source = O::Lexer::Lexer::ReconstructSourcecode(m_Tokens);
-		auto sourceLines = split(source, '\n');
-
-		for (auto& error : m_Errors)
-		{
-			auto startPosition = error.token.m_StartPosition;
-
-			std::string severity = std::string(magic_enum::enum_name(error.severity));
-			std::cout << severity << ": " << error.message << "\n\n";
-
-			std::string lineOfError = sourceLines[startPosition.line];
-
-			int indent = std::to_string(startPosition.line).length();
-
-			std::string leftPadding = " " + Replicate(indent, " ") + " | ";
-
-			if (startPosition.line != 0)
-			{
-				std::string lineBefore = sourceLines[startPosition.line - 1];
-				std::cout << leftPadding << lineBefore << "\n";
-			}
-			std::cout << " " << startPosition.line + 1 << " | " << lineOfError << "\n";
-			std::cout << leftPadding;
-
-			int errorMarkerLength = std::max(error.token.ToFormattedValueString().length(), size_t(1));
-
-			std::cout << Replicate(startPosition.column, " ");
-			std::cout << Replicate(errorMarkerLength, "^");
-
-			std::cout << "\n\n";
-
-			//std::cout << error.positionInSource.line + 1 << ":" << error.positionInSource.column + 1;
-		}
+		MakeError_Void(message, m_LastConsumedToken, severity);
+		return nullptr;
 	}
 
 	Token Parser::ConsumeToken()
@@ -589,7 +549,7 @@ namespace O::AST
 		Token next = PeekToken(0);
 		if (next.m_Type != expectedType)
 		{
-			MakeErrorButPretty("Expected " + TokenTypeToString(expectedType) + ", found '" + next.ToFormattedValueString() + "'", next);
+			MakeError("Expected " + TokenTypeToString(expectedType) + ", found '" + next.ToFormattedValueString() + "'", next);
 			return {};
 		}
 
@@ -624,7 +584,7 @@ namespace O::AST
 		Token next = PeekToken(peekDistance);
 		if (next.m_Type != expectedType)
 		{
-			MakeErrorButPretty("Expected " + TokenTypeToString(expectedType) + ", found '" + next.ToFormattedValueString() + "'", next);
+			MakeError("Expected " + TokenTypeToString(expectedType) + ", found '" + next.ToFormattedValueString() + "'", next);
 			return false;
 		}
 

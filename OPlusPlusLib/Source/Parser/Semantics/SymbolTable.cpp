@@ -1,6 +1,7 @@
 #include "SymbolTable.h"
 
 #include <assert.h>
+#include <iostream>
 
 namespace O
 {
@@ -81,6 +82,7 @@ namespace O
 
     SymbolTable::SymbolTable()
     {
+        m_TableType = SymbolTableType::Global;
     }
 
     SymbolTable::SymbolTable(SymbolTableType tableType, SymbolTable* upwardSymbolTable)
@@ -108,35 +110,57 @@ namespace O
 		return classSymbol;
 	}
 
-    std::vector<Symbol*> SymbolTable::Lookup(std::function<bool(Symbol*)> predicate)
+    std::vector<Symbol*> SymbolTable::LookupAny(std::function<bool(Symbol*)> predicate)
     {
         std::vector<Symbol*> result;
         LookupAccumulator(predicate, result);
         return result;
     }
 
-    std::vector<Symbol*> SymbolTable::LookupThisTable(std::function<bool(Symbol*)> predicate)
+    /*std::vector<Symbol*> SymbolTable::LookupThisTable(std::function<bool(Symbol*)> predicate)
     {
         std::vector<Symbol*> result;
         LookupThisTableAccumulator(predicate, result);
         return result;
-    }
+    }*/
 
     std::vector<Symbol*> SymbolTable::Lookup(std::string name)
 	{
-		return Lookup([name](Symbol* symbol){
-            return symbol->m_Name == name;
-        });
+        // Lookup this table
+        if (m_Symbols.count(name) != 0)
+            return m_Symbols[name];
+
+        // Look upward
+        if (m_UpwardSymbolTable)
+            return m_UpwardSymbolTable->Lookup(name);
+
+        assert(m_TableType == SymbolTableType::Global);
+        return {};
 	}
 
     std::vector<Symbol*> SymbolTable::Lookup(Symbol* symbol)
-	{
-        assert(symbol != nullptr);
+    {
+        assert(symbol);
+     
+        // Lookup this table
+        if (m_Symbols.count(symbol->m_Name) != 0)
+        {
+            // Check the symbols with the same name if they are identical to the specified symbol
+            auto& symbols = m_Symbols[symbol->m_Name];
+            for (Symbol* itSymbol : symbols)
+            {
+                if (*itSymbol == *symbol)
+                    return symbols;
+            }
+        }
 
-        return Lookup([symbol](Symbol* s){
-            return *s == *symbol;
-        });
-	}
+        // Look upward
+        if (m_UpwardSymbolTable)
+            return m_UpwardSymbolTable->Lookup(symbol);
+
+        assert(m_TableType == SymbolTableType::Global);
+        return {};
+    }
 
 	Symbol* SymbolTable::LookupOne(std::string name)
 	{
@@ -149,12 +173,19 @@ namespace O
 
 	ClassSymbol* SymbolTable::LookupClassByType(ValueType type)
 	{
-		auto symbols = Lookup([type](Symbol* symbol){
-            return symbol->m_DataType == type;
-        });
-
-        assert(symbols.size() <= 1);
-        return (ClassSymbol*) One(symbols);
+        for (auto& [name, symbols] : m_Symbols)
+        {
+            for (Symbol* symbol : symbols)
+            {
+                if (symbol->m_DataType == type)
+                {
+                    assert(symbols.size() <= 1);
+                    return (ClassSymbol*)One(symbols);
+                }
+            }
+        }
+        
+        return nullptr;
 	}
 
     bool SymbolTable::Has(std::string name)
@@ -169,17 +200,17 @@ namespace O
 		return LookupOne(name)->m_SymbolType == type;
 	}
 
+    bool SymbolTable::Has(Symbol* symbol)
+    {
+        return !Lookup(symbol).empty();
+    }
 
     Symbol* SymbolTable::Insert(Symbol* symbol)
 	{
 		// Make sure the *exact* symbol hasn't been declared before (uses the overloaded comparison operators on the symbols)
-		assert(Lookup(symbol).empty());
-
-        auto symbolsWithSameName = LookupThisTable([symbol](Symbol* s) {
-            return s->m_Name == symbol->m_Name;
-        });
-
-        symbolsWithSameName.push_back(symbol);
+		assert(!Has(symbol));
+        
+        m_Symbols[symbol->m_Name].push_back(symbol);
 
         return symbol;
 	}
@@ -198,9 +229,9 @@ namespace O
     {
         std::vector<Symbol*> result;
 
-        for (auto symbolsWithName : m_Symbols)
+        for (auto& [name, symbols] : m_Symbols)
         {
-            for (auto symbol : symbolsWithName)
+            for (auto symbol : symbols)
             {
                 if (predicate(symbol))
                     accumulator.push_back(symbol);
@@ -223,7 +254,7 @@ namespace O
 		if (m_UpwardSymbolTable) 
 			largestIndex = m_UpwardSymbolTable->GetLargestVariableIndex();
 
-        for (auto symbolsWithName : m_Symbols)
+        for (auto [name, symbolsWithName] : m_Symbols)
         {
             for (auto symbol : symbolsWithName)
             {
@@ -240,13 +271,47 @@ namespace O
 		return largestIndex;
 	}
 
-	SymbolTable::~SymbolTable()
-	{
-        for (auto symbolsWithName : m_Symbols)
+    void SymbolTable::Print(TypeTable& localTypeTable, std::string padding)
+    {
+        for (auto& [name, symbols] : m_Symbols)
         {
-            for (auto symbol : symbolsWithName)
+            for (auto symbol : symbols)
+            {
+                TypeTableEntry* dataType = localTypeTable.Lookup(symbol->m_DataType);
+                assert(dataType);
+
+                std::cout << padding << dataType->name << " " <<
+                    symbol->m_Name;
+
+                if (symbol->m_SymbolType == SymbolType::Function || symbol->m_SymbolType == SymbolType::Method)
+                {
+                    std::cout << " (";
+                    CallableSymbol* callableSymbol = (CallableSymbol*)symbol;
+                    for (int i = 0; i < callableSymbol->m_ParameterTypes.size(); i++)
+                    {
+                        ValueType parameterTypeId = callableSymbol->m_ParameterTypes[i];
+
+                        TypeTableEntry* type = localTypeTable.Lookup(parameterTypeId);
+                        assert(type);
+
+                        std::cout << type->name;
+                        if (i < callableSymbol->m_ParameterTypes.size() - 1)
+                            std::cout << ", ";
+                    }
+                    std::cout << ")";
+                }
+
+                std::cout << ", " << SymbolTypeToString(symbol->m_SymbolType) << "\n";
+            }
+        }
+    }
+
+    SymbolTable::~SymbolTable()
+	{
+        for (auto& [name, symbols] : m_Symbols)
+        {
+            for (auto symbol : symbols)
                 delete symbol;
         }
 	}
-
 }

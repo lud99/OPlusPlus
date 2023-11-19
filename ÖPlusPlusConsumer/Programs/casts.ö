@@ -1,6 +1,8 @@
-(int, int) tuple;
-(int, int) t;
-(int, int)[] arr;
-(int => float) func;
+int a = 5;
+
+while (true)
+{
+	int c = 99;
+}
 
 //int[][][] a = 5; 

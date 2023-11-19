@@ -13,6 +13,7 @@
 #include "Nodes.h"
 #include "Lexer.h"
 #include "Operators.h"
+#include "CompileTimeErrorList.h"
 
 namespace O::AST
 {
@@ -27,21 +28,7 @@ namespace O::AST
 	
 	struct StatementParselet;
 
-	struct ParserError
-	{
-		enum Severity {
-			Info,
-			Warning,
-			Error
-		};
-
-		Severity severity;
-		std::string message;
-
-		Token token;
-	};
-
-	class Parser
+	class Parser : public CompileTimeErrorList
 	{
 	public:
 		EXPORT Parser(Tokens& tokens);
@@ -50,9 +37,8 @@ namespace O::AST
 		
 		Node* Parse();
 		Node* ParseExpression(int precedence = 0);
-
-		Type* ParseType_(Token token);
 		Type* ParseType(int precedence = 0);
+
 		Type* ParseType(Token token, int precedence = 0);
 		Identifier* ParseIdentifier(Token token);
 		TupleExpression* ParseTupleExpression(Token token);
@@ -60,17 +46,11 @@ namespace O::AST
 		VariableDeclaration* ParseVariableDeclaration(Token token, Type* type, Identifier* name, bool consumeEndToken = true, Token::Types endToken = Token::Semicolon);
 		FunctionParameters* ParseFunctionParameters(Token token);
 
-
-
 		EXPORT float TemporaryEvaluator(Node* node);
 
-		Node* MakeErrorButPretty(const std::string& message, ParserError::Severity severity = ParserError::Error);
-		Node* MakeErrorButPretty(const std::string& message, Token errorToken, ParserError::Severity severity = ParserError::Error);
+		Node* MakeError(const std::string& message, Token errorToken, CompileTimeError::Severity severity = CompileTimeError::Error);
+		Node* MakeError(const std::string& message, CompileTimeError::Severity severity = CompileTimeError::Error);
 
-		EXPORT bool HasError() { return !m_Errors.empty(); }
-		EXPORT auto& GetErrors() { return m_Errors; };
-
-		EXPORT void PrintErrors();
 
 		// Lexer functions
 		Token ConsumeToken();
@@ -88,12 +68,10 @@ namespace O::AST
 		int GetPrecedenceOfCurrentToken();
 		int GetPrecedenceOfCurrentTokenType();
 
-		bool TokenIsTypename(Token token) { return m_TypeTable.HasType(token.m_Value); }
+		bool TokenIsTypename(Token token) { return m_TypeTable.Has(token.m_Value); }
 		bool TokenIsIdentifier(Token token) { return !TokenIsTypename(token) && token.m_Type == Token::Identifier; }
 
 	private:
-		std::vector<ParserError> m_Errors;
-
 		Tokens m_Tokens;
 		std::deque<Token> m_TokenStream;
 		Token m_LastConsumedToken;
@@ -106,14 +84,11 @@ namespace O::AST
 		std::unordered_map<Token::Types, PrefixTypeParselet*> m_PrefixTypeParselets;
 		std::unordered_map<Token::Types, InfixTypeParselet*> m_InfixTypeParselets;
 
-
 		std::unordered_map<Token::Types, StatementParselet*> m_StatementParselets;
 
 	public:
 		Operators::DefinedOperators m_DefinedOperators;
 		Operators::DefinedOperators m_DefinedTypeModifierOperators;
 		TypeTable m_TypeTable;
-
-		bool m_ParseOnlyTypeExpressions = false;
 	};
 }

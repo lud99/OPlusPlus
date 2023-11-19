@@ -198,6 +198,7 @@
     <ClInclude Include="Source\Parser\Nodes.h" />
     <ClInclude Include="Source\Parser\Operators.h" />
     <ClInclude Include="Source\Parser\Parselets.h" />
+    <ClInclude Include="Source\Parser\CompileTimeErrorList.h" />
     <ClInclude Include="Source\Parser\Semantics\SemanticAnalyzer.h" />
     <ClInclude Include="Source\Parser\Lexer.h" />
     <ClInclude Include="Source\macro.h" />
@@ -214,6 +215,7 @@
     <ClCompile Include="Source\Parser\Nodes.cpp" />
     <ClCompile Include="Source\Parser\Parselets.cpp" />
     <ClCompile Include="Source\Parser\Parser.cpp" />
+    <ClCompile Include="Source\Parser\CompileTimeErrorList.cpp" />
     <ClCompile Include="Source\Parser\Semantics\SemanticAnalyzer.cpp" />
     <ClCompile Include="Source\Parser\Semantics\SymbolTable.cpp" />
     <ClCompile Include="Source\Parser\Semantics\TypeTable.cpp" />
