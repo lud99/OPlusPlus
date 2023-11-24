@@ -1,0 +1,13 @@
+class A
+{
+	B abc;
+}
+
+class B
+{
+	A abc;
+}
+
+int f(int x) {
+
+}

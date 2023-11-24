@@ -33,7 +33,7 @@ namespace O
 		m_UpwardTypeTable = upwardTypeTable;
 	}
 
-	bool TypeTable::Has(const std::string& typeName)
+	bool TypeTable::HasType(const std::string& typeName)
 	{
 		// First look in the current table
 		if (m_Typenames.count(typeName) != 0)
@@ -41,13 +41,13 @@ namespace O
 
 		// Otherwise look upward
 		if (m_UpwardTypeTable)
-			return m_UpwardTypeTable->Has(typeName);
+			return m_UpwardTypeTable->HasType(typeName);
 
 		assert(m_TableType == TypeTableType::Global);
 		return false;
 	}
 
-	bool TypeTable::Has(ValueType typeId)
+	bool TypeTable::HasType(ValueType typeId)
 	{
 		// First look in the current table
 		for (auto& type : m_Types)
@@ -58,7 +58,38 @@ namespace O
 
 		// Otherwise look upward
 		if (m_UpwardTypeTable)
-			return m_UpwardTypeTable->Has(typeId);
+			return m_UpwardTypeTable->HasType(typeId);
+
+		assert(m_TableType == TypeTableType::Global);
+		return false;
+	}
+
+	bool TypeTable::HasCompleteType(const std::string& typeName)
+	{
+		// First look in the current table
+		if (m_Typenames.count(typeName) != 0)
+			return m_Types[m_Typenames[typeName]].type != TypeEntryType::Incomplete;
+
+		// Otherwise look upward
+		if (m_UpwardTypeTable)
+			return m_UpwardTypeTable->HasCompleteType(typeName);
+
+		assert(m_TableType == TypeTableType::Global);
+		return false;
+	}
+
+	bool TypeTable::HasCompleteType(ValueType typeId)
+	{
+		// First look in the current table
+		for (auto& type : m_Types)
+		{
+			if (type.id == typeId)
+				return type.type != TypeEntryType::Incomplete;
+		}
+
+		// Otherwise look upward
+		if (m_UpwardTypeTable)
+			return m_UpwardTypeTable->HasCompleteType(typeId);
 
 		assert(m_TableType == TypeTableType::Global);
 		return false;
@@ -96,7 +127,7 @@ namespace O
 
 	TypeTableEntry& TypeTable::Insert(const std::string& typeName, TypeEntryType type, TypeTableEntry* redirect)
 	{
-		assert(!Has(typeName));
+		assert(!HasCompleteType(typeName));
 
 		uint16_t id = m_Types.size();
 
@@ -119,7 +150,7 @@ namespace O
 		}
 		name += typeArguments.back().name + ">";
 
-		if (Has(name))
+		if (HasCompleteType(name))
 			return *Lookup(name);
 
 		TypeTableEntry& typeEntry = Insert(name, type);
@@ -162,7 +193,7 @@ namespace O
 
 	void TypeTable::AddTypeRelation(TypeTableEntry& type, ValueType relatedType, TypeRelation::ConversionType subtypeConversion, TypeRelation::ConversionType supertypeConversion)
 	{
-		assert(Has(relatedType));
+		assert(HasCompleteType(relatedType));
 
 		AddTypeRelation(type, *Lookup(relatedType), subtypeConversion, supertypeConversion);
 	}

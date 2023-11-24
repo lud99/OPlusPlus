@@ -91,8 +91,10 @@ namespace O
 		TypeTable();
 		EXPORT TypeTable(TypeTableType tableType, TypeTable* upwardTypeTable);
 
-		bool Has(const std::string& typeName);
-		bool Has(ValueType typeId);
+		bool HasType(const std::string& typeName);
+		bool HasType(ValueType typeId);
+		bool HasCompleteType(const std::string& typeName);
+		bool HasCompleteType(ValueType typeId);
 
 		TypeTableEntry* Lookup(const std::string& typeName);// { return m_Types[m_TypeNames.at(typeName)]; }
 		TypeTableEntry* Lookup(ValueType typeId);// { return m_Types[typeId]; }

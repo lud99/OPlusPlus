@@ -10,7 +10,7 @@ int main(const char* args)
 
 	setlocale(LC_ALL, "");
 
-	std::ifstream file("Programs/casts.ö");
+	std::ifstream file("Programs/class_recursion.ö");
 	if (!file.good())
 	{
 		std::cout << "Could not open file :(\n";

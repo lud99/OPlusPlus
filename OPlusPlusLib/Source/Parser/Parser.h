@@ -68,7 +68,7 @@ namespace O::AST
 		int GetPrecedenceOfCurrentToken();
 		int GetPrecedenceOfCurrentTokenType();
 
-		bool TokenIsTypename(Token token) { return m_TypeTable.Has(token.m_Value); }
+		bool TokenIsTypename(Token token) { return m_TypeTable.HasType(token.m_Value); }
 		bool TokenIsIdentifier(Token token) { return !TokenIsTypename(token) && token.m_Type == Token::Identifier; }
 
 	private:

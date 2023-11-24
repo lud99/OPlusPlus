@@ -27,7 +27,7 @@ namespace O::AST
 	Node* IdentifierParselet::Parse(Parser& parser, Token token)
 	{
 		// Check if the identifier is a typename
-		if (parser.m_TypeTable.Has(token.m_Value))
+		if (parser.m_TypeTable.HasCompleteType(token.m_Value))
 			return new BasicType(token.m_Value);
 		else
 			return new Identifier(token.m_Value);
@@ -429,10 +429,10 @@ namespace O::AST
 
 		std::string className = nameOpt.value().m_Value;
 
-		if (parser.m_TypeTable.Has(className))
+		if (parser.m_TypeTable.HasCompleteType(className))
 			return parser.MakeError("Class '" + className + "' has already been declared elsewhere");
 
-		parser.m_TypeTable.Insert(className, TypeEntryType::Class);
+		parser.m_TypeTable.Insert(className, TypeEntryType::Incomplete);
 
 		Token nextToken = parser.ConsumeToken();
 		if (parser.HasError()) return nullptr;
@@ -470,6 +470,8 @@ namespace O::AST
 		//Node* definition = ParseClassDefinitionBody(parser, nextToken);
 		if (parser.HasError()) return nullptr;
 
+		// Change the type to be complete
+
 		return classDeclaration;
 	}
 
@@ -503,8 +505,13 @@ namespace O::AST
 
 	Type* TypenameParselet::Parse(Parser& parser, Token token)
 	{
-		if (!parser.m_TypeTable.Has(token.m_Value))
+		TypeTableEntry* type = parser.m_TypeTable.Lookup(token.m_Value);
+
+		if (!type)
 			return (Type*)parser.MakeError("Expected typename");
+
+		//if (type->type == TypeEntryType::Incomplete)
+			//return (Type*)parser.MakeError("Cannot use incomplete typename, probably because it is being parsed right now");
 
 		return new BasicType(token.m_Value);
 	}

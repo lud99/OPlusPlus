@@ -288,10 +288,10 @@ namespace O
 
 			std::string name = classNode->m_Name->ToString();
 
-			if (localTypeTable.Has(name))
+			if (localTypeTable.HasCompleteType(name))
 				return MakeErrorAlreadyDefined(name, SymbolType::Class);
 
-			TypeTableEntry& classType = localTypeTable.Insert(name, TypeEntryType::Class);
+			TypeTableEntry& classType = *localTypeTable.Lookup(name);
 
 			localSymbolTable.InsertClass(name, classType.id);
 			
