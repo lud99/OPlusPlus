@@ -176,6 +176,93 @@ namespace O
 		return entry.Resolve();
 	}
 
+	std::optional<TypeRelation::ConversionType> TypeTable::GetFullSupertypeRelationTo(TypeTableEntry& type, TypeTableEntry& expectedSupertype)
+	{
+		for (auto& typeRelation : type.supertypes)
+		{
+			TypeTableEntry* supertype = Lookup(typeRelation.relatedType);
+			assert(supertype);
+
+			if (supertype->id == expectedSupertype.id)
+				return typeRelation.conversionType;
+
+			// Continue searching upwards
+			auto upwardTypeRelation = GetFullSupertypeRelationTo(*supertype, expectedSupertype);
+			if (upwardTypeRelation.has_value())
+			{
+				// If this relation and the above are both implicit, or explicit then dont modify it
+				if (typeRelation.conversionType == upwardTypeRelation)
+					return upwardTypeRelation.value();
+
+				// Otherwise it is explicit somewhere in the chain, so the total relation is explicit
+				return TypeRelation::Explicit;
+			}
+		}
+
+		return {};
+	}
+
+	std::optional<TypeRelation::ConversionType> TypeTable::GetFullSubtypeRelationTo(TypeTableEntry& type, TypeTableEntry& expectedSubtype)
+	{
+		for (auto& typeRelation : type.subtypes)
+		{
+			TypeTableEntry* subtype = Lookup(typeRelation.relatedType);
+			assert(subtype);
+
+			if (subtype->id == expectedSubtype.id)
+				return typeRelation.conversionType;
+
+			// Continue searching upwards
+			auto upwardTypeRelation = GetFullSupertypeRelationTo(*subtype, expectedSubtype);
+			if (upwardTypeRelation.has_value())
+			{
+				// If this relation and the above are both implicit, or explicit then dont modify it
+				if (typeRelation.conversionType == upwardTypeRelation)
+					return upwardTypeRelation.value();
+
+				// Otherwise it is explicit somewhere in the chain, so the total relation is explicit
+				return TypeRelation::Explicit;
+			}
+		}
+
+		return {};
+	}
+
+	std::optional<TypeRelation::ConversionType> TypeTable::GetFullTypeRelationTo(TypeTableEntry& type, TypeTableEntry& expectedType)
+	{
+		auto supertypeRelation = GetFullSupertypeRelationTo(type, expectedType);
+		auto subtypeRelation = GetFullSubtypeRelationTo(type, expectedType);
+
+		// Can't be both sub and super type at the same time
+		if (subtypeRelation.has_value() && supertypeRelation.has_value())
+			abort();
+
+		if (subtypeRelation.has_value())
+			return subtypeRelation;
+		if (supertypeRelation.has_value())
+			return supertypeRelation;
+		
+		return {};
+	}
+
+	bool TypeTable::IsTypeImplicitSubtypeOf(TypeTableEntry& subtype, TypeTableEntry& expectedSupertype)
+	{
+		for (auto& typeRelation : subtype.supertypes)
+		{
+			TypeTableEntry* supertype = Lookup(typeRelation.relatedType);
+			assert(supertype);
+
+			if (supertype->id == expectedSupertype.id)
+				return typeRelation.conversionType == TypeRelation::Implicit;
+
+			// Continue searching upwards
+			if (IsTypeImplicitSubtypeOf(*supertype, expectedSupertype))
+				return typeRelation.conversionType == TypeRelation::Implicit;
+		}
+
+		return false;
+	}
+
 	void TypeTable::Print(std::string padding)
 	{
 		for (auto& entry : m_Types)
@@ -201,8 +288,13 @@ namespace O
 		}
 
 		// Insert relation for types
-		AddTypeRelation(m_Types[PrimitiveValueTypes::Double], PrimitiveValueTypes::Integer, TypeRelation::Implicit, TypeRelation::Explicit);
-		AddTypeRelation(m_Types[PrimitiveValueTypes::Integer], PrimitiveValueTypes::Bool, TypeRelation::Implicit, TypeRelation::Explicit);
+		// double -> int (explicit)
+		// int -> double (implicit)
+		AddTypeRelation(m_Types[PrimitiveValueTypes::Double], PrimitiveValueTypes::Integer, TypeRelation::Explicit, TypeRelation::Implicit);
+		
+		// int -> bool (explicit)
+		// bool -> int (explicit)
+		AddTypeRelation(m_Types[PrimitiveValueTypes::Integer], PrimitiveValueTypes::Bool, TypeRelation::Explicit, TypeRelation::Explicit);
 	}
 
 	TypeTable::~TypeTable()

@@ -45,17 +45,13 @@ namespace O
 
 	VariableSymbol* SemanticAnalyzer::CreateSymbolForVariableDeclaration(VariableDeclaration* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable)
 	{
-		TypeTableEntry& variableType = GetTypeOfNode(node->m_VariableType, localSymbolTable, localTypeTable);
+		TypeTableEntry variableType = GetTypeOfNode(node->m_VariableType, localSymbolTable, localTypeTable);
 
 		if (node->m_AssignedValue)
 		{
-			// TODO: Implement properly
-			TypeTableEntry& assignedValueType = GetTypeOfNode(node->m_AssignedValue, localSymbolTable, localTypeTable);
-			if (assignedValueType.id != variableType.id)
-			{
-				MakeError("Mismatched types (" + variableType.name + " and " + assignedValueType.name + ")");
+			TypeTableEntry assignedValueType = GetTypeOfNode(node->m_AssignedValue, localSymbolTable, localTypeTable);
+			if (!DoesTypesMatch(localTypeTable, variableType, assignedValueType))
 				return nullptr;
-			}
 		}
 
 		std::string variableName = node->m_VariableName->ToString();
@@ -107,6 +103,40 @@ namespace O
 		callable.m_ParameterTypes = parameterTypes;
 
 		return localSymbolTable.InsertCallable(callable);
+	}
+
+	
+
+	bool SemanticAnalyzer::DoesTypesMatch(TypeTable& localTypeTable, TypeTableEntry& expectedType, TypeTableEntry& otherType)
+	{
+		// 1. Case when types are the same
+		if (expectedType.id == otherType.id)
+			return true;
+
+
+		// 2. typedefs
+
+		// 3. type relations
+		auto typeRelation = localTypeTable.GetFullTypeRelationTo(otherType, expectedType);
+		if (!typeRelation.has_value())
+		{
+			MakeError("Incompatible types. '" + otherType.name + "' cannot be converted to '" + expectedType.name + "' as they have no relation");
+			return false;
+		}
+
+		// Is valid if the otherType can be implicit converted to the supertype
+		if (typeRelation.value() == TypeRelation::Implicit)
+		{
+			return true;
+		}
+		else 
+		{
+			MakeError("Incompatible types. '" + otherType.name + "' cannot be converted to '" + expectedType.name + "' implicitly");
+			return false;
+		}
+		
+		abort();
+		return false;
 	}
 
 	// Create symbol tables for each scope

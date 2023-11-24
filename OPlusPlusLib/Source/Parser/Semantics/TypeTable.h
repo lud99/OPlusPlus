@@ -110,6 +110,11 @@ namespace O
 		void AddTypeRelation(TypeTableEntry& type, TypeTableEntry& relatedType, TypeRelation::ConversionType subtypeConversion, TypeRelation::ConversionType supertypeConversion);
 
 		TypeTableEntry& ResolveEntry(TypeTableEntry entry);
+		std::optional<TypeRelation::ConversionType> GetFullSupertypeRelationTo(TypeTableEntry& type, TypeTableEntry& expectedSupertype);
+		std::optional<TypeRelation::ConversionType> GetFullSubtypeRelationTo(TypeTableEntry& type, TypeTableEntry& expectedSubtype);
+		std::optional<TypeRelation::ConversionType> GetFullTypeRelationTo(TypeTableEntry& type, TypeTableEntry& expectedType);
+
+		bool IsTypeImplicitSubtypeOf(TypeTableEntry& subtype, TypeTableEntry& expectedSupertype);
 
 		EXPORT const auto& GetTypes() { return m_Types; }
 		EXPORT const auto& GetNextTable() { return m_UpwardTypeTable; }

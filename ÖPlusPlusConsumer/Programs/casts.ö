@@ -1,1 +1,4 @@
-(int, int) tuple = (5, 9.0);
+int a = 5.0;
+(int, int) a = true;
+
+//(int, int) tuple = (5, 9.0);
