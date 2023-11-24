@@ -21,6 +21,9 @@ namespace O
 
 	enum class TypeEntryType
 	{
+		Incomplete,
+		Error,
+
 		Class,
 		Function,
 		Method,

@@ -46,10 +46,16 @@ namespace O
 	VariableSymbol* SemanticAnalyzer::CreateSymbolForVariableDeclaration(VariableDeclaration* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable)
 	{
 		TypeTableEntry variableType = GetTypeOfNode(node->m_VariableType, localSymbolTable, localTypeTable);
+		if (HasError())
+			return nullptr;
 
 		if (node->m_AssignedValue)
 		{
 			TypeTableEntry assignedValueType = GetTypeOfNode(node->m_AssignedValue, localSymbolTable, localTypeTable);
+			if (HasError())
+				return nullptr;
+
+			// Makes errors if types dont match.
 			if (!DoesTypesMatch(localTypeTable, variableType, assignedValueType))
 				return nullptr;
 		}
@@ -181,6 +187,8 @@ namespace O
 		{
 			BinaryExpression* expression = (BinaryExpression*)node;
 			Analyze(expression->m_Lhs, localSymbolTable, localTypeTable);
+			if (HasError())
+				return;
 			Analyze(expression->m_Rhs, localSymbolTable, localTypeTable);
 
 			break;
