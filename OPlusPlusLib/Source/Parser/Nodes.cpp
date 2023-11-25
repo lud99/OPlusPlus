@@ -38,12 +38,12 @@ namespace O::AST {
 			std::cout << "(array)";
 	}*/
 
-	VariableDeclaration::VariableDeclaration(Type* variableType, Identifier* variableName, Node* assignedValue)
+	VariableDeclaration::VariableDeclaration(Identifier* variableName, Type* variableType, Node* assignedValue)
 	{
 		m_Type = NodeType::VariableDeclaration;
 
-		m_VariableType = variableType;
 		m_VariableName = variableName;
+		m_VariableType = variableType;
 		m_AssignedValue = assignedValue;
 	}
 

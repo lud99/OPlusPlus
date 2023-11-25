@@ -40,10 +40,11 @@ namespace O::AST
 		Type* ParseType(int precedence = 0);
 
 		Type* ParseType(Token token, int precedence = 0);
+		Type* ParseTypeAnnotation();
 		Identifier* ParseIdentifier(Token token);
 		TupleExpression* ParseTupleExpression(Token token);
 
-		VariableDeclaration* ParseVariableDeclaration(Token token, Type* type, Identifier* name, bool consumeEndToken = true, Token::Types endToken = Token::Semicolon);
+		VariableDeclaration* ParseVariableDeclaration(Token token, Identifier* name, Type* type, bool consumeEndToken = true, Token::Types endToken = Token::Semicolon);
 		FunctionParameters* ParseFunctionParameters(Token token);
 
 		EXPORT float TemporaryEvaluator(Node* node);

@@ -327,7 +327,7 @@ namespace O::AST
 		return (Node*) new ReturnStatement(returnValue);
 	}
 
-	Node* ParseFunctionDefinition(Parser& parser, Token token, Type* returnType, Identifier* name)
+	Node* ParseFunctionDefinition(Parser& parser, Token token, Identifier* name)
 	{
 		FunctionParameters* parameters = parser.ParseFunctionParameters(token);
 
@@ -338,6 +338,8 @@ namespace O::AST
 			if (parameter->m_Type != NodeType::VariableDeclaration)
 				return parser.MakeError("Invalid function prototype, expected variable declaration"); 
 		}
+
+		Type* returnType = parser.ParseTypeAnnotation();
 
 		// Expect either a semicolon (function prototype) or a body
 		Token nextToken = parser.PeekToken(0);
@@ -383,24 +385,20 @@ namespace O::AST
 		Identifier* name = parser.ParseIdentifier(parser.ConsumeToken());
 		if (parser.HasError()) return nullptr;
 
-		// Type annotation
+		// If function
+		if (parser.MatchToken(Token::LeftParentheses))
+			return ParseFunctionDefinition(parser, token, name);
+		
+		// Type annotation for variables
 		Type* type = nullptr;
 		if (parser.MatchToken(Token::Colon))
 		{
 			type = parser.ParseType(parser.ConsumeToken());
 			if (parser.HasError()) return nullptr;
 		}
-		else
-		{
-
-		}
-
-		// If function
-		if (parser.MatchToken(Token::LeftParentheses))
-			return ParseFunctionDefinition(parser, token, type, name);
 
 		// Otherwise it's a variable declaration
-		return parser.ParseVariableDeclaration(token, type, name);
+		return parser.ParseVariableDeclaration(token, name, type);
 	}
 
 	Node* ClosureParselet::Parse(Parser& parser, Token token)

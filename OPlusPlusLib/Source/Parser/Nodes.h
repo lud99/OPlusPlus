@@ -217,10 +217,10 @@ namespace O::AST
 
 	struct VariableDeclaration : public Node
 	{
-		VariableDeclaration(Type* variableType, Identifier* variableName, Node* assignedValue);
+		VariableDeclaration(Identifier* variableName, Type* variableType, Node* assignedValue);
 
-		Type* m_VariableType;
 		Identifier* m_VariableName;
+		Type* m_VariableType;
 		Node* m_AssignedValue;
 
 		virtual void Print(std::string padding) override;

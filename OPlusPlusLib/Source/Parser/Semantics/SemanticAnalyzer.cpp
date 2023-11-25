@@ -110,8 +110,8 @@ namespace O
 		for (VariableDeclaration* parameter : node->m_Parameters->m_Parameters)
 		{
 			auto symbol = CreateSymbolForVariableDeclaration(parameter, node->m_ParametersSymbolTable, node->m_ParametersTypeTable);
-			//if (HasError())
-				//return nullptr; 
+			if (HasError())
+				return nullptr; 
 
 			parameterTypes.push_back(symbol->m_DataType);
 		}
