@@ -1,0 +1,55 @@
+class Token {
+	enum Kind {
+		Empty,
+		Identifier,
+		Plus
+	};
+
+	kind: Kind = ::Empty;
+	value: string = "";
+
+	function ToString(): string => value;
+};
+
+fn isAlpha(ch: int): bool => false;
+let isAlpha = (ch: int) : bool = > false;
+let isAlpha(ch: int): bool => false;
+
+List<Token> Lexer(string source) {
+	let currentToken: Token?; // runs default constructor that is generated automatically 
+	
+	let funcPointer = (a: int) => a;
+
+	//Token[] tokens = { source.length() };
+	//List<Token> tokens = List<>(source.length());
+	let tokens: List<Token> = { source.length() };
+	let tokens = List<Token>(source.length()); // both should be valid
+
+	for (let i = 0; i < source.length(); i++) {
+		let character = source[i];
+
+		if (character == ' ') {
+			tokens.push(currentToken.get());
+			currentToken = null;
+			
+			continue;
+		}
+
+		if (isAlpha(character)) {
+			if (!currentToken) {
+				currentToken = { ::Identifier };
+			}
+
+			currentToken.value += character;
+		} else if (character == '+') {
+			if (currentToken) {
+				tokens.push(currentToken.get());
+				currentToken = null;
+			}
+
+			tokens.push({ ::Plus, '+' });
+		}
+	}
+
+	return tokens;
+}

@@ -1,0 +1,49 @@
+class Token {
+	enum Kind {
+		Empty,
+		Identifier,
+		Plus
+	};
+
+	TokenKind kind = ::Empty;
+	string value = "";
+};
+
+bool isAlpha(int ch) = > false;
+
+List<Token> Lexer(string source) {
+	Token? currentToken; // runs default constructor that is generated automatically 
+
+	//Token[] tokens = { source.length() };
+	//List<Token> tokens = List<>(source.length());
+	List<Token> tokens = { source.length() };
+	let tokens = List<Token>(source.length()); // both should be valid
+
+	for (int i = 0; i < source.length(); i++) {
+		int character = source[i];
+
+		if (character == ' ') {
+			tokens.push(currentToken.get());
+			currentToken = null;
+			
+			continue;
+		}
+
+		if (isAlpha(character)) {
+			if (!currentToken) {
+				currentToken = { ::Identifier };
+			}
+
+			currentToken.value += character;
+		} else if (character == '+') {
+			if (currentToken) {
+				tokens.push(currentToken.get());
+				currentToken = null;
+			}
+
+			tokens.push({ ::Plus, '+' });
+		}
+	}
+
+	return tokens;
+}

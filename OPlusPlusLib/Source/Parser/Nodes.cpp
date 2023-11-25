@@ -50,8 +50,12 @@ namespace O::AST {
 	void VariableDeclaration::Print(std::string padding)
 	{
 		std::cout << padding << TypeToString() << ":\n";
-		m_VariableType->Print(padding + "    ");
 		m_VariableName->Print(padding + "    ");
+		if (m_VariableType)
+			m_VariableType->Print(padding + "    ");
+		else
+			std::cout << padding << "    (infered type)\n";
+
 		if (m_AssignedValue)
 		{
 			std::cout << padding + "    (value):\n";

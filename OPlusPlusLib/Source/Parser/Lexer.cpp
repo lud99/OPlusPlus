@@ -739,6 +739,8 @@ namespace O::Lexer
 
 				if (Current() == ',')
 					AddNewToken(Token::Comma, ",");
+				if (Current() == ':')
+					AddNewToken(Token::Colon, ":");
 
 				// Check for line ends
 				if (Current() == ';')
@@ -826,6 +828,7 @@ namespace O::Lexer
 		};*/
 		m_IdentifierMappings = {
 			{ "class", Token::ClassKeyword },
+			{ "let", Token::Let },
 			{ "return", Token::Return },
 			{ "if", Token::If },
 			{ "else", Token::Else },

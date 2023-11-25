@@ -45,7 +45,10 @@ namespace O
 
 	VariableSymbol* SemanticAnalyzer::CreateSymbolForVariableDeclaration(VariableDeclaration* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable)
 	{
-		TypeTableEntry variableType = GetTypeOfNode(node->m_VariableType, localSymbolTable, localTypeTable);
+		TypeTableEntry variableType;
+		if (node->m_VariableType)
+			variableType = GetTypeOfNode(node->m_VariableType, localSymbolTable, localTypeTable);
+		
 		if (HasError())
 			return nullptr;
 
@@ -55,9 +58,22 @@ namespace O
 			if (HasError())
 				return nullptr;
 
+			// If variable has no type, then infer it from the assignment
+			if (!node->m_VariableType)
+				variableType = assignedValueType;
+
 			// Makes errors if types dont match.
 			if (!DoesTypesMatch(localTypeTable, variableType, assignedValueType))
 				return nullptr;
+		}
+		else
+		{
+			// let x; x has no type annotated and no value to infer from, so error
+			if (!node->m_VariableType)
+			{
+				MakeError("Variable '" + node->m_VariableName->ToString() + "' has no annotated or infered type");
+				return nullptr;
+			}
 		}
 
 		std::string variableName = node->m_VariableName->ToString();

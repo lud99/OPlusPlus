@@ -27,6 +27,7 @@ namespace O::Lexer
 			BoolLiteral,
 
 			ClassKeyword,
+			Let,
 
 			SingleLineComment,
 			MultiLineComment,

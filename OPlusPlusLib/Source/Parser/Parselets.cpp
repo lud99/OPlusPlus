@@ -373,23 +373,33 @@ namespace O::AST
 		return new FunctionDefinitionStatement(returnType, name, parameters, body);
 	}
 
-	Node* TypenameStatementParselet::Parse(Parser& parser, Token token)
+	Node* LetStatementParselet::Parse(Parser& parser, Token token)
 	{
-		// The statement could now be either a variable declaration, or a function declaration
-		// int a; int a = ...; int a(...); int a (...) {...}
-
-		Type* type = parser.ParseType(token);
-		if (parser.HasError()) return nullptr;
+		// the format: 
+		// let x: type = y;
+		// let x = y (type is infered)
+		// let f(...) {} (function declaration)
 
 		Identifier* name = parser.ParseIdentifier(parser.ConsumeToken());
 		if (parser.HasError()) return nullptr;
 
+		// Type annotation
+		Type* type = nullptr;
+		if (parser.MatchToken(Token::Colon))
+		{
+			type = parser.ParseType(parser.ConsumeToken());
+			if (parser.HasError()) return nullptr;
+		}
+		else
+		{
+
+		}
 
 		// If function
 		if (parser.MatchToken(Token::LeftParentheses))
 			return ParseFunctionDefinition(parser, token, type, name);
 
-		// Otherwise it's a variable declaration (int a; or int a = ...;)
+		// Otherwise it's a variable declaration
 		return parser.ParseVariableDeclaration(token, type, name);
 	}
 

@@ -1,13 +1,32 @@
-class A
+class vec3 {
+	int x;
+	int y;
+	int z;
+
+	vec3 vec3() = default;
+	vec3 vec3(int xyz) {
+		x = xyz;
+		y = xyz;
+		z = xyz;
+
+		//x = y = z = xyz;
+	}
+
+	vec3 vec3(int x, int y, int z) = default;
+
+
+
+};
+
+class Chunk
 {
-	B abc;
-}
+	private Block[][][] blocks;
+	
+	void AddBlock();
+	Block GetBlock();
 
-class B
-{
-	A abc;
-}
 
-int f(int x) {
+};
 
-}
+vec3 position = { 1, 2, 3 }; // curly barces for auto detect constructor from type
+vec3 position = vec3(1, 2, 3); // explicit type constructor

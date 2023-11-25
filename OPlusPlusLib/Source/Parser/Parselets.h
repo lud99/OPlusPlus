@@ -122,7 +122,7 @@ namespace O::AST
 		Node* Parse(Parser& parser, Token token) override;
 	};
 
-	struct TypenameStatementParselet : public StatementParselet
+	struct LetStatementParselet : public StatementParselet
 	{
 		Node* Parse(Parser& parser, Token token) override;
 	};
