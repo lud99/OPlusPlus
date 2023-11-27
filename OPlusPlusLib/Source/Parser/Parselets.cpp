@@ -327,9 +327,19 @@ namespace O::AST
 		return (Node*) new ReturnStatement(returnValue);
 	}
 
-	Node* ParseFunctionDefinition(Parser& parser, Token token, Identifier* name)
+	Node* ParseFunctionDefinition(Parser& parser, Token token)
 	{
+		Identifier* name = parser.ParseIdentifier(token);
+		if (parser.HasError())
+			return nullptr;
+		
+		parser.ConsumeToken(Token::LeftParentheses);
+		if (parser.HasError())
+			return nullptr;
+
 		FunctionParameters* parameters = parser.ParseFunctionParameters(token);
+		if (parser.HasError())
+			return nullptr;
 
 		// Validate the parameters
 		for (auto& parameter : parameters->m_Parameters)
@@ -382,23 +392,11 @@ namespace O::AST
 		// let x = y (type is infered)
 		// let f(...) {} (function declaration)
 
-		Identifier* name = parser.ParseIdentifier(parser.ConsumeToken());
-		if (parser.HasError()) return nullptr;
-
-		// If function
-		if (parser.MatchToken(Token::LeftParentheses))
-			return ParseFunctionDefinition(parser, token, name);
-		
-		// Type annotation for variables
-		Type* type = nullptr;
-		if (parser.MatchToken(Token::Colon))
-		{
-			type = parser.ParseType(parser.ConsumeToken());
-			if (parser.HasError()) return nullptr;
-		}
+		if (parser.MatchTokenNoConsume(1, Token::LeftParentheses))
+			return ParseFunctionDefinition(parser, parser.ConsumeToken());
 
 		// Otherwise it's a variable declaration
-		return parser.ParseVariableDeclaration(token, name, type);
+		return parser.ParseVariableDeclaration(parser.ConsumeToken());
 	}
 
 	Node* ClosureParselet::Parse(Parser& parser, Token token)

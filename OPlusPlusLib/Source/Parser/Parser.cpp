@@ -392,21 +392,32 @@ namespace O::AST
 		return new TupleExpression(elements);
 	}
 
-	VariableDeclaration* Parser::ParseVariableDeclaration(Token token, Identifier* name, Type* type, bool consumeEndToken, Token::Types endToken)
+	VariableDeclaration* Parser::ParseVariableDeclaration(Token token, bool consumeEndToken, std::vector<Token::Types> endTokens)
 	{
-		// int a;
+		Identifier* name = ParseIdentifier(token);
+		if (HasError()) return nullptr;
+
+		Type* type = ParseTypeAnnotation();
+
+		// a:int;
 		if (consumeEndToken)
 		{
-			if (MatchToken(endToken))
-				return new VariableDeclaration(name, type, nullptr);
+			for (auto& tokenType : endTokens)
+			{
+				if (MatchToken(tokenType))
+					return new VariableDeclaration(name, type, nullptr);
+			}
 		}
 		else
 		{
-			if (MatchTokenNoConsume(endToken))
-				return new VariableDeclaration(name, type, nullptr);
+			for (auto& tokenType : endTokens)
+			{
+				if (MatchTokenNoConsume(tokenType))
+					return new VariableDeclaration(name, type, nullptr);
+			}
 		}
 
-		// int a = ...;
+		// a:int = ...;
 		ConsumeToken(Token::SetEquals);
 		if (HasError()) return nullptr;
 
@@ -423,7 +434,15 @@ namespace O::AST
 		if (HasError()) return nullptr;
 
 		if (consumeEndToken)
-			ConsumeToken(endToken);
+		{
+			// Look if the next token is one of the end tokens
+			// if so, consume it and return
+			for (auto& tokenType : endTokens)
+			{
+				if (MatchToken(tokenType))
+					break;
+			}
+		}
 
 		return new VariableDeclaration(name, type, assignedValue);
 	}
@@ -437,17 +456,12 @@ namespace O::AST
 		{
 			do
 			{
-				Identifier* name = ParseIdentifier(ConsumeToken());
-				if (HasError()) return nullptr;
+				std::vector<Token::Types> endTokens = { Token::Comma, Token::RightParentheses };
+				VariableDeclaration* declaration = ParseVariableDeclaration(ConsumeToken(), false /* dont consume end token */, endTokens);
+				if (HasError())
+					return nullptr;
 
-				Type* type = ParseTypeAnnotation();
-
-				Token::Types endToken = Token::Comma;
-				token = PeekToken(0);
-				if (token.m_Type == Token::RightParentheses)
-					endToken = Token::RightParentheses;
-
-				parameters.push_back(ParseVariableDeclaration(token, name, type, false /* dont consume comma */, endToken));
+				parameters.push_back(declaration);
 			} while (MatchToken(Token::Comma));
 
 			ConsumeToken(Token::RightParentheses);

@@ -1,6 +1,11 @@
 let a : int = 5;
 let b = 5;
 
-let f(x: int) : int {
+let f(x: int, y: int) : int {
 
+};
+
+class Animal
+{
+	name: string;
 };

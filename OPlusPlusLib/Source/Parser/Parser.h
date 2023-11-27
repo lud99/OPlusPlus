@@ -44,7 +44,7 @@ namespace O::AST
 		Identifier* ParseIdentifier(Token token);
 		TupleExpression* ParseTupleExpression(Token token);
 
-		VariableDeclaration* ParseVariableDeclaration(Token token, Identifier* name, Type* type, bool consumeEndToken = true, Token::Types endToken = Token::Semicolon);
+		VariableDeclaration* ParseVariableDeclaration(Token token, bool consumeEndToken = true, std::vector<Token::Types> endTokens = { Token::Semicolon });
 		FunctionParameters* ParseFunctionParameters(Token token);
 
 		EXPORT float TemporaryEvaluator(Node* node);
