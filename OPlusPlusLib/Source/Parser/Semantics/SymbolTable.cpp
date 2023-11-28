@@ -109,8 +109,7 @@ namespace O
 	ClassSymbol* SymbolTable::InsertClass(std::string name, ValueType dataType, SymbolTable* upwardSymbolTable, TypeTable* upwardTypeTable)
 	{
 		ClassSymbol* classSymbol = (ClassSymbol*)Insert(new ClassSymbol(name, dataType, upwardSymbolTable, upwardTypeTable));
-		classSymbol->m_Symbols = new SymbolTable(SymbolTableType::Local, nullptr);
-
+		
 		return classSymbol;
 	}
 
