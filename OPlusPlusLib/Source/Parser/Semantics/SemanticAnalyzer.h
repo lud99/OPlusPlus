@@ -25,6 +25,7 @@ namespace O
 
 
 		TypeTableEntry& GetTypeOfNode(AST::Node* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable);
+
 		bool Typecheck(TypeTableEntry& lhs, TypeTableEntry& rhs);
 
 		EXPORT auto& GetGlobalTypeTable() { return m_GlobalTypeTable; };
@@ -35,6 +36,8 @@ namespace O
 	private:
 		void Analyze(AST::Node* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable);
 		void AnalyzeScope(AST::Scope* scope);
+
+		void GetReturnTypes(AST::Node* node, std::vector<TypeTableEntry>& returnTypes, SymbolTable& localSymbolTable, TypeTable& localTypeTable);
 
 		void CreateTablesForScope(AST::Scope* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable);
 		

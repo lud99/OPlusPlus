@@ -16,7 +16,6 @@ namespace O::AST
 	enum class NodeType {
 		EmptyStatement,
 
-		Root,
 		Program,
 
 		BasicType,

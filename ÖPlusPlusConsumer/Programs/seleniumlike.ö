@@ -2,7 +2,25 @@ let a : int = 5;
 let b = 5;
 
 let f(x: int, y: int) : int {
+	if (1) { return true; }
 
+	while (2) {
+		return 5.0;
+	}
+
+	if (0) {
+	
+	}
+	else {
+		if (0) {
+
+		}
+		else {
+			return 7;
+		}
+	} 
+
+	return;
 };
 
 class Animal

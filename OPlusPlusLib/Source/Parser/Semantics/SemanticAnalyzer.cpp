@@ -27,6 +27,97 @@ namespace O
 		}
 	}
 
+	void SemanticAnalyzer::GetReturnTypes(AST::Node* node, std::vector<TypeTableEntry>& returnTypes, SymbolTable& localSymbolTable, TypeTable& localTypeTable)
+	{
+		if (HasError())
+			return;
+
+		switch (node->m_Type)
+		{
+		case O::AST::NodeType::EmptyStatement:
+			break;
+		case O::AST::NodeType::Program:
+		case O::AST::NodeType::BlockStatement:
+		{
+			Scope* scope = (Scope*)node;
+			for (AST::Node* line : scope->m_Lines)
+			{
+				assert(line);
+
+				GetReturnTypes(line, returnTypes, scope->m_LocalSymbolTable, scope->m_LocalTypeTable);
+
+			}
+
+			return;
+		}
+		case O::AST::NodeType::WhileStatement:
+		{
+			ConditionalStatement* statement = (ConditionalStatement*)node;
+			BlockStatement* body = statement->m_Body;
+			if (!body) return;
+
+			GetReturnTypes(body, returnTypes, body->m_LocalSymbolTable, body->m_LocalTypeTable);
+
+			return;
+		}
+		case O::AST::NodeType::ForStatement:
+		{
+			ForStatement* statement = (ForStatement*)node;
+			BlockStatement* body = statement->m_Body;
+			if (!body) return;
+
+			GetReturnTypes(body, returnTypes, body->m_LocalSymbolTable, body->m_LocalTypeTable);
+
+			return;
+		}
+		case O::AST::NodeType::IfStatement:
+		{
+			// Main body
+			IfStatement* statement = (IfStatement*)node;
+			BlockStatement* body = statement->m_Body;
+			if (!body) return;
+
+			GetReturnTypes(body, returnTypes, body->m_LocalSymbolTable, body->m_LocalTypeTable);
+
+			// Else body
+			BlockStatement* elseBody = statement->m_ElseArm;
+			if (!elseBody) return;
+			
+			GetReturnTypes(elseBody, returnTypes, elseBody->m_LocalSymbolTable, elseBody->m_LocalTypeTable);
+
+			return;
+		}
+		
+		case O::AST::NodeType::LoopStatement:
+			abort();
+			break;
+		case O::AST::NodeType::Closure:
+			break;
+		
+		case O::AST::NodeType::Return:
+		{
+			ReturnStatement* returnStatement = (ReturnStatement*)node;
+
+			// return; which implies returning void if no return values
+			if (!returnStatement->m_ReturnValue)
+			{
+				returnTypes.push_back(*localTypeTable.Lookup(PrimitiveValueTypes::Void));
+				return;
+			}
+
+			TypeTableEntry type = GetTypeOfNode(returnStatement->m_ReturnValue, localSymbolTable, localTypeTable);
+			if (HasError())
+				return;
+
+			returnTypes.push_back(type);
+			return;
+		}
+			
+		default:
+			break;
+		}
+	}
+
 	void SemanticAnalyzer::CreateTablesForScope(AST::Scope* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable)
 	{
 		if (node->m_Type == NodeType::Program)
@@ -89,7 +180,6 @@ namespace O
 
 	CallableSymbol* SemanticAnalyzer::CreateSymbolForFunctionDeclaration(AST::FunctionDefinitionStatement* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable)
 	{
-		TypeTableEntry& returnType = GetTypeOfNode(node->m_ReturnType, localSymbolTable, localTypeTable);
 		std::string functionName = node->m_Name->ToString();
 
 		// TODO: Add function overloading
@@ -116,10 +206,45 @@ namespace O
 			parameterTypes.push_back(symbol->m_DataType);
 		}
 
-		// TODO: Add class methods
+		// Analayze body to look for errors
+		Analyze(node->m_Body, localSymbolTable, localTypeTable);
+
+		// Analyze the body and look for the return statements
+		assert(node->m_Body->m_Type == NodeType::BlockStatement);
+
+		Scope* body = (Scope*)node->m_Body;
+
+		std::vector<TypeTableEntry> returnValueTypes;
+		GetReturnTypes(body, returnValueTypes, body->m_LocalSymbolTable, body->m_LocalTypeTable);
+
+		// Check if all of the types are implicitly compatible
+		// TODO: Implement some form of finding the 'lowest common denominator'
+
+		std::vector<TypeTableEntry> compatible;
+		for (int i = 0; i < returnValueTypes.size(); i++) {
+			TypeTableEntry t1 = returnValueTypes[i];
+
+			for (int j = 0; j < returnValueTypes.size(); j++) {
+				if (j == i) continue; // Skip comparing to self
+
+				TypeTableEntry t2 = returnValueTypes[j];
+
+				// Todo: order should not matter
+				if (body->m_LocalTypeTable.IsTypeImplicitSubtypeOf(t2, t1))
+				{
+					compatible.push_back(t1);
+				}
+			}
+		}
 
 		// 	uint16_t functionId = m_ConstantsPool.AddAndGetFunctionReferenceIndex(functionName);
 		uint16_t callableId = 0; // TODO: Implement properly
+
+		TypeTableEntry returnType;
+
+		if (node)
+			returnType = GetTypeOfNode(node->m_ReturnType, localSymbolTable, localTypeTable);
+
 
 		CallableSymbol callable = CallableSymbol(functionName, SymbolType::Function, returnType.id, callableId, CallableSymbolType::Normal);
 		callable.m_ParameterTypes = parameterTypes;
@@ -352,7 +477,9 @@ namespace O
 
 		case O::AST::NodeType::Program:
 		case O::AST::NodeType::BlockStatement:
-			return *localTypeTable.Lookup(PrimitiveValueTypes::Void);
+		{
+			// Case where the goal is to look for return statements
+		}
 
 		case O::AST::NodeType::BasicType:
 		{
