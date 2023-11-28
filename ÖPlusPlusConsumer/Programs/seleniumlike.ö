@@ -7,5 +7,11 @@ let f(x: int, y: int) : int {
 
 class Animal
 {
-	name: string;
+	let m_Name: string;
+	let m_Age: int;
+
+	let Animal(name: string, age: int) {
+		m_Name = name;
+		m_Age = age;
+	};
 };

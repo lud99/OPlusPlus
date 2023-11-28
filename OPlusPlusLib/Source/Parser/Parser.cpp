@@ -127,6 +127,8 @@ namespace O::AST
 		m_StatementParselets[Token::LeftCurlyBracket] = new BlockStatementParselet();
 
 		m_StatementParselets[Token::Let] = new LetStatementParselet();
+		//m_StatementParselets[Token::Identifier] = new LetStatementParselet();
+
 		//m_StatementParselets[Token::LeftParentheses] = new TypenameStatementParselet();//(StatementParselet*)new ParenthesizedTypeParselet();
 
 		m_StatementParselets[Token::While] = new ConditionalStatementParselet();

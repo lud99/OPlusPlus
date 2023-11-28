@@ -323,6 +323,8 @@ namespace O::AST
 		std::vector<FunctionDefinitionStatement*> m_MethodDeclarations;
 		std::vector<ClassDeclarationStatement*> m_NestedClassDeclarations;
 
+		//SymbolTable m_MemberSymbolTable;
+
 		virtual void Print(std::string padding) override;
 	};
 

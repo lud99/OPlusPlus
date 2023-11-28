@@ -100,12 +100,13 @@ namespace O
     {
     public:
         using Symbol::Symbol;
-        ClassSymbol(std::string name, ValueType dataType);
+        ClassSymbol(std::string name, ValueType dataType, SymbolTable* upwardSymbolTable, TypeTable* upwardTypeTable);
 
         ~ClassSymbol();
 
     public:
         SymbolTable* m_Symbols;
+        TypeTable* m_Types;
     };
 
 	class SymbolTable;
@@ -117,7 +118,7 @@ namespace O
 
 		VariableSymbol* InsertVariable(std::string name, ValueType dataType, VariableSymbolType variableType);
 		CallableSymbol* InsertCallable(CallableSymbol callable);
-		ClassSymbol* InsertClass(std::string name, ValueType dataType);
+		ClassSymbol* InsertClass(std::string name, ValueType dataType, SymbolTable* upwardSymbolTable, TypeTable* upwardTypeTable);
 
         std::vector<Symbol*> LookupAny(std::function<bool(Symbol*)> predicate);
         //std::vector<Symbol*> LookupThisTable(std::string name); // std::function<bool(Symbol*)> predicate);

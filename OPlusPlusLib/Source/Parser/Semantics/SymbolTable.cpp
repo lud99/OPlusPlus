@@ -67,17 +67,21 @@ namespace O
 	}*/
 
     
-    ClassSymbol::ClassSymbol(std::string name, ValueType dataType)
+    ClassSymbol::ClassSymbol(std::string name, ValueType dataType, SymbolTable* upwardSymbolTable, TypeTable* upwardTypeTable)
     {
         m_SymbolType = SymbolType::Class;
         
         m_Name = name;
         m_DataType = dataType;
+
+        m_Symbols = new SymbolTable(SymbolTableType::Local, upwardSymbolTable);
+        m_Types = new TypeTable(TypeTableType::Local, upwardTypeTable);
     }
 
     ClassSymbol::~ClassSymbol()
     {
         delete m_Symbols;
+        delete m_Types;
     }
 
     SymbolTable::SymbolTable()
@@ -102,9 +106,9 @@ namespace O
         return (CallableSymbol*)Insert(new CallableSymbol(callable));
 	}
 
-	ClassSymbol* SymbolTable::InsertClass(std::string name, ValueType dataType)
+	ClassSymbol* SymbolTable::InsertClass(std::string name, ValueType dataType, SymbolTable* upwardSymbolTable, TypeTable* upwardTypeTable)
 	{
-		ClassSymbol* classSymbol = (ClassSymbol*)Insert(new ClassSymbol(name, dataType));
+		ClassSymbol* classSymbol = (ClassSymbol*)Insert(new ClassSymbol(name, dataType, upwardSymbolTable, upwardTypeTable));
 		classSymbol->m_Symbols = new SymbolTable(SymbolTableType::Local, nullptr);
 
 		return classSymbol;

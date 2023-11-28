@@ -329,7 +329,27 @@ namespace O::AST
 
 	Node* ParseFunctionDefinition(Parser& parser, Token token)
 	{
-		Identifier* name = parser.ParseIdentifier(token);
+		// Be able to parse the class name type as an identifier for constructors
+		Identifier* name = nullptr;
+		if (parser.TokenIsIdentifier(token))
+		{
+			name = parser.ParseIdentifier(token);
+		}
+		else if (parser.TokenIsTypename(token))
+		{
+			Type* type = parser.ParseType(token);
+			if (parser.HasError())
+				return nullptr;
+
+			assert(type->m_Type == NodeType::BasicType);
+
+			name = new Identifier(((BasicType*)type)->m_TypeName);
+		}
+		else 
+		{
+			abort();
+		}
+
 		if (parser.HasError())
 			return nullptr;
 		

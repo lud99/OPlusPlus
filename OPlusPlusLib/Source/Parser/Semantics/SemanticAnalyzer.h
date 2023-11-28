@@ -40,7 +40,11 @@ namespace O
 		
 		VariableSymbol* CreateSymbolForVariableDeclaration(AST::VariableDeclaration* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable);
 		CallableSymbol* CreateSymbolForFunctionDeclaration(AST::FunctionDefinitionStatement* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable);
-		
+
+		VariableSymbol* CreateSymbolForClassMemberDeclaration(AST::VariableDeclaration* node, ClassSymbol& classSymbol);
+		CallableSymbol* CreateSymbolForMethodDeclaration(AST::FunctionDefinitionStatement* node, ClassSymbol& classSymbol);
+
+
 		bool DoesTypesMatch(TypeTable& localTypeTable, TypeTableEntry& expectedType, TypeTableEntry& otherType);
 
 		void MakeError(const std::string& message, CompileTimeError::Severity severity = CompileTimeError::Error);

@@ -127,7 +127,15 @@ namespace O
 		return localSymbolTable.InsertCallable(callable);
 	}
 
-	
+	VariableSymbol* SemanticAnalyzer::CreateSymbolForClassMemberDeclaration(AST::VariableDeclaration* node, ClassSymbol& classSymbol)
+	{
+		return CreateSymbolForVariableDeclaration(node, *classSymbol.m_Symbols, *classSymbol.m_Types);
+	}
+
+	CallableSymbol* SemanticAnalyzer::CreateSymbolForMethodDeclaration(AST::FunctionDefinitionStatement* node, ClassSymbol& classSymbol)
+	{
+		return CreateSymbolForFunctionDeclaration(node, *classSymbol.m_Symbols, *classSymbol.m_Types);
+	}
 
 	bool SemanticAnalyzer::DoesTypesMatch(TypeTable& localTypeTable, TypeTableEntry& expectedType, TypeTableEntry& otherType)
 	{
@@ -309,8 +317,15 @@ namespace O
 
 			TypeTableEntry& classType = *localTypeTable.Lookup(name);
 
-			localSymbolTable.InsertClass(name, classType.id);
+			auto& classSymbol = *localSymbolTable.InsertClass(name, classType.id, &localSymbolTable, &localTypeTable);
 			
+			for (auto declaration : classNode->m_MemberDeclarations) {
+				CreateSymbolForClassMemberDeclaration(declaration, classSymbol);
+			}
+			for (auto declaration : classNode->m_MethodDeclarations) {
+				CreateSymbolForMethodDeclaration(declaration, classSymbol);
+			}
+
 			break;
 		}
 		case O::AST::NodeType::IntLiteral:
