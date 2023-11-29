@@ -35,5 +35,6 @@ class Animal
 	let Animal(name: string, age: int) {
 		m_Name = name;
 		m_Age = age;
+		return this;
 	};
 };

@@ -48,7 +48,7 @@ namespace O
 		CallableSymbol* CreateSymbolForMethodDeclaration(AST::FunctionDefinitionStatement* node, ClassSymbol& classSymbol);
 
 		std::vector<ValueType> CreateSymbolsForCallableDefinition(AST::FunctionDefinitionStatement* node);
-		std::optional<TypeTableEntry> AnalyzeCallableDefinition(AST::FunctionDefinitionStatement* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable);
+		std::optional<TypeTableEntry> AnalyzeCallableDefinition(AST::FunctionDefinitionStatement* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable, std::optional<TypeTableEntry> returnType);
 
 		bool DoesTypesMatchThrowing(TypeTable& localTypeTable, TypeTableEntry& otherType, TypeTableEntry& expectedType);
 		bool DoesTypesMatch(TypeTable& localTypeTable, TypeTableEntry& otherType, TypeTableEntry& expectedType);
@@ -58,6 +58,7 @@ namespace O
 		void MakeErrorAlreadyDefined(const std::string symbolName, SymbolType symbolType);
 		void MakeErrorNotDefined(const std::string symbolName);
 		void MakeErrorInvalidCallableName(const std::string symbolName, SymbolType symbol);
+		void MakeErrorInvalidDeclaredType(const std::string symbolName, const std::string declaredType, const std::string expetedType);
 
 	private:
 		AST::Node* m_Program;

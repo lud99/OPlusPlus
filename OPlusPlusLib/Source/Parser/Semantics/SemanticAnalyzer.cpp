@@ -219,7 +219,11 @@ namespace O
 
 		auto parameterTypes = CreateSymbolsForCallableDefinition(node);
 
-		auto returnTypeOpt = AnalyzeCallableDefinition(node, node->m_ParametersSymbolTable, node->m_ParametersTypeTable);
+		std::optional<TypeTableEntry> declaredReturnType = {};
+		if (node->m_ReturnType)
+			declaredReturnType = GetTypeOfNode(node, localSymbolTable, localTypeTable);
+
+		auto returnTypeOpt = AnalyzeCallableDefinition(node, node->m_ParametersSymbolTable, node->m_ParametersTypeTable, declaredReturnType);
 		if (HasError())
 			return nullptr;
 		assert(returnTypeOpt.has_value());
@@ -244,11 +248,11 @@ namespace O
 		SymbolTable& classSymbolTable = *classSymbol.m_Symbols;
 		TypeTable& classTypeTable = *classSymbol.m_Types;
 
-		std::string functionName = node->m_Name->ToString();
+		std::string methodName = node->m_Name->ToString();
 		CallableSymbolType methodType = CallableSymbolType::Normal;
 
 		// TODO: Add function overloading
-		auto symbols = classSymbolTable.Lookup(functionName);
+		auto symbols = classSymbolTable.Lookup(methodName);
 		if (!symbols.empty())
 		{
 			// Special case for constructors as the class symbol has already been declared
@@ -256,9 +260,9 @@ namespace O
 				return nullptr;
 
 			ClassSymbol* symbol = (ClassSymbol*)symbols[0];
-			if (symbol->m_Name != functionName)
+			if (symbol->m_Name != methodName)
 			{
-				MakeErrorInvalidCallableName(functionName, SymbolType::Class);
+				MakeErrorInvalidCallableName(methodName, SymbolType::Class);
 				return nullptr;
 			}
 
@@ -275,24 +279,52 @@ namespace O
 
 		// Because this is a method, the first argument should be 'this'
 		VariableSymbol* thisSymbol = (VariableSymbol*)classSymbolTable.Lookup("this")[0];
+		assert(thisSymbol);
+
 		parameterTypes.insert(parameterTypes.begin(), thisSymbol->m_DataType);
 
-		auto returnTypeOpt = AnalyzeCallableDefinition(node, node->m_ParametersSymbolTable, classTypeTable);
+		std::optional<TypeTableEntry> declaredReturnTypeOpt;
+		if (node->m_ReturnType)
+			declaredReturnTypeOpt = GetTypeOfNode(node->m_ReturnType, classSymbolTable, classTypeTable);
+
+		if (methodType == CallableSymbolType::Constructor)
+		{
+			TypeTableEntry classType = *classTypeTable.Lookup(thisSymbol->m_DataType);
+
+			// If a return type is specified for a constructor, it has to be the type of the class
+			if (declaredReturnTypeOpt.has_value())
+			{
+				if (declaredReturnTypeOpt.value().id != classType.id)
+				{
+					MakeErrorInvalidDeclaredType(methodName, declaredReturnTypeOpt.value().name, classType.name);
+					return nullptr;
+				}
+			} 
+			else
+			{
+				// Otherwise infer the type should be same as the class if not specified
+				declaredReturnTypeOpt = classType;
+			}
+		}
+
+		auto returnTypeOpt = AnalyzeCallableDefinition(node, node->m_ParametersSymbolTable, classTypeTable, declaredReturnTypeOpt);
 		if (HasError())
 			return nullptr;
 		assert(returnTypeOpt.has_value());
 		TypeTableEntry returnType = returnTypeOpt.value();
 
+		// If the function 
+
 		// 	uint16_t functionId = m_ConstantsPool.AddAndGetFunctionReferenceIndex(functionName);
 		uint16_t callableId = 0; // TODO: Implement properly
 
-		CallableSymbol callable = CallableSymbol(functionName, SymbolType::Method, returnType.id, callableId, methodType);
+		CallableSymbol callable = CallableSymbol(methodName, SymbolType::Method, returnType.id, callableId, methodType);
 		callable.m_ParameterTypes = parameterTypes;
 
 		return classSymbolTable.InsertCallable(callable);
 	}
 
-	std::optional<TypeTableEntry> SemanticAnalyzer::AnalyzeCallableDefinition(AST::FunctionDefinitionStatement* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable)
+	std::optional<TypeTableEntry> SemanticAnalyzer::AnalyzeCallableDefinition(AST::FunctionDefinitionStatement* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable, std::optional<TypeTableEntry> declaredReturnType)
 	{
 		std::string functionName = node->m_Name->ToString();
 
@@ -316,22 +348,23 @@ namespace O
 		// (or if there is one one specified)
 		// This is to find a sort of 'greates common denominator' between them that accomodates all return values
 
-		TypeTableEntry returnType;
+		//TypeTableEntry returnType;
 
 		auto sortedReturnTypes = SortTypeEntries(localTypeTable, returnValueTypes);
-	
-
-		if (node->m_ReturnType)
-		{
-			returnType = GetTypeOfNode(node->m_ReturnType, localSymbolTable, localTypeTable);
-		}
-		else
+		
+		// No specified returnvalue, so try to infer it
+		TypeTableEntry returnType;
+		if (!declaredReturnType.has_value())
 		{
 			// If no return statements and no annoted type, so the return type has to be void
 			if (sortedReturnTypes.empty())
 				returnType = *localTypeTable.Lookup(PrimitiveValueTypes::Void);
 			else
 				returnType = sortedReturnTypes[0];
+		}
+		else 
+		{
+			returnType = declaredReturnType.value();
 		}
 
 		std::vector<TypeTableEntry> compatible;
@@ -746,6 +779,12 @@ namespace O
 	void SemanticAnalyzer::MakeErrorInvalidCallableName(const std::string symbolName, SymbolType symbolType)
 	{
 		std::string message = "Invalid name for callable " + symbolName + " (" + SymbolTypeToString(symbolType) + ")";
+		MakeError(message);
+	}
+
+	void SemanticAnalyzer::MakeErrorInvalidDeclaredType(const std::string symbolName, const std::string declaredType, const std::string expectedType)
+	{
+		std::string message = "Invalid type " + declaredType + " declared for callable " + symbolName + ", expected type " + expectedType;
 		MakeError(message);
 	}
 
