@@ -144,6 +144,7 @@ namespace O
         bool Has(Symbol* symbol);
 
 		auto& GetSymbols() { return m_Symbols; }
+        SymbolTable* GetNextTable() { return m_UpwardSymbolTable; }
 
         EXPORT void Print(TypeTable& localTypeTable, std::string padding);
 

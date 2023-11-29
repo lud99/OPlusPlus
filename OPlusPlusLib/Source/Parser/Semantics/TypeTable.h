@@ -69,12 +69,14 @@ namespace O
 
 		std::vector<TypeRelation> supertypes;
 		std::vector<TypeRelation> subtypes;
+		// TODO: Add types at the same level
 
 		// A private type is a type that cannot be instantiated like any type
 		// TODO: Will be removed once types in the type table are restricted to scopes, 
 		// like the symbol table.
 		bool isPrivate = false;
 
+	public:
 		TypeTableEntry& Resolve();
 	};
 
@@ -120,6 +122,9 @@ namespace O
 		std::optional<TypeRelation::ConversionType> GetFullTypeRelationTo(TypeTableEntry& type, TypeTableEntry& expectedType);
 
 		bool IsTypeImplicitSubtypeOf(TypeTableEntry& subtype, TypeTableEntry& expectedSupertype);
+
+		// If the type relations is seen like a tree, then this function returns the height of the tree from this node
+		uint16_t GetHeightOfTypeRelation(TypeTableEntry& type);
 
 		EXPORT const auto& GetTypes() { return m_Types; }
 		EXPORT const auto& GetNextTable() { return m_UpwardTypeTable; }

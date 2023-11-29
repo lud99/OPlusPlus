@@ -243,13 +243,13 @@ namespace O
 			if (subtype->id == expectedSubtype.id)
 				return typeRelation.conversionType;
 
-			// Continue searching upwards
-			auto upwardTypeRelation = GetFullSupertypeRelationTo(*subtype, expectedSubtype);
-			if (upwardTypeRelation.has_value())
+			// Continue searching downwards
+			auto downwardTypeRelation = GetFullSubtypeRelationTo(*subtype, expectedSubtype);
+			if (downwardTypeRelation.has_value())
 			{
 				// If this relation and the above are both implicit, or explicit then dont modify it
-				if (typeRelation.conversionType == upwardTypeRelation)
-					return upwardTypeRelation.value();
+				if (typeRelation.conversionType == downwardTypeRelation)
+					return downwardTypeRelation.value();
 
 				// Otherwise it is explicit somewhere in the chain, so the total relation is explicit
 				return TypeRelation::Explicit;
@@ -292,6 +292,22 @@ namespace O
 		}
 
 		return false;
+	}
+
+	uint16_t TypeTable::GetHeightOfTypeRelation(TypeTableEntry& type)
+	{
+		uint16_t highestRelation = 0;
+		for (TypeRelation& relation : type.subtypes)
+		{
+			auto typeEntry = Lookup(relation.relatedType);
+			assert(typeEntry);
+
+			uint16_t height = GetHeightOfTypeRelation(*typeEntry) + 1;
+			if (height >= highestRelation)
+				highestRelation = height;
+		}
+
+		return highestRelation;
 	}
 
 	void TypeTable::Print(std::string padding)

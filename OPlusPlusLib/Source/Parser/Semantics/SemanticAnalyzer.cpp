@@ -154,7 +154,7 @@ namespace O
 				variableType = assignedValueType;
 
 			// Makes errors if types dont match.
-			if (!DoesTypesMatch(localTypeTable, variableType, assignedValueType))
+			if (!DoesTypesMatchThrowing(localTypeTable, assignedValueType, variableType))
 				return nullptr;
 		}
 		else
@@ -178,11 +178,33 @@ namespace O
 		return localSymbolTable.InsertVariable(variableName, variableType.id, VariableSymbolType::Local);
 	}
 
-	CallableSymbol* SemanticAnalyzer::CreateSymbolForFunctionDeclaration(AST::FunctionDefinitionStatement* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable)
+	std::vector<TypeTableEntry> SortTypeEntries(TypeTable& localTypeTable, std::vector<TypeTableEntry> types)
+	{
+		std::sort(types.begin(), types.end(), [&](TypeTableEntry& t1, TypeTableEntry& t2) {
+			return localTypeTable.GetHeightOfTypeRelation(t1) > localTypeTable.GetHeightOfTypeRelation(t2);
+		});
+
+		return types;
+	}
+
+	std::vector<ValueType> SemanticAnalyzer::CreateSymbolsForCallableDefinition(AST::FunctionDefinitionStatement* node)
+	{
+		std::vector<ValueType> parameterTypes;
+		for (VariableDeclaration* parameter : node->m_Parameters->m_Parameters)
+		{
+			auto symbol = CreateSymbolForVariableDeclaration(parameter, node->m_ParametersSymbolTable, node->m_ParametersTypeTable);
+			if (HasError())
+				return {};
+
+			parameterTypes.push_back(symbol->m_DataType);
+		}
+		return parameterTypes;
+	}
+
+	CallableSymbol* SemanticAnalyzer::CreateSymbolForFunctionDeclaration(AST::FunctionDefinitionStatement* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable, bool isMethod)
 	{
 		std::string functionName = node->m_Name->ToString();
 
-		// TODO: Add function overloading
 		auto symbols = localSymbolTable.Lookup(functionName);
 		if (!symbols.empty())
 		{
@@ -195,56 +217,16 @@ namespace O
 		node->m_ParametersSymbolTable = SymbolTable(SymbolTableType::Local, &localSymbolTable);
 		node->m_ParametersTypeTable = TypeTable(TypeTableType::Local, &localTypeTable);
 
-		// Create symbols for parameters
-		std::vector<ValueType> parameterTypes;
-		for (VariableDeclaration* parameter : node->m_Parameters->m_Parameters)
-		{
-			auto symbol = CreateSymbolForVariableDeclaration(parameter, node->m_ParametersSymbolTable, node->m_ParametersTypeTable);
-			if (HasError())
-				return nullptr; 
+		auto parameterTypes = CreateSymbolsForCallableDefinition(node);
 
-			parameterTypes.push_back(symbol->m_DataType);
-		}
-
-		// Analayze body to look for errors
-		Analyze(node->m_Body, localSymbolTable, localTypeTable);
-
-		// Analyze the body and look for the return statements
-		assert(node->m_Body->m_Type == NodeType::BlockStatement);
-
-		Scope* body = (Scope*)node->m_Body;
-
-		std::vector<TypeTableEntry> returnValueTypes;
-		GetReturnTypes(body, returnValueTypes, body->m_LocalSymbolTable, body->m_LocalTypeTable);
-
-		// Check if all of the types are implicitly compatible
-		// TODO: Implement some form of finding the 'lowest common denominator'
-
-		std::vector<TypeTableEntry> compatible;
-		for (int i = 0; i < returnValueTypes.size(); i++) {
-			TypeTableEntry t1 = returnValueTypes[i];
-
-			for (int j = 0; j < returnValueTypes.size(); j++) {
-				if (j == i) continue; // Skip comparing to self
-
-				TypeTableEntry t2 = returnValueTypes[j];
-
-				// Todo: order should not matter
-				if (body->m_LocalTypeTable.IsTypeImplicitSubtypeOf(t2, t1))
-				{
-					compatible.push_back(t1);
-				}
-			}
-		}
+		auto returnTypeOpt = AnalyzeCallableDefinition(node, node->m_ParametersSymbolTable, node->m_ParametersTypeTable);
+		if (HasError())
+			return nullptr;
+		assert(returnTypeOpt.has_value());
+		TypeTableEntry returnType = returnTypeOpt.value();
 
 		// 	uint16_t functionId = m_ConstantsPool.AddAndGetFunctionReferenceIndex(functionName);
 		uint16_t callableId = 0; // TODO: Implement properly
-
-		TypeTableEntry returnType;
-
-		if (node)
-			returnType = GetTypeOfNode(node->m_ReturnType, localSymbolTable, localTypeTable);
-
 
 		CallableSymbol callable = CallableSymbol(functionName, SymbolType::Function, returnType.id, callableId, CallableSymbolType::Normal);
 		callable.m_ParameterTypes = parameterTypes;
@@ -259,10 +241,118 @@ namespace O
 
 	CallableSymbol* SemanticAnalyzer::CreateSymbolForMethodDeclaration(AST::FunctionDefinitionStatement* node, ClassSymbol& classSymbol)
 	{
-		return CreateSymbolForFunctionDeclaration(node, *classSymbol.m_Symbols, *classSymbol.m_Types);
+		SymbolTable& classSymbolTable = *classSymbol.m_Symbols;
+		TypeTable& classTypeTable = *classSymbol.m_Types;
+
+		std::string functionName = node->m_Name->ToString();
+		CallableSymbolType methodType = CallableSymbolType::Normal;
+
+		// TODO: Add function overloading
+		auto symbols = classSymbolTable.Lookup(functionName);
+		if (!symbols.empty())
+		{
+			// Special case for constructors as the class symbol has already been declared
+			if (symbols[0]->m_SymbolType != SymbolType::Class)
+				return nullptr;
+
+			ClassSymbol* symbol = (ClassSymbol*)symbols[0];
+			if (symbol->m_Name != functionName)
+			{
+				MakeErrorInvalidCallableName(functionName, SymbolType::Class);
+				return nullptr;
+			}
+
+			// Otherwise its a constructor
+			methodType = CallableSymbolType::Constructor;
+		}
+
+		// Initialize symbol table for the function parameters to live in
+		// They are not created in the body symbol table, as expressive functions has no scope node to attach the table to
+		node->m_ParametersSymbolTable = SymbolTable(SymbolTableType::Local, &classSymbolTable);
+		node->m_ParametersTypeTable = TypeTable(TypeTableType::Local, &classTypeTable);
+
+		auto parameterTypes = CreateSymbolsForCallableDefinition(node);
+
+		// Because this is a method, the first argument should be 'this'
+		VariableSymbol* thisSymbol = (VariableSymbol*)classSymbolTable.Lookup("this")[0];
+		parameterTypes.insert(parameterTypes.begin(), thisSymbol->m_DataType);
+
+		auto returnTypeOpt = AnalyzeCallableDefinition(node, node->m_ParametersSymbolTable, classTypeTable);
+		if (HasError())
+			return nullptr;
+		assert(returnTypeOpt.has_value());
+		TypeTableEntry returnType = returnTypeOpt.value();
+
+		// 	uint16_t functionId = m_ConstantsPool.AddAndGetFunctionReferenceIndex(functionName);
+		uint16_t callableId = 0; // TODO: Implement properly
+
+		CallableSymbol callable = CallableSymbol(functionName, SymbolType::Method, returnType.id, callableId, methodType);
+		callable.m_ParameterTypes = parameterTypes;
+
+		return classSymbolTable.InsertCallable(callable);
 	}
 
-	bool SemanticAnalyzer::DoesTypesMatch(TypeTable& localTypeTable, TypeTableEntry& expectedType, TypeTableEntry& otherType)
+	std::optional<TypeTableEntry> SemanticAnalyzer::AnalyzeCallableDefinition(AST::FunctionDefinitionStatement* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable)
+	{
+		std::string functionName = node->m_Name->ToString();
+
+		// Analayze body to look for errors
+		Analyze(node->m_Body, localSymbolTable, localTypeTable);
+
+		// Analyze the body and look for the return statements
+		assert(node->m_Body->m_Type == NodeType::BlockStatement);
+
+		Scope* body = (Scope*)node->m_Body;
+
+		std::vector<TypeTableEntry> returnValueTypes;
+		GetReturnTypes(body, returnValueTypes, localSymbolTable, localTypeTable);
+
+		assert(localTypeTable.GetHeightOfTypeRelation(*localTypeTable.Lookup(PrimitiveValueTypes::Double)) == 2);
+		assert(localTypeTable.GetHeightOfTypeRelation(*localTypeTable.Lookup(PrimitiveValueTypes::Bool)) == 0);
+		assert(localTypeTable.GetHeightOfTypeRelation(*localTypeTable.Lookup(PrimitiveValueTypes::Integer)) == 1);
+		assert(localTypeTable.GetHeightOfTypeRelation(*localTypeTable.Lookup(PrimitiveValueTypes::Void)) == 0);
+
+		// Check if all of the types are implicitly compatible with the 'most general' type of the return types
+		// (or if there is one one specified)
+		// This is to find a sort of 'greates common denominator' between them that accomodates all return values
+
+		TypeTableEntry returnType;
+
+		auto sortedReturnTypes = SortTypeEntries(localTypeTable, returnValueTypes);
+	
+
+		if (node->m_ReturnType)
+		{
+			returnType = GetTypeOfNode(node->m_ReturnType, localSymbolTable, localTypeTable);
+		}
+		else
+		{
+			// If no return statements and no annoted type, so the return type has to be void
+			if (sortedReturnTypes.empty())
+				returnType = *localTypeTable.Lookup(PrimitiveValueTypes::Void);
+			else
+				returnType = sortedReturnTypes[0];
+		}
+
+		std::vector<TypeTableEntry> compatible;
+		for (auto& type : sortedReturnTypes) {
+			if (type.id == returnType.id)
+				continue;
+
+			if (DoesTypesMatchThrowing(localTypeTable, type, returnType))
+				compatible.push_back(type);
+		}
+
+		if (HasError())
+		{
+			MakeError("Could not compile function '" + functionName + "'");
+			return {};
+		}
+
+		return returnType;
+	}
+
+	bool SemanticAnalyzer::DoesTypesMatchThrowing(TypeTable& localTypeTable, TypeTableEntry& otherType, TypeTableEntry& expectedType)
 	{
 		// 1. Case when types are the same
 		if (expectedType.id == otherType.id)
@@ -292,6 +382,24 @@ namespace O
 		
 		abort();
 		return false;
+	}
+
+	bool SemanticAnalyzer::DoesTypesMatch(TypeTable& localTypeTable, TypeTableEntry& otherType, TypeTableEntry& expectedType)
+	{
+		// 1. Case when types are the same
+		if (expectedType.id == otherType.id)
+			return true;
+
+
+		// 2. typedefs
+
+		// 3. type relations
+		auto typeRelation = localTypeTable.GetFullTypeRelationTo(otherType, expectedType);
+		if (!typeRelation.has_value())
+			return false;
+
+		// Is valid if the otherType can be implicit converted to the supertype
+		return typeRelation.value() == TypeRelation::Implicit;
 	}
 
 	// Create symbol tables for each scope
@@ -440,9 +548,13 @@ namespace O
 			if (localTypeTable.HasCompleteType(name))
 				return MakeErrorAlreadyDefined(name, SymbolType::Class);
 
-			TypeTableEntry& classType = *localTypeTable.Lookup(name);
+			TypeTableEntry classType = localTypeTable.Insert(name, TypeEntryType::Class);
 
 			auto& classSymbol = *localSymbolTable.InsertClass(name, classType.id, &localSymbolTable, &localTypeTable);
+			
+			// Add the 'this' symbol 
+			// TODO: wont work for nested classes (Solution is to remove it maybe in some good way)
+			classSymbol.m_Symbols->InsertVariable("this", classType.id, VariableSymbolType::Local);
 			
 			for (auto declaration : classNode->m_MemberDeclarations) {
 				CreateSymbolForClassMemberDeclaration(declaration, classSymbol);
@@ -628,6 +740,12 @@ namespace O
 	void SemanticAnalyzer::MakeErrorNotDefined(const std::string symbolName)
 	{
 		std::string message = "Symbol " + symbolName + " has not been defined";
+		MakeError(message);
+	}
+
+	void SemanticAnalyzer::MakeErrorInvalidCallableName(const std::string symbolName, SymbolType symbolType)
+	{
+		std::string message = "Invalid name for callable " + symbolName + " (" + SymbolTypeToString(symbolType) + ")";
 		MakeError(message);
 	}
 

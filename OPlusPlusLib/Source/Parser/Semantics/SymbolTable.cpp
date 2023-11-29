@@ -283,8 +283,7 @@ namespace O
                 TypeTableEntry* dataType = localTypeTable.Lookup(symbol->m_DataType);
                 assert(dataType);
 
-                std::cout << padding << dataType->name << " " <<
-                    symbol->m_Name;
+                std::cout << padding << symbol->m_Name;
 
                 if (symbol->m_SymbolType == SymbolType::Function || symbol->m_SymbolType == SymbolType::Method)
                 {
@@ -303,6 +302,8 @@ namespace O
                     }
                     std::cout << ")";
                 }
+
+                std::cout << ": " << dataType->name;
 
                 std::cout << ", " << SymbolTypeToString(symbol->m_SymbolType) << "\n";
             }

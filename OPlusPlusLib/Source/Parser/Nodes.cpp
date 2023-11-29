@@ -325,6 +325,19 @@ namespace O::AST {
 		std::string newPadding = padding + "        ";
 		std::cout << padding << TypeToString() << ": \n";
 
+		if (!m_MethodDeclarations.empty())
+		{
+			SymbolTable* classSymbols = m_MethodDeclarations[0]->m_ParametersSymbolTable.GetNextTable();
+			TypeTable* classTypes = m_MethodDeclarations[0]->m_ParametersTypeTable.GetNextTable();
+
+			std::cout << padding + "    (class symbols): \n";
+			classSymbols->Print(*classTypes, newPadding);
+
+			std::cout << "\n" << padding + "    (class types): \n";
+			classTypes->Print(newPadding);
+			std::cout << "\n";
+		}
+
 		m_Name->Print(padding + "    ");
 
 		std::cout << padding + "    (member variables): \n";
@@ -422,7 +435,7 @@ namespace O::AST {
 	{
 		for (auto& parameter : m_Parameters)
 		{
-			parameter->Print(padding + "    ");
+			parameter->Print(padding);
 		}
 	}
 	ArrayType::ArrayType(Type* underlyingType)

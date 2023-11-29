@@ -1,7 +1,7 @@
 let a : int = 5;
 let b = 5;
 
-let f(x: int, y: int) : int {
+/*let f(x: int, y : int) {
 	if (1) { return true; }
 
 	while (2) {
@@ -21,6 +21,10 @@ let f(x: int, y: int) : int {
 	} 
 
 	return;
+};*/
+
+let f(x: int, y : int) {
+	return 5;
 };
 
 class Animal

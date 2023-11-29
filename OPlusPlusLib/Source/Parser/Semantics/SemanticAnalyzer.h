@@ -42,18 +42,22 @@ namespace O
 		void CreateTablesForScope(AST::Scope* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable);
 		
 		VariableSymbol* CreateSymbolForVariableDeclaration(AST::VariableDeclaration* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable);
-		CallableSymbol* CreateSymbolForFunctionDeclaration(AST::FunctionDefinitionStatement* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable);
+		CallableSymbol* CreateSymbolForFunctionDeclaration(AST::FunctionDefinitionStatement* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable, bool isMethod = false);
 
 		VariableSymbol* CreateSymbolForClassMemberDeclaration(AST::VariableDeclaration* node, ClassSymbol& classSymbol);
 		CallableSymbol* CreateSymbolForMethodDeclaration(AST::FunctionDefinitionStatement* node, ClassSymbol& classSymbol);
 
+		std::vector<ValueType> CreateSymbolsForCallableDefinition(AST::FunctionDefinitionStatement* node);
+		std::optional<TypeTableEntry> AnalyzeCallableDefinition(AST::FunctionDefinitionStatement* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable);
 
-		bool DoesTypesMatch(TypeTable& localTypeTable, TypeTableEntry& expectedType, TypeTableEntry& otherType);
+		bool DoesTypesMatchThrowing(TypeTable& localTypeTable, TypeTableEntry& otherType, TypeTableEntry& expectedType);
+		bool DoesTypesMatch(TypeTable& localTypeTable, TypeTableEntry& otherType, TypeTableEntry& expectedType);
 
 		void MakeError(const std::string& message, CompileTimeError::Severity severity = CompileTimeError::Error);
 
 		void MakeErrorAlreadyDefined(const std::string symbolName, SymbolType symbolType);
 		void MakeErrorNotDefined(const std::string symbolName);
+		void MakeErrorInvalidCallableName(const std::string symbolName, SymbolType symbol);
 
 	private:
 		AST::Node* m_Program;
