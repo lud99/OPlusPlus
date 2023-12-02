@@ -1,6 +1,7 @@
 #include "Nodes.h"
 
-namespace O::AST {
+namespace O::AST
+{
 	std::string Node::TypeToString()
 	{
 		return std::string(magic_enum::enum_name(m_Type));
@@ -9,17 +10,20 @@ namespace O::AST {
 	{
 		std::cout << padding << TypeToString() << (ToString() != "" ? ": " : "") << ToString() << "\n";
 	}
+};
 
+namespace O::AST::Nodes 
+{
 	Identifier::Identifier(const std::string& name)
 	{
 		m_Name = name;
-		m_Type = NodeType::Identifier;
+		m_Type = NodeKind::Identifier;
 	}
 
 	BasicType::BasicType(const std::string& typeName)
 	{
 		m_TypeName = typeName;
-		m_Type = NodeType::BasicType;
+		m_Type = NodeKind::BasicType;
 	}
 
 	std::string BasicType::ToString()
@@ -40,7 +44,7 @@ namespace O::AST {
 
 	VariableDeclaration::VariableDeclaration(Identifier* variableName, Type* variableType, Node* assignedValue)
 	{
-		m_Type = NodeType::VariableDeclaration;
+		m_Type = NodeKind::VariableDeclaration;
 
 		m_VariableName = variableName;
 		m_VariableType = variableType;
@@ -65,7 +69,7 @@ namespace O::AST {
 
 	BinaryExpression::BinaryExpression(Node* left, Operators::Operator op, Node* right)
 	{
-		m_Type = NodeType::BinaryExpression;
+		m_Type = NodeKind::BinaryExpression;
 		m_Operator = op;
 
 		m_Lhs = left;
@@ -86,7 +90,7 @@ namespace O::AST {
 
 	UnaryExpression::UnaryExpression(Node* operand, Operators::Operator op)
 	{
-		m_Type = NodeType::UnaryExpression;
+		m_Type = NodeKind::UnaryExpression;
 		m_Operator = op;
 		m_Operand = operand;
 	}
@@ -104,7 +108,7 @@ namespace O::AST {
 
 	CallExpression::CallExpression(Node* callee, TupleExpression* arguments)
 	{
-		m_Type = NodeType::CallExpression;
+		m_Type = NodeKind::CallExpression;
 		m_Callee = callee;
 		m_Arguments = arguments;
 	}
@@ -120,37 +124,37 @@ namespace O::AST {
 	IntLiteral::IntLiteral(int value)
 	{
 		m_Value = value;
-		m_Type = NodeType::IntLiteral;
+		m_Type = NodeKind::IntLiteral;
 	}
 
 	FloatLiteral::FloatLiteral(float value)
 	{
 		m_Value = value;
-		m_Type = NodeType::FloatLiteral;
+		m_Type = NodeKind::FloatLiteral;
 	}
 
 	DoubleLiteral::DoubleLiteral(double value)
 	{
 		m_Value = value;
-		m_Type = NodeType::DoubleLiteral;
+		m_Type = NodeKind::DoubleLiteral;
 	}
 	BoolLiteral::BoolLiteral(bool value)
 	{
 		m_Value = value;
-		m_Type = NodeType::BoolLiteral;
+		m_Type = NodeKind::BoolLiteral;
 	}
 
 	StringLiteral::StringLiteral(std::string value)
 	{
 		m_Value = value;
-		m_Type = NodeType::StringLiteral;
+		m_Type = NodeKind::StringLiteral;
 	}
 
 	WhileStatement::WhileStatement(Node* condition, BlockStatement* body)
 	{
 		m_Condition = condition;
 		m_Body = body;
-		m_Type = NodeType::WhileStatement;
+		m_Type = NodeKind::WhileStatement;
 	}
 	IfStatement::IfStatement(Node* condition, BlockStatement* body, BlockStatement* elseArm)
 	{
@@ -158,7 +162,7 @@ namespace O::AST {
 
 		m_Body = body;
 		m_ElseArm = elseArm;
-		m_Type = NodeType::IfStatement;
+		m_Type = NodeKind::IfStatement;
 	}
 	void IfStatement::Print(std::string padding)
 	{
@@ -180,7 +184,7 @@ namespace O::AST {
 
 	ForStatement::ForStatement(Node* initialization, Node* condition, Node* advancement, BlockStatement* body)
 	{
-		m_Type = NodeType::ForStatement;
+		m_Type = NodeKind::ForStatement;
 
 		m_Initialization = initialization;
 		m_Condition = condition;
@@ -221,11 +225,11 @@ namespace O::AST {
 
 		std::string newPadding = padding + "        ";
 
-		std::cout << padding << "    " << (m_Type == NodeType::Program ? "Global type table" : "Local type table") << ": \n";
+		std::cout << padding << "    " << (m_Type == NodeKind::Program ? "Global type table" : "Local type table") << ": \n";
 		m_LocalTypeTable.Print(newPadding);
 		std::cout << "\n";
 
-		std::cout << padding << "    " << (m_Type == NodeType::Program ? "Global symbol table" : "Local symbol table") << ": \n";
+		std::cout << padding << "    " << (m_Type == NodeKind::Program ? "Global symbol table" : "Local symbol table") << ": \n";
 		m_LocalSymbolTable.Print(m_LocalTypeTable, newPadding);
 		std::cout << "\n";
 
@@ -236,7 +240,7 @@ namespace O::AST {
 
 	ReturnStatement::ReturnStatement(Node* returnValue)
 	{
-		m_Type = NodeType::Return;
+		m_Type = NodeKind::Return;
 		m_ReturnValue = returnValue;
 	}
 
@@ -249,7 +253,7 @@ namespace O::AST {
 
 	FunctionDefinitionStatement::FunctionDefinitionStatement(Type* returnType, Identifier* name, FunctionParameters* parameters, Node* body)
 	{
-		m_Type = NodeType::FunctionDefinition;
+		m_Type = NodeKind::FunctionDefinition;
 		m_ReturnType = returnType;
 		m_Name = name;
 		m_Parameters = parameters;
@@ -281,7 +285,7 @@ namespace O::AST {
 
 	ClosureExpression::ClosureExpression(BlockStatement* body)
 	{
-		m_Type = NodeType::Closure;
+		m_Type = NodeKind::Closure;
 		m_Body = body;
 	}
 
@@ -293,7 +297,7 @@ namespace O::AST {
 
 	LoopStatement::LoopStatement(BlockStatement* body)
 	{
-		m_Type = NodeType::LoopStatement;
+		m_Type = NodeKind::LoopStatement;
 		m_Body = body;
 	}
 
@@ -304,7 +308,7 @@ namespace O::AST {
 	}
 	BreakStatement::BreakStatement(Node* breakValue)
 	{
-		m_Type = NodeType::Break;
+		m_Type = NodeKind::Break;
 		m_BreakValue = breakValue;
 	}
 	void BreakStatement::Print(std::string padding)
@@ -316,7 +320,7 @@ namespace O::AST {
 
 	ClassDeclarationStatement::ClassDeclarationStatement(Identifier* name)
 	{
-		m_Type = NodeType::ClassDeclaration;
+		m_Type = NodeKind::ClassDeclaration;
 		m_Name = name;
 	}
 
@@ -325,18 +329,12 @@ namespace O::AST {
 		std::string newPadding = padding + "        ";
 		std::cout << padding << TypeToString() << ": \n";
 
-		if (!m_MethodDeclarations.empty())
-		{
-			SymbolTable* classSymbols = m_MethodDeclarations[0]->m_ParametersSymbolTable.GetNextTable();
-			TypeTable* classTypes = m_MethodDeclarations[0]->m_ParametersTypeTable.GetNextTable();
+		std::cout << padding + "    (class symbols): \n";
+		m_ClassSymbol->m_Symbols->Print(*m_ClassSymbol->m_Types, newPadding);
 
-			std::cout << padding + "    (class symbols): \n";
-			classSymbols->Print(*classTypes, newPadding);
-
-			std::cout << "\n" << padding + "    (class types): \n";
-			classTypes->Print(newPadding);
-			std::cout << "\n";
-		}
+		std::cout << "\n" << padding + "    (class types): \n";
+		m_ClassSymbol->m_Types->Print(newPadding);
+		std::cout << "\n";
 
 		m_Name->Print(padding + "    ");
 
@@ -353,7 +351,7 @@ namespace O::AST {
 
 	TupleExpression::TupleExpression(std::vector<Node*> elements)
 	{
-		m_Type = NodeType::TupleExpression;
+		m_Type = NodeKind::TupleExpression;
 		m_Elements = elements;
 	}
 
@@ -367,7 +365,7 @@ namespace O::AST {
 
 	LambdaExpression::LambdaExpression(Type* returnType, TupleExpression* parameters, Node* body)
 	{
-		m_Type = NodeType::LambdaExpression;
+		m_Type = NodeKind::LambdaExpression;
 		m_ReturnType = returnType;
 		m_Parameters = parameters;
 		m_Body = body;
@@ -390,7 +388,7 @@ namespace O::AST {
 
 	FunctionType::FunctionType(std::vector<Type*> parameters, Type* returnType)
 	{
-		m_Type = NodeType::FunctionType;
+		m_Type = NodeKind::FunctionType;
 		m_Parameters = parameters;
 		m_ReturnType = returnType;
 	}
@@ -412,7 +410,7 @@ namespace O::AST {
 
 	TupleType::TupleType(std::vector<Type*> elements)
 	{
-		m_Type = NodeType::TupleType;
+		m_Type = NodeKind::TupleType;
 		m_Elements = elements;
 	}
 
@@ -428,7 +426,7 @@ namespace O::AST {
 	}
 	FunctionParameters::FunctionParameters(std::vector<VariableDeclaration*> parameters)
 	{
-		m_Type = NodeType::FunctionParameters;
+		m_Type = NodeKind::FunctionParameters;
 		m_Parameters = parameters;
 	}
 	void FunctionParameters::Print(std::string padding)
@@ -440,7 +438,7 @@ namespace O::AST {
 	}
 	ArrayType::ArrayType(Type* underlyingType)
 	{
-		m_Type = NodeType::ArrayType;
+		m_Type = NodeKind::ArrayType;
 		m_UnderlyingType = underlyingType;
 	}
 	/*std::string ArrayType::ToString()

@@ -18,6 +18,8 @@ static double StringToDouble(std::string s)
 
 namespace O::AST
 {
+	using namespace Nodes;
+
 	Node* ParseFunctionDefinition(Parser& parser, Token token, Type* returnType, Identifier* name);
 	//TupleExpression* ParseTuple(Parser& parser, Token token);
 
@@ -195,10 +197,10 @@ namespace O::AST
 	bool IsValidElseBody(Node* body)
 	{
 		if (!body) return false;
-		return body->m_Type == NodeType::BlockStatement
-			|| body->m_Type == NodeType::IfStatement
-			|| body->m_Type == NodeType::WhileStatement
-			|| body->m_Type == NodeType::BlockStatement;
+		return body->m_Type == NodeKind::BlockStatement
+			|| body->m_Type == NodeKind::IfStatement
+			|| body->m_Type == NodeKind::WhileStatement
+			|| body->m_Type == NodeKind::BlockStatement;
 	}
 
 	Node* ConditionalStatementParselet::Parse(Parser& parser, Token token)
@@ -213,7 +215,7 @@ namespace O::AST
 			return parser.MakeError("Found no closing parentheses for conditional statement");
 
 		Node* body = parser.Parse();
-		if (!body || body->m_Type != NodeType::BlockStatement)
+		if (!body || body->m_Type != NodeKind::BlockStatement)
 			return parser.MakeError("Expected left curly bracket after " + token.TypeToString() + " statement");
 
 		if (token.m_Type == Token::While)
@@ -297,7 +299,7 @@ namespace O::AST
 		Node* body = parser.Parse();
 		if (parser.HasError()) return nullptr;
 
-		if (!body || body->m_Type != NodeType::BlockStatement)
+		if (!body || body->m_Type != NodeKind::BlockStatement)
 			return parser.MakeError("Expected left curly bracket after " + token.TypeToString() + " statement", afterParantheses);
 
 		return (Node*) new ForStatement(initialization, condition, advancement, (BlockStatement*)body);
@@ -308,11 +310,11 @@ namespace O::AST
 		parser.ConsumeToken(Token::Semicolon);
 		if (parser.HasError()) return nullptr;
 
-		NodeType type;
+		NodeKind type;
 		if (token.m_Type == Token::Break)
-			type = NodeType::Break;
+			type = NodeKind::Break;
 		else if (token.m_Type == Token::Continue)
-			type = NodeType::Continue;
+			type = NodeKind::Continue;
 		else
 			abort();
 
@@ -341,7 +343,7 @@ namespace O::AST
 			if (parser.HasError())
 				return nullptr;
 
-			assert(type->m_Type == NodeType::BasicType);
+			assert(type->m_Type == NodeKind::BasicType);
 
 			name = new Identifier(((BasicType*)type)->m_TypeName);
 		}
@@ -365,7 +367,7 @@ namespace O::AST
 		for (auto& parameter : parameters->m_Parameters)
 		{
 			// todo: use the  token that has the error
-			if (parameter->m_Type != NodeType::VariableDeclaration)
+			if (parameter->m_Type != NodeKind::VariableDeclaration)
 				return parser.MakeError("Invalid function prototype, expected variable declaration"); 
 		}
 
@@ -399,7 +401,7 @@ namespace O::AST
 		// Otherwise parse body
 		Node* body = parser.Parse();
 		if (parser.HasError()) return nullptr;
-		if (!body || body->m_Type != NodeType::BlockStatement)
+		if (!body || body->m_Type != NodeKind::BlockStatement)
 			return parser.MakeError("Expected block statement or '=>' after function definition", nextToken);
 
 		return new FunctionDefinitionStatement(returnType, name, parameters, body);
@@ -423,7 +425,7 @@ namespace O::AST
 	{
 		Node* body = parser.Parse();
 		if (parser.HasError()) return nullptr;
-		if (!body || body->m_Type != NodeType::BlockStatement)
+		if (!body || body->m_Type != NodeKind::BlockStatement)
 			return parser.MakeError("Expected block statement for closure", token);
 
 		return new ClosureExpression((BlockStatement*)body);
@@ -432,7 +434,7 @@ namespace O::AST
 	Node* LoopParselet::Parse(Parser& parser, Token token)
 	{
 		Node* body = parser.Parse();
-		if (!body || body->m_Type != NodeType::BlockStatement)
+		if (!body || body->m_Type != NodeKind::BlockStatement)
 			return parser.MakeError("Expected block statement after 'loop'", token);
 		if (parser.HasError()) return nullptr;
 
@@ -483,13 +485,13 @@ namespace O::AST
 				return parser.MakeError("Could not parse class definition");
 
 			// Add the node to the right spot
-			if (line->m_Type == NodeType::VariableDeclaration)
+			if (line->m_Type == NodeKind::VariableDeclaration)
 				classDeclaration->m_MemberDeclarations.push_back((VariableDeclaration*)line);
-			else if (line->m_Type == NodeType::FunctionDefinition)
+			else if (line->m_Type == NodeKind::FunctionDefinition)
 				classDeclaration->m_MethodDeclarations.push_back((FunctionDefinitionStatement*)line);
-			else if (line->m_Type == NodeType::ClassDeclaration)
+			else if (line->m_Type == NodeKind::ClassDeclaration)
 				classDeclaration->m_NestedClassDeclarations.push_back((ClassDeclarationStatement*)line);
-			else if (line->m_Type != NodeType::EmptyStatement)
+			else if (line->m_Type != NodeKind::EmptyStatement)
 				return parser.MakeError("Unsupported statement in class declaration '" + line->TypeToString() + "'", token);
 		}
 
@@ -531,7 +533,7 @@ namespace O::AST
 
 	Type* TypenameParselet::Parse(Parser& parser, Token token)
 	{
-		TypeTableEntry* type = parser.m_TypeTable.Lookup(token.m_Value);
+		O::Type* type = parser.m_TypeTable.Lookup(token.m_Value);
 
 		if (!type)
 			return (Type*)parser.MakeError("Expected typename");

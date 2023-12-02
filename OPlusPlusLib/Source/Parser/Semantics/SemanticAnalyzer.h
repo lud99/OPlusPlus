@@ -9,6 +9,7 @@
 
 namespace O
 {
+	using namespace AST;
 	class SemanticAnalyzer : public CompileTimeErrorList
 	{
 		// Does typechecking between assignments and in expressions
@@ -24,9 +25,9 @@ namespace O
 		EXPORT void AnalyzeProgram();
 
 
-		TypeTableEntry& GetTypeOfNode(AST::Node* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable);
+		Type& GetTypeOfNode(AST::Node* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable);
 
-		bool Typecheck(TypeTableEntry& lhs, TypeTableEntry& rhs);
+		bool Typecheck(Type& lhs, Type& rhs);
 
 		EXPORT auto& GetGlobalTypeTable() { return m_GlobalTypeTable; };
 
@@ -35,23 +36,23 @@ namespace O
 
 	private:
 		void Analyze(AST::Node* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable);
-		void AnalyzeScope(AST::Scope* scope);
+		void AnalyzeScope(Nodes::Scope* scope);
 
-		void GetReturnTypes(AST::Node* node, std::vector<TypeTableEntry>& returnTypes, SymbolTable& localSymbolTable, TypeTable& localTypeTable);
+		void GetReturnTypes(AST::Node* node, std::vector<Type>& returnTypes, SymbolTable& localSymbolTable, TypeTable& localTypeTable);
 
-		void CreateTablesForScope(AST::Scope* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable);
+		void CreateTablesForScope(Nodes::Scope* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable);
 		
-		VariableSymbol* CreateSymbolForVariableDeclaration(AST::VariableDeclaration* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable);
-		CallableSymbol* CreateSymbolForFunctionDeclaration(AST::FunctionDefinitionStatement* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable, bool isMethod = false);
+		VariableSymbol* CreateSymbolForVariableDeclaration(Nodes::VariableDeclaration* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable, VariableSymbolType variableType);
+		CallableSymbol* CreateSymbolForFunctionDeclaration(Nodes::FunctionDefinitionStatement* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable, bool isMethod = false);
 
-		VariableSymbol* CreateSymbolForClassMemberDeclaration(AST::VariableDeclaration* node, ClassSymbol& classSymbol);
-		CallableSymbol* CreateSymbolForMethodDeclaration(AST::FunctionDefinitionStatement* node, ClassSymbol& classSymbol);
+		VariableSymbol* CreateSymbolForClassMemberDeclaration(Nodes::VariableDeclaration* node, ClassSymbol& classSymbol);
+		CallableSymbol* CreateSymbolForMethodDeclaration(Nodes::FunctionDefinitionStatement* node, ClassSymbol& classSymbol);
 
-		std::vector<ValueType> CreateSymbolsForCallableDefinition(AST::FunctionDefinitionStatement* node);
-		std::optional<TypeTableEntry> AnalyzeCallableDefinition(AST::FunctionDefinitionStatement* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable, std::optional<TypeTableEntry> returnType);
+		std::vector<ValueType> CreateSymbolsForCallableDefinition(Nodes::FunctionDefinitionStatement* node);
+		std::optional<Type> AnalyzeCallableDefinition(Nodes::FunctionDefinitionStatement* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable, std::optional<Type> returnType);
 
-		bool DoesTypesMatchThrowing(TypeTable& localTypeTable, TypeTableEntry& otherType, TypeTableEntry& expectedType);
-		bool DoesTypesMatch(TypeTable& localTypeTable, TypeTableEntry& otherType, TypeTableEntry& expectedType);
+		bool DoesTypesMatchThrowing(TypeTable& localTypeTable, Type& otherType, Type& expectedType);
+		bool DoesTypesMatch(TypeTable& localTypeTable, Type& otherType, Type& expectedType);
 
 		void MakeError(const std::string& message, CompileTimeError::Severity severity = CompileTimeError::Error);
 

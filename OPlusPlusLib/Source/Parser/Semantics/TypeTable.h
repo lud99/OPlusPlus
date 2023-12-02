@@ -51,8 +51,8 @@ namespace O
 		ValueType relatedType;
 	};
 
-	class TypeTableEntry;
-	class TypeTableEntry
+	class Type;
+	class Type
 	{
 	public:
 		// typeEntry: built in, object ref, array, typedef
@@ -63,7 +63,6 @@ namespace O
 		ValueType id;
 
 		TypeEntryType type = TypeEntryType::Primitive;
-		TypeTableEntry* redirect = nullptr;
 
 		std::vector<ValueType> typeArguments; // Type arguments for generic types
 
@@ -71,14 +70,15 @@ namespace O
 		std::vector<TypeRelation> subtypes;
 		// TODO: Add types at the same level
 
+		//std::unordered_map<Operators::Name, 
+
 		// A private type is a type that cannot be instantiated like any type
 		// TODO: Will be removed once types in the type table are restricted to scopes, 
 		// like the symbol table.
-		bool isPrivate = false;
-
-	public:
-		TypeTableEntry& Resolve();
+		//bool isPrivate = false;
 	};
+
+
 
 	enum class TypeTableType
 	{
@@ -98,45 +98,31 @@ namespace O
 		bool HasCompleteType(const std::string& typeName);
 		bool HasCompleteType(ValueType typeId);
 
-		TypeTableEntry* Lookup(const std::string& typeName);// { return m_Types[m_TypeNames.at(typeName)]; }
-		TypeTableEntry* Lookup(ValueType typeId);// { return m_Types[typeId]; }
-		//std::optional<TypeTableEntry&> LookupThisTable(std::function<bool(Symbol*)> predicate);
+		Type* Lookup(const std::string& typeName);
+		Type* Lookup(ValueType typeId);
 
-		TypeTableEntry& Insert(const std::string& typeName, TypeEntryType type, TypeTableEntry* redirect = nullptr);
+		Type& Insert(const std::string& typeName, TypeEntryType type);
 
-		TypeTableEntry& InsertGeneric(TypeEntryType type, std::vector<TypeTableEntry> typeArguments);
-		// const std::string& typeName, TypeTableType type, TypeTableEntry* redirect = nullptr);
+		Type& InsertGeneric(TypeEntryType type, std::vector<Type> typeArguments);
 
-		//TypeTableEntry& AddPrivateType(const std::string& typeName, TypeTableType type, TypeTableEntry* redirect = nullptr);
+		Type& InsertArray(Type& underlyingType);
+		Type& InsertTuple(std::vector<Type> underlyingTypes);
+		Type& InsertFunction(std::vector<Type> argumentTypes, Type returnType);
 
-		TypeTableEntry& InsertArray(TypeTableEntry& underlyingType);
-		TypeTableEntry& InsertTuple(std::vector<TypeTableEntry> underlyingTypes);
-		TypeTableEntry& InsertFunction(std::vector<TypeTableEntry> argumentTypes, TypeTableEntry returnType);
+		void AddTypeRelation(Type& type, ValueType relatedType, TypeRelation::ConversionType subtypeConversion, TypeRelation::ConversionType supertypeConversion);
+		void AddTypeRelation(Type& type, Type& relatedType, TypeRelation::ConversionType subtypeConversion, TypeRelation::ConversionType supertypeConversion);
 
-		void AddTypeRelation(TypeTableEntry& type, ValueType relatedType, TypeRelation::ConversionType subtypeConversion, TypeRelation::ConversionType supertypeConversion);
-		void AddTypeRelation(TypeTableEntry& type, TypeTableEntry& relatedType, TypeRelation::ConversionType subtypeConversion, TypeRelation::ConversionType supertypeConversion);
+		std::optional<TypeRelation::ConversionType> GetFullSupertypeRelationTo(Type& type, Type& expectedSupertype);
+		std::optional<TypeRelation::ConversionType> GetFullSubtypeRelationTo(Type& type, Type& expectedSubtype);
+		std::optional<TypeRelation::ConversionType> GetFullTypeRelationTo(Type& type, Type& expectedType);
 
-		TypeTableEntry& ResolveEntry(TypeTableEntry entry);
-		std::optional<TypeRelation::ConversionType> GetFullSupertypeRelationTo(TypeTableEntry& type, TypeTableEntry& expectedSupertype);
-		std::optional<TypeRelation::ConversionType> GetFullSubtypeRelationTo(TypeTableEntry& type, TypeTableEntry& expectedSubtype);
-		std::optional<TypeRelation::ConversionType> GetFullTypeRelationTo(TypeTableEntry& type, TypeTableEntry& expectedType);
-
-		bool IsTypeImplicitSubtypeOf(TypeTableEntry& subtype, TypeTableEntry& expectedSupertype);
+		bool IsTypeImplicitSubtypeOf(Type& subtype, Type& expectedSupertype);
 
 		// If the type relations is seen like a tree, then this function returns the height of the tree from this node
-		uint16_t GetHeightOfTypeRelation(TypeTableEntry& type);
+		uint16_t GetHeightOfTypeRelation(Type& type);
 
 		EXPORT const auto& GetTypes() { return m_Types; }
 		EXPORT const auto& GetNextTable() { return m_UpwardTypeTable; }
-
-		/*std::vector<VariableSymbol*> LookupVariables(std::string name);
-		std::vector<VariableSymbol*> LookupMethods(std::string name);
-		std::vector<VariableSymbol*> LookupFunctions(std::string name);*/
-
-		//std::vector<ClassSymbol*> LookupClassesByTypeFirstLayer(ValueType type);
-
-		// Remove the symbol table at scope, and then recursively remove the deeper symbol tables 
-		//void Remove(int scope);
 
 		EXPORT void Print(std::string padding);
 
@@ -145,54 +131,13 @@ namespace O
 	private:
 		void InsertPrimitiveTypes();
 
-		//Symbol* Insert(Symbol* symbol);
-
-		//void LookupAccumulator(std::function<bool(Symbol*)> predicate, std::vector<Symbol*>& accumulator);
-		//void LookupThisTableAccumulator(std::function<bool(Symbol*)> predicate, std::vector<Symbol*>& accumulator);
-
-		//Symbol* One(std::vector<Symbol*> symbols);
-
-		//int GetLargestVariableIndex();
-
 	private:
 		TypeTableType m_TableType = TypeTableType::Local;
 
-		std::vector<TypeTableEntry> m_Types;
+		std::vector<Type> m_Types;
 
 		// Perhaps a bad name, but refers to int, float, string etc. 
 		std::unordered_map<std::string, ValueType> m_Typenames;
 		TypeTable* m_UpwardTypeTable = nullptr;
 	};
-	//public:
-	//	TypeTable();
-
-	//	bool HasType(const std::string& typeName) { return m_TypeNames.count(typeName) != 0; }
-	//	//bool HasType(ValueType typeId) { return m_T != 0; }
-	//	
-	//	//ValueType GetType(const std::string& typeName) { return m_TypeNames.at(typeName); }
-	//	TypeTableEntry& GetType(const std::string& typeName) { return m_Types[m_TypeNames.at(typeName)]; }
-	//	TypeTableEntry& GetType(ValueType typeId) { return m_Types[typeId]; }
-
-	//	TypeTableEntry& Add(const std::string& typeName, TypeTableType type, TypeTableEntry* redirect = nullptr);
-
-	//	TypeTableEntry& AddGeneric(TypeTableType type, std::vector<TypeTableEntry> typeArguments);
-	//	// const std::string& typeName, TypeTableType type, TypeTableEntry* redirect = nullptr);
-
-	//	TypeTableEntry& AddPrivateType(const std::string& typeName, TypeTableType type, TypeTableEntry* redirect = nullptr);
-
-	//	TypeTableEntry& AddArray(TypeTableEntry& underlyingType);
-	//	TypeTableEntry& AddTuple(std::vector<TypeTableEntry> underlyingTypes);
-	//	TypeTableEntry& AddFunction(std::vector<TypeTableEntry> argumentTypes, TypeTableEntry returnType);
-
-	//	void AddTypeRelation(TypeTableEntry& type, ValueType relatedType, TypeRelation::ConversionType subtypeConversion, TypeRelation::ConversionType supertypeConversion);
-	//	void AddTypeRelation(TypeTableEntry& type, TypeTableEntry& relatedType, TypeRelation::ConversionType subtypeConversion, TypeRelation::ConversionType supertypeConversion);
-
-	//	TypeTableEntry& ResolveEntry(TypeTableEntry entry);
-
-	//	const auto& AllTypes() { return m_Types; }
-
-	//private:
-	//	std::vector<TypeTableEntry> m_Types;
-	//	std::unordered_map<std::string, ValueType> m_TypeNames;
-	//};
 }

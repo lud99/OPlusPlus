@@ -5,7 +5,7 @@
 
 namespace O
 {
-	// TypeTableEntry& SymbolTable::Symbol::GetTypeTableEntry()
+	// Type& SymbolTable::Symbol::GetTypeTableEntry()
 	// {
 	// 	return m_StorableValueType->Resolve();
 	// }
@@ -280,7 +280,7 @@ namespace O
         {
             for (auto symbol : symbols)
             {
-                TypeTableEntry* dataType = localTypeTable.Lookup(symbol->m_DataType);
+                Type* dataType = localTypeTable.Lookup(symbol->m_DataType);
                 assert(dataType);
 
                 std::cout << padding << symbol->m_Name;
@@ -293,7 +293,7 @@ namespace O
                     {
                         ValueType parameterTypeId = callableSymbol->m_ParameterTypes[i];
 
-                        TypeTableEntry* type = localTypeTable.Lookup(parameterTypeId);
+                        Type* type = localTypeTable.Lookup(parameterTypeId);
                         assert(type);
 
                         std::cout << type->name;

@@ -13,7 +13,7 @@ namespace O::AST
 {
 	struct Node;
 
-	enum class NodeType {
+	enum class NodeKind {
 		EmptyStatement,
 
 		Program,
@@ -64,13 +64,16 @@ namespace O::AST
 	{
 		EXPORT Node() {};
 
-		NodeType m_Type = NodeType::EmptyStatement;
+		NodeKind m_Type = NodeKind::EmptyStatement;
 
 		EXPORT virtual std::string TypeToString();
 		EXPORT virtual void Print(std::string padding = "");
 		EXPORT virtual std::string ToString() { return ""; };
 	};
+};
 
+namespace O::AST::Nodes
+{
 	struct Scope : public Node
 	{
 		std::vector<Node*> m_Lines;
@@ -82,11 +85,11 @@ namespace O::AST
 	};
 	struct Program : public Scope
 	{
-		Program() { m_Type = NodeType::Program; };
+		Program() { m_Type = NodeKind::Program; };
 	};
 	struct BlockStatement : public Scope
 	{
-		BlockStatement() { m_Type = NodeType::BlockStatement; };
+		BlockStatement() { m_Type = NodeKind::BlockStatement; };
 	};
 
 
@@ -142,7 +145,7 @@ namespace O::AST
 
 	struct SingleKeywordStatement : public Node
 	{
-		SingleKeywordStatement(NodeType type) { m_Type = type; };
+		SingleKeywordStatement(NodeKind type) { m_Type = type; };
 	};
 	struct ReturnStatement : public Node
 	{
@@ -248,7 +251,7 @@ namespace O::AST
 		Node* m_Body = nullptr;
 
 		bool IsPrototype() { return m_Body == nullptr; }
-		bool IsExpressionFunction() { return m_Body->m_Type != NodeType::BlockStatement; }
+		bool IsExpressionFunction() { return m_Body->m_Type != NodeKind::BlockStatement; }
 
 		virtual void Print(std::string padding) override;
 	};
@@ -322,6 +325,7 @@ namespace O::AST
 		std::vector<FunctionDefinitionStatement*> m_MethodDeclarations;
 		std::vector<ClassDeclarationStatement*> m_NestedClassDeclarations;
 
+		ClassSymbol* m_ClassSymbol = nullptr;
 		//SymbolTable m_MemberSymbolTable;
 
 		virtual void Print(std::string padding) override;

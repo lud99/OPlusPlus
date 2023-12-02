@@ -31,7 +31,7 @@ int main(const char* args)
 		return 0;
 	}
 
-	std::cout << Lexer::Lexer::ReconstructSourcecode(lexer.GetTokens()) << "\n\n";
+	std::cout << O::Lexer::Lexer::ReconstructSourcecode(lexer.GetTokens()) << "\n\n";
 
 	O::AST::Parser parser(lexer.GetTokens());
 	AST::Node* tree = parser.ParseProgram();

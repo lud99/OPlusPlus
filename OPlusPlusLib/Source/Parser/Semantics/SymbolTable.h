@@ -60,7 +60,7 @@ namespace O
 
         bool operator==(const Symbol& other);
 
-        //TypeTableEntry& GetTypeTableEntry();
+        //Type& GetTypeTableEntry();
     };
 
     class VariableSymbol : public Symbol

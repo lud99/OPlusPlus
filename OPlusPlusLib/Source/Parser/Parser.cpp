@@ -9,6 +9,8 @@
 
 namespace O::AST
 {
+	using namespace Nodes;
+
 	Parser::Parser(Tokens& tokens)
 	{
 		m_Tokens = tokens;
@@ -250,7 +252,7 @@ namespace O::AST
 		Node* left = prefix->Parse(*this, token);
 		if (HasError()) return nullptr;
 
-		if (left->m_Type == NodeType::BasicType)
+		if (left->m_Type == NodeKind::BasicType)
 			return MakeError("Cannot have typename " + left->ToString() + " in an expression");
 
 		// Parse infix operators, such as normal binary operators or postfix unary operators (like a++)
@@ -476,8 +478,8 @@ namespace O::AST
 	{
 		switch (node->m_Type)
 		{
-		case NodeType::Program:
-		case NodeType::BlockStatement:
+		case NodeKind::Program:
+		case NodeKind::BlockStatement:
 		{
 			Scope* scope = (Scope*)node;
 
@@ -489,11 +491,11 @@ namespace O::AST
 			return result;
 		}
 			break;
-		case NodeType::Identifier:
+		case NodeKind::Identifier:
 			break;
-		case NodeType::VariableDeclaration:
+		case NodeKind::VariableDeclaration:
 			break;
-		case NodeType::BinaryExpression:
+		case NodeKind::BinaryExpression:
 		{
 			BinaryExpression* expr = (BinaryExpression*)node;
 			float lhs = TemporaryEvaluator(expr->m_Lhs);
@@ -513,7 +515,7 @@ namespace O::AST
 				abort();
 			}
 		}
-		case NodeType::UnaryExpression:
+		case NodeKind::UnaryExpression:
 		{
 			UnaryExpression* expr = (UnaryExpression*)node;
 			float arg = TemporaryEvaluator(expr->m_Operand);
@@ -530,14 +532,14 @@ namespace O::AST
 		}
 		
 			break;
-		case NodeType::IntLiteral:
+		case NodeKind::IntLiteral:
 			return float(((IntLiteral*)node)->m_Value);
 			break;
-		case NodeType::FloatLiteral:
+		case NodeKind::FloatLiteral:
 			break;
-		case NodeType::DoubleLiteral:
+		case NodeKind::DoubleLiteral:
 			break;
-		case NodeType::StringLiteral:
+		case NodeKind::StringLiteral:
 			break;
 		default:
 			break;

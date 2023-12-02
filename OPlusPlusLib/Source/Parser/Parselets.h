@@ -4,7 +4,6 @@
 
 namespace O::AST
 {
-
 	// Base classes
 	struct PrefixParselet
 	{
@@ -17,11 +16,11 @@ namespace O::AST
 
 	struct PrefixTypeParselet
 	{
-		virtual Type* Parse(Parser& parser, Token token) { abort();  return nullptr; }
+		virtual Nodes::Type* Parse(Parser& parser, Token token) { abort();  return nullptr; }
 	};
 	struct InfixTypeParselet
 	{
-		virtual Type* Parse(Parser& parser, Type* left, Token token) { abort();  return nullptr; }
+		virtual Nodes::Type* Parse(Parser& parser, Nodes::Type* left, Token token) { abort();  return nullptr; }
 	};
 
 	struct StatementParselet
@@ -75,19 +74,19 @@ namespace O::AST
 	// Type parselets
 	struct TypenameParselet : public PrefixTypeParselet
 	{
-		Type* Parse(Parser& parser, Token token) override;
+		Nodes::Type* Parse(Parser& parser, Token token) override;
 	};
 	struct ArrayTypeModifierParselet : public InfixTypeParselet
 	{
-		Type* Parse(Parser& parser, Type* left, Token token) override;
+		Nodes::Type* Parse(Parser& parser, Nodes::Type* left, Token token) override;
 	};
 	struct NullableTypeModifierParselet : public InfixTypeParselet
 	{
-		Type* Parse(Parser& parser, Type* left, Token token) override;
+		Nodes::Type* Parse(Parser& parser, Nodes::Type* left, Token token) override;
 	};
 	struct ParenthesizedTypeParselet : public PrefixTypeParselet
 	{
-		Type* Parse(Parser& parser, Token token) override;
+		Nodes::Type* Parse(Parser& parser, Token token) override;
 	};
 
 	// Statements

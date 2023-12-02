@@ -23,6 +23,9 @@ let b = 5;
 	return;
 };*/
 
+let tuple : (int, int);
+let funcptr: (int, int => int);
+
 let f(x: int, y : int) {
 	return 5;
 };
@@ -35,6 +38,5 @@ class Animal
 	let Animal(name: string, age: int) {
 		m_Name = name;
 		m_Age = age;
-		return this;
 	};
 };

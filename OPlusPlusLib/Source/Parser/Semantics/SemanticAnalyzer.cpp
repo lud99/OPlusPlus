@@ -17,7 +17,7 @@ namespace O
 		Analyze(m_Program, dummySymbolTable, dummyTypeTable);
 	}
 
-	void SemanticAnalyzer::AnalyzeScope(Scope* scope)
+	void SemanticAnalyzer::AnalyzeScope(Nodes::Scope* scope)
 	{
 		for (auto& line : scope->m_Lines)
 		{
@@ -27,17 +27,18 @@ namespace O
 		}
 	}
 
-	void SemanticAnalyzer::GetReturnTypes(AST::Node* node, std::vector<TypeTableEntry>& returnTypes, SymbolTable& localSymbolTable, TypeTable& localTypeTable)
+	void SemanticAnalyzer::GetReturnTypes(AST::Node* node, std::vector<Type>& returnTypes, SymbolTable& localSymbolTable, TypeTable& localTypeTable)
 	{
+		using namespace Nodes;
 		if (HasError())
 			return;
 
 		switch (node->m_Type)
 		{
-		case O::AST::NodeType::EmptyStatement:
+		case NodeKind::EmptyStatement:
 			break;
-		case O::AST::NodeType::Program:
-		case O::AST::NodeType::BlockStatement:
+		case NodeKind::Program:
+		case NodeKind::BlockStatement:
 		{
 			Scope* scope = (Scope*)node;
 			for (AST::Node* line : scope->m_Lines)
@@ -50,7 +51,7 @@ namespace O
 
 			return;
 		}
-		case O::AST::NodeType::WhileStatement:
+		case NodeKind::WhileStatement:
 		{
 			ConditionalStatement* statement = (ConditionalStatement*)node;
 			BlockStatement* body = statement->m_Body;
@@ -60,7 +61,7 @@ namespace O
 
 			return;
 		}
-		case O::AST::NodeType::ForStatement:
+		case NodeKind::ForStatement:
 		{
 			ForStatement* statement = (ForStatement*)node;
 			BlockStatement* body = statement->m_Body;
@@ -70,7 +71,7 @@ namespace O
 
 			return;
 		}
-		case O::AST::NodeType::IfStatement:
+		case NodeKind::IfStatement:
 		{
 			// Main body
 			IfStatement* statement = (IfStatement*)node;
@@ -88,13 +89,13 @@ namespace O
 			return;
 		}
 		
-		case O::AST::NodeType::LoopStatement:
+		case NodeKind::LoopStatement:
 			abort();
 			break;
-		case O::AST::NodeType::Closure:
+		case NodeKind::Closure:
 			break;
 		
-		case O::AST::NodeType::Return:
+		case NodeKind::Return:
 		{
 			ReturnStatement* returnStatement = (ReturnStatement*)node;
 
@@ -105,7 +106,7 @@ namespace O
 				return;
 			}
 
-			TypeTableEntry type = GetTypeOfNode(returnStatement->m_ReturnValue, localSymbolTable, localTypeTable);
+			O::Type type = GetTypeOfNode(returnStatement->m_ReturnValue, localSymbolTable, localTypeTable);
 			if (HasError())
 				return;
 
@@ -118,9 +119,9 @@ namespace O
 		}
 	}
 
-	void SemanticAnalyzer::CreateTablesForScope(AST::Scope* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable)
+	void SemanticAnalyzer::CreateTablesForScope(Nodes::Scope* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable)
 	{
-		if (node->m_Type == NodeType::Program)
+		if (node->m_Type == NodeKind::Program)
 		{
 			node->m_LocalSymbolTable = SymbolTable(SymbolTableType::Global, nullptr);
 			node->m_LocalTypeTable = TypeTable(TypeTableType::Global, nullptr);
@@ -134,9 +135,9 @@ namespace O
 		}
 	}
 
-	VariableSymbol* SemanticAnalyzer::CreateSymbolForVariableDeclaration(VariableDeclaration* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable)
+	VariableSymbol* SemanticAnalyzer::CreateSymbolForVariableDeclaration(Nodes::VariableDeclaration* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable, VariableSymbolType variableKind)
 	{
-		TypeTableEntry variableType;
+		Type variableType;
 		if (node->m_VariableType)
 			variableType = GetTypeOfNode(node->m_VariableType, localSymbolTable, localTypeTable);
 		
@@ -145,7 +146,7 @@ namespace O
 
 		if (node->m_AssignedValue)
 		{
-			TypeTableEntry assignedValueType = GetTypeOfNode(node->m_AssignedValue, localSymbolTable, localTypeTable);
+			Type assignedValueType = GetTypeOfNode(node->m_AssignedValue, localSymbolTable, localTypeTable);
 			if (HasError())
 				return nullptr;
 
@@ -174,25 +175,24 @@ namespace O
 			return nullptr;
 		}
 
-		// TODO: Add class members
-		return localSymbolTable.InsertVariable(variableName, variableType.id, VariableSymbolType::Local);
+		return localSymbolTable.InsertVariable(variableName, variableType.id, variableKind);
 	}
 
-	std::vector<TypeTableEntry> SortTypeEntries(TypeTable& localTypeTable, std::vector<TypeTableEntry> types)
+	std::vector<Type> SortTypeEntries(TypeTable& localTypeTable, std::vector<Type> types)
 	{
-		std::sort(types.begin(), types.end(), [&](TypeTableEntry& t1, TypeTableEntry& t2) {
+		std::sort(types.begin(), types.end(), [&](Type& t1, Type& t2) {
 			return localTypeTable.GetHeightOfTypeRelation(t1) > localTypeTable.GetHeightOfTypeRelation(t2);
 		});
 
 		return types;
 	}
 
-	std::vector<ValueType> SemanticAnalyzer::CreateSymbolsForCallableDefinition(AST::FunctionDefinitionStatement* node)
+	std::vector<ValueType> SemanticAnalyzer::CreateSymbolsForCallableDefinition(Nodes::FunctionDefinitionStatement* node)
 	{
 		std::vector<ValueType> parameterTypes;
-		for (VariableDeclaration* parameter : node->m_Parameters->m_Parameters)
+		for (Nodes::VariableDeclaration* parameter : node->m_Parameters->m_Parameters)
 		{
-			auto symbol = CreateSymbolForVariableDeclaration(parameter, node->m_ParametersSymbolTable, node->m_ParametersTypeTable);
+			auto symbol = CreateSymbolForVariableDeclaration(parameter, node->m_ParametersSymbolTable, node->m_ParametersTypeTable, VariableSymbolType::Local);
 			if (HasError())
 				return {};
 
@@ -201,7 +201,7 @@ namespace O
 		return parameterTypes;
 	}
 
-	CallableSymbol* SemanticAnalyzer::CreateSymbolForFunctionDeclaration(AST::FunctionDefinitionStatement* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable, bool isMethod)
+	CallableSymbol* SemanticAnalyzer::CreateSymbolForFunctionDeclaration(Nodes::FunctionDefinitionStatement* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable, bool isMethod)
 	{
 		std::string functionName = node->m_Name->ToString();
 
@@ -219,7 +219,7 @@ namespace O
 
 		auto parameterTypes = CreateSymbolsForCallableDefinition(node);
 
-		std::optional<TypeTableEntry> declaredReturnType = {};
+		std::optional<Type> declaredReturnType = {};
 		if (node->m_ReturnType)
 			declaredReturnType = GetTypeOfNode(node, localSymbolTable, localTypeTable);
 
@@ -227,7 +227,7 @@ namespace O
 		if (HasError())
 			return nullptr;
 		assert(returnTypeOpt.has_value());
-		TypeTableEntry returnType = returnTypeOpt.value();
+		Type returnType = returnTypeOpt.value();
 
 		// 	uint16_t functionId = m_ConstantsPool.AddAndGetFunctionReferenceIndex(functionName);
 		uint16_t callableId = 0; // TODO: Implement properly
@@ -238,12 +238,12 @@ namespace O
 		return localSymbolTable.InsertCallable(callable);
 	}
 
-	VariableSymbol* SemanticAnalyzer::CreateSymbolForClassMemberDeclaration(AST::VariableDeclaration* node, ClassSymbol& classSymbol)
+	VariableSymbol* SemanticAnalyzer::CreateSymbolForClassMemberDeclaration(Nodes::VariableDeclaration* node, ClassSymbol& classSymbol)
 	{
-		return CreateSymbolForVariableDeclaration(node, *classSymbol.m_Symbols, *classSymbol.m_Types);
+		return CreateSymbolForVariableDeclaration(node, *classSymbol.m_Symbols, *classSymbol.m_Types, VariableSymbolType::Member);
 	}
 
-	CallableSymbol* SemanticAnalyzer::CreateSymbolForMethodDeclaration(AST::FunctionDefinitionStatement* node, ClassSymbol& classSymbol)
+	CallableSymbol* SemanticAnalyzer::CreateSymbolForMethodDeclaration(Nodes::FunctionDefinitionStatement* node, ClassSymbol& classSymbol)
 	{
 		SymbolTable& classSymbolTable = *classSymbol.m_Symbols;
 		TypeTable& classTypeTable = *classSymbol.m_Types;
@@ -283,13 +283,13 @@ namespace O
 
 		parameterTypes.insert(parameterTypes.begin(), thisSymbol->m_DataType);
 
-		std::optional<TypeTableEntry> declaredReturnTypeOpt;
+		std::optional<Type> declaredReturnTypeOpt;
 		if (node->m_ReturnType)
 			declaredReturnTypeOpt = GetTypeOfNode(node->m_ReturnType, classSymbolTable, classTypeTable);
 
 		if (methodType == CallableSymbolType::Constructor)
 		{
-			TypeTableEntry classType = *classTypeTable.Lookup(thisSymbol->m_DataType);
+			Type classType = *classTypeTable.Lookup(thisSymbol->m_DataType);
 
 			// If a return type is specified for a constructor, it has to be the type of the class
 			if (declaredReturnTypeOpt.has_value())
@@ -311,7 +311,7 @@ namespace O
 		if (HasError())
 			return nullptr;
 		assert(returnTypeOpt.has_value());
-		TypeTableEntry returnType = returnTypeOpt.value();
+		Type returnType = returnTypeOpt.value();
 
 		// If the function 
 
@@ -324,19 +324,20 @@ namespace O
 		return classSymbolTable.InsertCallable(callable);
 	}
 
-	std::optional<TypeTableEntry> SemanticAnalyzer::AnalyzeCallableDefinition(AST::FunctionDefinitionStatement* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable, std::optional<TypeTableEntry> declaredReturnType)
+	std::optional<Type> SemanticAnalyzer::AnalyzeCallableDefinition(Nodes::FunctionDefinitionStatement* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable, std::optional<Type> declaredReturnType)
 	{
+		using namespace Nodes;
 		std::string functionName = node->m_Name->ToString();
 
 		// Analayze body to look for errors
 		Analyze(node->m_Body, localSymbolTable, localTypeTable);
 
 		// Analyze the body and look for the return statements
-		assert(node->m_Body->m_Type == NodeType::BlockStatement);
+		assert(node->m_Body->m_Type == NodeKind::BlockStatement);
 
 		Scope* body = (Scope*)node->m_Body;
 
-		std::vector<TypeTableEntry> returnValueTypes;
+		std::vector<O::Type> returnValueTypes;
 		GetReturnTypes(body, returnValueTypes, localSymbolTable, localTypeTable);
 
 		assert(localTypeTable.GetHeightOfTypeRelation(*localTypeTable.Lookup(PrimitiveValueTypes::Double)) == 2);
@@ -348,12 +349,12 @@ namespace O
 		// (or if there is one one specified)
 		// This is to find a sort of 'greates common denominator' between them that accomodates all return values
 
-		//TypeTableEntry returnType;
+		//Type returnType;
 
 		auto sortedReturnTypes = SortTypeEntries(localTypeTable, returnValueTypes);
 		
 		// No specified returnvalue, so try to infer it
-		TypeTableEntry returnType;
+		O::Type returnType;
 		if (!declaredReturnType.has_value())
 		{
 			// If no return statements and no annoted type, so the return type has to be void
@@ -367,7 +368,7 @@ namespace O
 			returnType = declaredReturnType.value();
 		}
 
-		std::vector<TypeTableEntry> compatible;
+		std::vector<O::Type> compatible;
 		for (auto& type : sortedReturnTypes) {
 			if (type.id == returnType.id)
 				continue;
@@ -385,7 +386,7 @@ namespace O
 		return returnType;
 	}
 
-	bool SemanticAnalyzer::DoesTypesMatchThrowing(TypeTable& localTypeTable, TypeTableEntry& otherType, TypeTableEntry& expectedType)
+	bool SemanticAnalyzer::DoesTypesMatchThrowing(TypeTable& localTypeTable, Type& otherType, Type& expectedType)
 	{
 		// 1. Case when types are the same
 		if (expectedType.id == otherType.id)
@@ -417,7 +418,7 @@ namespace O
 		return false;
 	}
 
-	bool SemanticAnalyzer::DoesTypesMatch(TypeTable& localTypeTable, TypeTableEntry& otherType, TypeTableEntry& expectedType)
+	bool SemanticAnalyzer::DoesTypesMatch(TypeTable& localTypeTable, Type& otherType, Type& expectedType)
 	{
 		// 1. Case when types are the same
 		if (expectedType.id == otherType.id)
@@ -438,24 +439,25 @@ namespace O
 	// Create symbol tables for each scope
 	void SemanticAnalyzer::Analyze(AST::Node* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable)
 	{
+		using namespace Nodes;
 		//if (HasError())
 			//return;
 
 		switch (node->m_Type)
 		{
-		case O::AST::NodeType::EmptyStatement:
+		case NodeKind::EmptyStatement:
 			return;
-		case O::AST::NodeType::Program:
-		case O::AST::NodeType::BlockStatement:
+		case NodeKind::Program:
+		case NodeKind::BlockStatement:
 		{
 			CreateTablesForScope((Scope*)node, localSymbolTable, localTypeTable);
 			AnalyzeScope((Scope*)node);
 
 			break;
 		}
-		case O::AST::NodeType::BasicType:
+		case NodeKind::BasicType:
 			break;
-		case O::AST::NodeType::Identifier:
+		case NodeKind::Identifier:
 		{
 			Identifier* identifier = (Identifier*)node;
 			
@@ -466,14 +468,13 @@ namespace O
 		}
 
 		// For normal variable declarations in scopes (not class members)
-		// TODO: Add typechecking
-		case O::AST::NodeType::VariableDeclaration:
+		case NodeKind::VariableDeclaration:
 		{
-			CreateSymbolForVariableDeclaration((VariableDeclaration*)node, localSymbolTable, localTypeTable);
+			CreateSymbolForVariableDeclaration((VariableDeclaration*)node, localSymbolTable, localTypeTable, VariableSymbolType::Local);
 			return;
 		}
 
-		case O::AST::NodeType::BinaryExpression:
+		case NodeKind::BinaryExpression:
 		{
 			BinaryExpression* expression = (BinaryExpression*)node;
 			Analyze(expression->m_Lhs, localSymbolTable, localTypeTable);
@@ -483,14 +484,14 @@ namespace O
 
 			break;
 		}
-		case O::AST::NodeType::UnaryExpression:
+		case NodeKind::UnaryExpression:
 		{
 			UnaryExpression* expression = (UnaryExpression*)node;
 			Analyze(expression->m_Operand, localSymbolTable, localTypeTable);
 
 			break;
 		}
-		case O::AST::NodeType::CallExpression:
+		case NodeKind::CallExpression:
 		{
 			CallExpression* call = (CallExpression*)node;
 
@@ -503,7 +504,7 @@ namespace O
 
 			break;
 		}
-		case O::AST::NodeType::TupleExpression:
+		case NodeKind::TupleExpression:
 		{
 			TupleExpression* tuple = (TupleExpression*)node;
 			for (auto& element : tuple->m_Elements)
@@ -513,7 +514,7 @@ namespace O
 
 			break;
 		}
-		case O::AST::NodeType::FunctionDefinition:
+		case NodeKind::FunctionDefinition:
 		{
 			FunctionDefinitionStatement* functionNode = (FunctionDefinitionStatement*)node;
 
@@ -527,9 +528,9 @@ namespace O
 			return;
 		}
 
-		case O::AST::NodeType::ExpressionFunctionDefinition:
+		case NodeKind::ExpressionFunctionDefinition:
 			break;
-		case O::AST::NodeType::IfStatement:
+		case NodeKind::IfStatement:
 		{
 			IfStatement* ifStatement = (IfStatement*)node;
 			Analyze(ifStatement->m_Condition, localSymbolTable, localTypeTable);
@@ -539,7 +540,7 @@ namespace O
 			
 			break;
 		}
-		case O::AST::NodeType::WhileStatement:
+		case NodeKind::WhileStatement:
 		{
 			WhileStatement* whileStatement = (WhileStatement*)node;
 			Analyze(whileStatement->m_Condition, localSymbolTable, localTypeTable);
@@ -547,7 +548,7 @@ namespace O
 
 			break;
 		}
-		case O::AST::NodeType::ForStatement:
+		case NodeKind::ForStatement:
 		{
 			ForStatement* forStatement = (ForStatement*)node;
 
@@ -562,17 +563,17 @@ namespace O
 
 			break;
 		}
-		case O::AST::NodeType::LoopStatement:
+		case NodeKind::LoopStatement:
 			break;
-		case O::AST::NodeType::Closure:
+		case NodeKind::Closure:
 			break;
-		case O::AST::NodeType::Continue:
+		case NodeKind::Continue:
 			break;
-		case O::AST::NodeType::Break:
+		case NodeKind::Break:
 			break;
-		case O::AST::NodeType::Return:
+		case NodeKind::Return:
 			break;
-		case O::AST::NodeType::ClassDeclaration:
+		case NodeKind::ClassDeclaration:
 		{
 			ClassDeclarationStatement* classNode = (ClassDeclarationStatement*)node;
 
@@ -581,9 +582,10 @@ namespace O
 			if (localTypeTable.HasCompleteType(name))
 				return MakeErrorAlreadyDefined(name, SymbolType::Class);
 
-			TypeTableEntry classType = localTypeTable.Insert(name, TypeEntryType::Class);
+			O::Type classType = localTypeTable.Insert(name, TypeEntryType::Class);
 
-			auto& classSymbol = *localSymbolTable.InsertClass(name, classType.id, &localSymbolTable, &localTypeTable);
+			classNode->m_ClassSymbol = localSymbolTable.InsertClass(name, classType.id, &localSymbolTable, &localTypeTable);
+			auto& classSymbol = *classNode->m_ClassSymbol;
 			
 			// Add the 'this' symbol 
 			// TODO: wont work for nested classes (Solution is to remove it maybe in some good way)
@@ -598,73 +600,74 @@ namespace O
 
 			break;
 		}
-		case O::AST::NodeType::IntLiteral:
+		case NodeKind::IntLiteral:
 			break;
-		case O::AST::NodeType::FloatLiteral:
+		case NodeKind::FloatLiteral:
 			break;
-		case O::AST::NodeType::DoubleLiteral:
+		case NodeKind::DoubleLiteral:
 			break;
-		case O::AST::NodeType::BoolLiteral:
+		case NodeKind::BoolLiteral:
 			break;
-		case O::AST::NodeType::StringLiteral:
+		case NodeKind::StringLiteral:
 			break;
 		default:
 			break;
 		}
 	}
 
-	TypeTableEntry& SemanticAnalyzer::GetTypeOfNode(AST::Node* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable)
+	Type& SemanticAnalyzer::GetTypeOfNode(AST::Node* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable)
 	{
+		using namespace Nodes;
 		switch (node->m_Type)
 		{
-		case O::AST::NodeType::EmptyStatement:
+		case NodeKind::EmptyStatement:
 			return *localTypeTable.Lookup(PrimitiveValueTypes::Void);
 
-		case O::AST::NodeType::Program:
-		case O::AST::NodeType::BlockStatement:
+		case NodeKind::Program:
+		case NodeKind::BlockStatement:
 		{
 			// Case where the goal is to look for return statements
 		}
 
-		case O::AST::NodeType::BasicType:
+		case NodeKind::BasicType:
 		{
 			BasicType* basicType = (BasicType*)node;
 			return *localTypeTable.Lookup(basicType->m_TypeName);
 		}
-		case O::AST::NodeType::ArrayType:
+		case NodeKind::ArrayType:
 		{
 			ArrayType* arrType = (ArrayType*)node;
 
-			TypeTableEntry& type = GetTypeOfNode(arrType->m_UnderlyingType, localSymbolTable, localTypeTable);
+			O::Type& type = GetTypeOfNode(arrType->m_UnderlyingType, localSymbolTable, localTypeTable);
 			return localTypeTable.InsertArray(type);
 		}
-		case O::AST::NodeType::TupleType:
+		case NodeKind::TupleType:
 		{
 			TupleType* tupleType = (TupleType*)node;
 
-			std::vector<TypeTableEntry> elementTypes;
-			for (AST::Type* element : tupleType->m_Elements)
+			std::vector<O::Type> elementTypes;
+			for (Nodes::Type* element : tupleType->m_Elements)
 			{
 				elementTypes.push_back(GetTypeOfNode(element, localSymbolTable, localTypeTable));
 			}
 
 			return localTypeTable.InsertTuple(elementTypes);
 		}
-		case O::AST::NodeType::FunctionType:
+		case NodeKind::FunctionType:
 		{
 			FunctionType* functionType = (FunctionType*)node;
 
-			std::vector<TypeTableEntry> parameterTypes;
-			for (AST::Type* parameter : functionType->m_Parameters)
+			std::vector<O::Type> parameterTypes;
+			for (Nodes::Type* parameter : functionType->m_Parameters)
 			{
 				parameterTypes.push_back(GetTypeOfNode(parameter, localSymbolTable, localTypeTable));
 			}
-			TypeTableEntry returnType = GetTypeOfNode(functionType->m_ReturnType, localSymbolTable, localTypeTable);
+			O::Type returnType = GetTypeOfNode(functionType->m_ReturnType, localSymbolTable, localTypeTable);
 
 			return localTypeTable.InsertFunction(parameterTypes, returnType);
 		}
 
-		case O::AST::NodeType::Identifier:
+		case NodeKind::Identifier:
 		{
 			Identifier* identifier = (Identifier*)node;
 			if (!localSymbolTable.Has(identifier->m_Name))
@@ -681,10 +684,10 @@ namespace O
 		}
 
 			// Perform typechecking and create the variable symbol
-		case O::AST::NodeType::VariableDeclaration:
+		case NodeKind::VariableDeclaration:
 			return *localTypeTable.Lookup(PrimitiveValueTypes::Void);
 
-		case O::AST::NodeType::BinaryExpression:
+		case NodeKind::BinaryExpression:
 		{
 			BinaryExpression* expression = (BinaryExpression*)node;
 			auto& lhs = GetTypeOfNode(expression->m_Lhs, localSymbolTable, localTypeTable);
@@ -693,23 +696,23 @@ namespace O
 			// TODO: Add operators and their compatible types
 			return lhs;
 		}
-		case O::AST::NodeType::UnaryExpression:
+		case NodeKind::UnaryExpression:
 		{
 			UnaryExpression* expression = (UnaryExpression*)node;
 			return GetTypeOfNode(expression->m_Operand, localSymbolTable, localTypeTable);
 		}
-		case O::AST::NodeType::CallExpression:
+		case NodeKind::CallExpression:
 		{
 			CallExpression* call = (CallExpression*)node;
 
 			// TODO: Determine function overloads?
 			return GetTypeOfNode(call->m_Callee, localSymbolTable, localTypeTable);
 		}
-		case O::AST::NodeType::TupleExpression:
+		case NodeKind::TupleExpression:
 		{
 			TupleExpression* tuple = (TupleExpression*)node;
 
-			std::vector<TypeTableEntry> elementTypes;
+			std::vector<O::Type> elementTypes;
 			for (AST::Node* element : tuple->m_Elements)
 			{
 				auto& type = GetTypeOfNode(element, localSymbolTable, localTypeTable);
@@ -721,37 +724,37 @@ namespace O
 
 			return localTypeTable.InsertTuple(elementTypes);
 		}
-		case O::AST::NodeType::FunctionDefinition:
+		case NodeKind::FunctionDefinition:
 			break;
-		case O::AST::NodeType::ExpressionFunctionDefinition:
+		case NodeKind::ExpressionFunctionDefinition:
 			break;
-		case O::AST::NodeType::IfStatement:
+		case NodeKind::IfStatement:
 			break;
-		case O::AST::NodeType::WhileStatement:
+		case NodeKind::WhileStatement:
 			break;
-		case O::AST::NodeType::ForStatement:
+		case NodeKind::ForStatement:
 			break;
-		case O::AST::NodeType::LoopStatement:
+		case NodeKind::LoopStatement:
 			break;
-		case O::AST::NodeType::Closure:
+		case NodeKind::Closure:
 			break;
-		case O::AST::NodeType::Continue:
+		case NodeKind::Continue:
 			break;
-		case O::AST::NodeType::Break:
+		case NodeKind::Break:
 			break;
-		case O::AST::NodeType::Return:
+		case NodeKind::Return:
 			break;
-		case O::AST::NodeType::ClassDeclaration:
+		case NodeKind::ClassDeclaration:
 			break;
-		case O::AST::NodeType::IntLiteral:
+		case NodeKind::IntLiteral:
 			return *localTypeTable.Lookup(PrimitiveValueTypes::Integer);
-		case O::AST::NodeType::FloatLiteral:
+		case NodeKind::FloatLiteral:
 			abort();
-		case O::AST::NodeType::DoubleLiteral:
+		case NodeKind::DoubleLiteral:
 			return *localTypeTable.Lookup(PrimitiveValueTypes::Double);
-		case O::AST::NodeType::BoolLiteral:
+		case NodeKind::BoolLiteral:
 			return *localTypeTable.Lookup(PrimitiveValueTypes::Bool);
-		case O::AST::NodeType::StringLiteral:
+		case NodeKind::StringLiteral:
 			return *localTypeTable.Lookup(PrimitiveValueTypes::String);
 
 		default:

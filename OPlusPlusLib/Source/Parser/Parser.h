@@ -37,15 +37,15 @@ namespace O::AST
 		
 		Node* Parse();
 		Node* ParseExpression(int precedence = 0);
-		Type* ParseType(int precedence = 0);
+		Nodes::Type* ParseType(int precedence = 0);
 
-		Type* ParseType(Token token, int precedence = 0);
-		Type* ParseTypeAnnotation();
-		Identifier* ParseIdentifier(Token token);
-		TupleExpression* ParseTupleExpression(Token token);
+		Nodes::Type* ParseType(Token token, int precedence = 0);
+		Nodes::Type* ParseTypeAnnotation();
+		Nodes::Identifier* ParseIdentifier(Token token);
+		Nodes::TupleExpression* ParseTupleExpression(Token token);
 
-		VariableDeclaration* ParseVariableDeclaration(Token token, bool consumeEndToken = true, std::vector<Token::Types> endTokens = { Token::Semicolon });
-		FunctionParameters* ParseFunctionParameters(Token token);
+		Nodes::VariableDeclaration* ParseVariableDeclaration(Token token, bool consumeEndToken = true, std::vector<Token::Types> endTokens = { Token::Semicolon });
+		Nodes::FunctionParameters* ParseFunctionParameters(Token token);
 
 		EXPORT float TemporaryEvaluator(Node* node);
 
