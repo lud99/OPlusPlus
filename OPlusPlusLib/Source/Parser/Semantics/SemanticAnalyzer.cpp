@@ -24,29 +24,41 @@ namespace O
 			PrefixIncrement, PrefixDecrement,
 
 			UnaryPlus, UnaryMinus,
-			LogicalNot, BitwiseNot
+			BitwiseNot
 		};
 		std::vector<Operators::Name> primitiveBinaryOperators = {
 			Multiplication, Division, Remainder,
-
 			Addition, Subtraction,
 
+			DirectAssignment // TODO: move when constant datatypes are implemented
+		};
+
+		std::vector<Operators::Name> primitiveUnaryBooleanOperators = {
+			LogicalNot
+		};
+		std::vector<Operators::Name> primitiveBinaryBooleanOperators = {
 			LessThan, LessThanOrEqual,
 			GreaterThan, GreaterThanOrEqual,
-
 			Equality, NotEqual,
-
-			DirectAssignment // TODO: move when constant datatypes are implemented
 		};
 
 		// Doubles and integers has all operators defined on them
 		for (Operators::Name op : primitiveUnaryOperators)
 		{
-			m_OperatorSignatures[op].emplace_back(unarySignature);
+			m_OperatorSignatures[op].push_back({ { type }, type });
 		}
+		for (Operators::Name op : primitiveUnaryBooleanOperators)
+		{
+			m_OperatorSignatures[op].push_back({ { type }, PrimitiveValueTypes::Bool });
+		}
+
 		for (Operators::Name op : primitiveBinaryOperators)
 		{
-			m_OperatorSignatures[op].emplace_back(binarySignature);
+			m_OperatorSignatures[op].push_back({ { type, type }, type });
+		}
+		for (Operators::Name op : primitiveBinaryBooleanOperators)
+		{
+			m_OperatorSignatures[op].push_back({ { type, type }, PrimitiveValueTypes::Bool });
 		}
 	}
 
@@ -838,13 +850,30 @@ namespace O
 			auto& lhs = GetTypeOfNode(expression->m_Lhs, localSymbolTable, localTypeTable);
 			auto& rhs = GetTypeOfNode(expression->m_Rhs, localSymbolTable, localTypeTable);
 
-			// TODO: Add operators and their compatible types
-			return lhs;
+			auto operatorOpt = ResolveOverload(localTypeTable, m_OperatorDefinitions.m_OperatorSignatures[expression->m_Operator.m_Name], { lhs, rhs });
+
+			if (!operatorOpt.has_value())
+			{
+				MakeError("Operator " + expression->m_Operator.m_Symbol + " not defined for " + lhs.name + " and " + rhs.name);
+				return *localTypeTable.Lookup(PrimitiveValueTypes::Void);
+			}
+
+			return *localTypeTable.Lookup(operatorOpt.value().returnType);
 		}
 		case NodeKind::UnaryExpression:
 		{
 			UnaryExpression* expression = (UnaryExpression*)node;
-			return GetTypeOfNode(expression->m_Operand, localSymbolTable, localTypeTable);
+			O::Type& operand = GetTypeOfNode(expression->m_Operand, localSymbolTable, localTypeTable);
+
+			auto operatorOpt = ResolveOverload(localTypeTable, m_OperatorDefinitions.m_OperatorSignatures[expression->m_Operator.m_Name], { operand });
+
+			if (!operatorOpt.has_value())
+			{
+				MakeError("Operator " + expression->m_Operator.m_Symbol + " not defined for " + operand.name);
+				return *localTypeTable.Lookup(PrimitiveValueTypes::Void);
+			}
+
+			return *localTypeTable.Lookup(operatorOpt.value().returnType);
 		}
 		case NodeKind::CallExpression:
 		{
