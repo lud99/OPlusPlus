@@ -17,7 +17,7 @@ namespace O
 		Double = 3,
 		String = 4,
 	};
-	typedef uint16_t ValueType;
+	typedef uint16_t TypeId;
 
 	enum class TypeEntryType
 	{
@@ -48,7 +48,7 @@ namespace O
 		};
 
 		ConversionType conversionType;
-		ValueType relatedType;
+		TypeId relatedType;
 	};
 
 	class Type;
@@ -60,17 +60,18 @@ namespace O
 		// id: id
 
 		std::string name;
-		ValueType id;
+		TypeId id;
 
 		TypeEntryType type = TypeEntryType::Primitive;
 
-		std::vector<ValueType> typeArguments; // Type arguments for generic types
+		std::vector<TypeId> typeArguments; // Type arguments for generic types
 
 		std::vector<TypeRelation> supertypes;
 		std::vector<TypeRelation> subtypes;
 		// TODO: Add types at the same level
 
-		//std::unordered_map<Operators::Name, 
+		// 
+		//std::unordered_map<Operators::Name, Type*> definedOperators;
 
 		// A private type is a type that cannot be instantiated like any type
 		// TODO: Will be removed once types in the type table are restricted to scopes, 
@@ -94,12 +95,12 @@ namespace O
 		EXPORT TypeTable(TypeTableType tableType, TypeTable* upwardTypeTable);
 
 		bool HasType(const std::string& typeName);
-		bool HasType(ValueType typeId);
+		bool HasType(TypeId typeId);
 		bool HasCompleteType(const std::string& typeName);
-		bool HasCompleteType(ValueType typeId);
+		bool HasCompleteType(TypeId typeId);
 
 		Type* Lookup(const std::string& typeName);
-		Type* Lookup(ValueType typeId);
+		Type* Lookup(TypeId typeId);
 
 		Type& Insert(const std::string& typeName, TypeEntryType type);
 
@@ -109,7 +110,7 @@ namespace O
 		Type& InsertTuple(std::vector<Type> underlyingTypes);
 		Type& InsertFunction(std::vector<Type> argumentTypes, Type returnType);
 
-		void AddTypeRelation(Type& type, ValueType relatedType, TypeRelation::ConversionType subtypeConversion, TypeRelation::ConversionType supertypeConversion);
+		void AddTypeRelation(Type& type, TypeId relatedType, TypeRelation::ConversionType subtypeConversion, TypeRelation::ConversionType supertypeConversion);
 		void AddTypeRelation(Type& type, Type& relatedType, TypeRelation::ConversionType subtypeConversion, TypeRelation::ConversionType supertypeConversion);
 
 		std::optional<TypeRelation::ConversionType> GetFullSupertypeRelationTo(Type& type, Type& expectedSupertype);
@@ -137,7 +138,7 @@ namespace O
 		std::vector<Type> m_Types;
 
 		// Perhaps a bad name, but refers to int, float, string etc. 
-		std::unordered_map<std::string, ValueType> m_Typenames;
+		std::unordered_map<std::string, TypeId> m_Typenames;
 		TypeTable* m_UpwardTypeTable = nullptr;
 	};
 }

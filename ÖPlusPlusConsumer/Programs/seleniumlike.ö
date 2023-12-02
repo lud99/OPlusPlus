@@ -1,5 +1,11 @@
 let a : int = 5;
 let b = 5;
+let c : double;
+
+a + b;
+a + c;
+
+let h = h;
 
 /*let f(x: int, y : int) {
 	if (1) { return true; }
@@ -23,7 +29,7 @@ let b = 5;
 	return;
 };*/
 
-let tuple : (int, int);
+/*let tuple : (int, int);
 let funcptr: (int, int => int);
 
 let f(x: int, y : int) {
@@ -39,4 +45,4 @@ class Animal
 		m_Name = name;
 		m_Age = age;
 	};
-};
+};*/

@@ -51,12 +51,12 @@ namespace O
     {
     public:
         Symbol() {};
-        Symbol(std::string name, SymbolType symbolType, ValueType dataType);
+        Symbol(std::string name, SymbolType symbolType, TypeId dataType);
 
     public:
         std::string m_Name;
         SymbolType m_SymbolType;
-        ValueType m_DataType;
+        TypeId m_DataType;
 
         bool operator==(const Symbol& other);
 
@@ -67,7 +67,7 @@ namespace O
     {
     public:
         using Symbol::Symbol;
-        VariableSymbol(std::string name, ValueType dataType, uint16_t index, VariableSymbolType variableType);
+        VariableSymbol(std::string name, TypeId dataType, uint16_t index, VariableSymbolType variableType);
 
         // Does not compare the indicies
         bool operator==(const VariableSymbol& other);
@@ -80,7 +80,7 @@ namespace O
     {
     public:
         using Symbol::Symbol;
-        CallableSymbol(std::string name, SymbolType symbolType, ValueType returnType, uint16_t id, CallableSymbolType callableType);
+        CallableSymbol(std::string name, SymbolType symbolType, TypeId returnType, uint16_t id, CallableSymbolType callableType);
 
         // Compares parameters, isBuiltIn and functionType (and default)
         bool operator==(const CallableSymbol& other);
@@ -88,7 +88,7 @@ namespace O
     public:
         uint16_t m_Id;
 
-        std::vector<ValueType> m_ParameterTypes;
+        std::vector<TypeId> m_ParameterTypes;
         // TODO: Add data structure for default types
         
         bool m_IsBuiltIn = false;
@@ -100,7 +100,7 @@ namespace O
     {
     public:
         using Symbol::Symbol;
-        ClassSymbol(std::string name, ValueType dataType, SymbolTable* upwardSymbolTable, TypeTable* upwardTypeTable);
+        ClassSymbol(std::string name, TypeId dataType, SymbolTable* upwardSymbolTable, TypeTable* upwardTypeTable);
 
         ~ClassSymbol();
 
@@ -116,9 +116,9 @@ namespace O
 		SymbolTable();
 		SymbolTable(SymbolTableType tableType, SymbolTable* upwardSymbolTable);
 
-		VariableSymbol* InsertVariable(std::string name, ValueType dataType, VariableSymbolType variableType);
+		VariableSymbol* InsertVariable(std::string name, TypeId dataType, VariableSymbolType variableType);
 		CallableSymbol* InsertCallable(CallableSymbol callable);
-		ClassSymbol* InsertClass(std::string name, ValueType dataType, SymbolTable* upwardSymbolTable, TypeTable* upwardTypeTable);
+		ClassSymbol* InsertClass(std::string name, TypeId dataType, SymbolTable* upwardSymbolTable, TypeTable* upwardTypeTable);
 
         std::vector<Symbol*> LookupAny(std::function<bool(Symbol*)> predicate);
         //std::vector<Symbol*> LookupThisTable(std::string name); // std::function<bool(Symbol*)> predicate);
@@ -133,8 +133,8 @@ namespace O
 		std::vector<VariableSymbol*> LookupFunctions(std::string name);*/
 
 
-		ClassSymbol* LookupClassByType(ValueType type);
-		//std::vector<ClassSymbol*> LookupClassesByTypeFirstLayer(ValueType type);
+		ClassSymbol* LookupClassByType(TypeId type);
+		//std::vector<ClassSymbol*> LookupClassesByTypeFirstLayer(TypeId type);
 		
 		// Remove the symbol table at scope, and then recursively remove the deeper symbol tables 
 		//void Remove(int scope);

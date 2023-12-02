@@ -10,7 +10,7 @@ namespace O
 	// 	return m_StorableValueType->Resolve();
 	// }
 
-	Symbol::Symbol(std::string name, SymbolType symbolType, ValueType dataType)
+	Symbol::Symbol(std::string name, SymbolType symbolType, TypeId dataType)
 	{
 		m_Name = name;
 		m_SymbolType = symbolType;
@@ -24,7 +24,7 @@ namespace O
             m_DataType == other.m_DataType;
     }
 
-    VariableSymbol::VariableSymbol(std::string name, ValueType dataType, uint16_t index, VariableSymbolType variableType)
+    VariableSymbol::VariableSymbol(std::string name, TypeId dataType, uint16_t index, VariableSymbolType variableType)
 	{
         m_SymbolType = SymbolType::Variable;
 
@@ -40,7 +40,7 @@ namespace O
         return m_Name == other.m_Name;
     }
 
-    CallableSymbol::CallableSymbol(std::string name, SymbolType symbolType, ValueType returnType, uint16_t id, CallableSymbolType callableType)
+    CallableSymbol::CallableSymbol(std::string name, SymbolType symbolType, TypeId returnType, uint16_t id, CallableSymbolType callableType)
 	{
 		m_Name = name;
 		m_SymbolType = symbolType;
@@ -67,7 +67,7 @@ namespace O
 	}*/
 
     
-    ClassSymbol::ClassSymbol(std::string name, ValueType dataType, SymbolTable* upwardSymbolTable, TypeTable* upwardTypeTable)
+    ClassSymbol::ClassSymbol(std::string name, TypeId dataType, SymbolTable* upwardSymbolTable, TypeTable* upwardTypeTable)
     {
         m_SymbolType = SymbolType::Class;
         
@@ -95,7 +95,7 @@ namespace O
         m_UpwardSymbolTable = upwardSymbolTable;
     }
 
-    VariableSymbol* SymbolTable::InsertVariable(std::string name, ValueType dataType, VariableSymbolType variableType)
+    VariableSymbol* SymbolTable::InsertVariable(std::string name, TypeId dataType, VariableSymbolType variableType)
 	{
         uint16_t index = GetLargestVariableIndex() + 1;
 		return (VariableSymbol*)Insert(new VariableSymbol(name, dataType, index, variableType));
@@ -106,7 +106,7 @@ namespace O
         return (CallableSymbol*)Insert(new CallableSymbol(callable));
 	}
 
-	ClassSymbol* SymbolTable::InsertClass(std::string name, ValueType dataType, SymbolTable* upwardSymbolTable, TypeTable* upwardTypeTable)
+	ClassSymbol* SymbolTable::InsertClass(std::string name, TypeId dataType, SymbolTable* upwardSymbolTable, TypeTable* upwardTypeTable)
 	{
 		ClassSymbol* classSymbol = (ClassSymbol*)Insert(new ClassSymbol(name, dataType, upwardSymbolTable, upwardTypeTable));
 		
@@ -174,7 +174,7 @@ namespace O
 		return symbols[0];
 	}
 
-	ClassSymbol* SymbolTable::LookupClassByType(ValueType type)
+	ClassSymbol* SymbolTable::LookupClassByType(TypeId type)
 	{
         for (auto& [name, symbols] : m_Symbols)
         {
@@ -291,7 +291,7 @@ namespace O
                     CallableSymbol* callableSymbol = (CallableSymbol*)symbol;
                     for (int i = 0; i < callableSymbol->m_ParameterTypes.size(); i++)
                     {
-                        ValueType parameterTypeId = callableSymbol->m_ParameterTypes[i];
+                        TypeId parameterTypeId = callableSymbol->m_ParameterTypes[i];
 
                         Type* type = localTypeTable.Lookup(parameterTypeId);
                         assert(type);

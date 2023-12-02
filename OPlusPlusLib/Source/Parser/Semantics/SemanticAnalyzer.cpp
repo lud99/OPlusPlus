@@ -4,6 +4,70 @@ namespace O
 {
 	using namespace AST;
 
+	OperatorDefinitions::OperatorDefinitions()
+	{
+		GeneratePrimitiveOperators((TypeId)PrimitiveValueTypes::Integer);
+		GenerateAssignmentOperators((TypeId)PrimitiveValueTypes::Integer);
+
+		GeneratePrimitiveOperators((TypeId)PrimitiveValueTypes::Double);
+		GenerateAssignmentOperators((TypeId)PrimitiveValueTypes::Double);
+	}
+
+	void OperatorDefinitions::GeneratePrimitiveOperators(TypeId type)
+	{
+		CallableSignature binarySignature = { { type, type }, type };
+		CallableSignature unarySignature = { { type }, type };
+
+		using namespace Operators;
+		std::vector<Operators::Name> primitiveUnaryOperators = {
+			PostfixIncrement, PostfixDecrement,
+			PrefixIncrement, PrefixDecrement,
+
+			UnaryPlus, UnaryMinus,
+			LogicalNot, BitwiseNot
+		};
+		std::vector<Operators::Name> primitiveBinaryOperators = {
+			Multiplication, Division, Remainder,
+
+			Addition, Subtraction,
+
+			LessThan, LessThanOrEqual,
+			GreaterThan, GreaterThanOrEqual,
+
+			Equality, NotEqual,
+
+			DirectAssignment // TODO: move when constant datatypes are implemented
+		};
+
+		// Doubles and integers has all operators defined on them
+		for (Operators::Name op : primitiveUnaryOperators)
+		{
+			m_OperatorSignatures[op].emplace_back(unarySignature);
+		}
+		for (Operators::Name op : primitiveBinaryOperators)
+		{
+			m_OperatorSignatures[op].emplace_back(binarySignature);
+		}
+	}
+
+	void OperatorDefinitions::GenerateAssignmentOperators(TypeId type)
+	{
+		using namespace Operators;
+		for (auto& [op, signature] : m_OperatorSignatures)
+		{
+			// Copy the signature from + to += if + has been defined
+			// TODO: Check for constant types, then this should not be ok.
+			if (op == Addition)
+				m_OperatorSignatures[CompoundAssignmentSum] = signature;
+			if (op == Subtraction)
+				m_OperatorSignatures[CompoundAssignmentDifference] = signature;
+			if (op == Multiplication)
+				m_OperatorSignatures[CompoundAssignmentProduct] = signature;
+			if (op == Division)
+				m_OperatorSignatures[CompoundAssignmentQuotinent] = signature;
+		}
+	}
+
 	SemanticAnalyzer::SemanticAnalyzer(AST::Node* program)
 	{
 		m_Program = program;
@@ -187,9 +251,9 @@ namespace O
 		return types;
 	}
 
-	std::vector<ValueType> SemanticAnalyzer::CreateSymbolsForCallableDefinition(Nodes::FunctionDefinitionStatement* node)
+	std::vector<TypeId> SemanticAnalyzer::CreateSymbolsForCallableDefinition(Nodes::FunctionDefinitionStatement* node)
 	{
-		std::vector<ValueType> parameterTypes;
+		std::vector<TypeId> parameterTypes;
 		for (Nodes::VariableDeclaration* parameter : node->m_Parameters->m_Parameters)
 		{
 			auto symbol = CreateSymbolForVariableDeclaration(parameter, node->m_ParametersSymbolTable, node->m_ParametersTypeTable, VariableSymbolType::Local);
@@ -347,7 +411,7 @@ namespace O
 
 		// Check if all of the types are implicitly compatible with the 'most general' type of the return types
 		// (or if there is one one specified)
-		// This is to find a sort of 'greates common denominator' between them that accomodates all return values
+		// This is to find a sort of 'greatest common denominator' between them that accomodates all return values
 
 		//Type returnType;
 
@@ -436,6 +500,60 @@ namespace O
 		return typeRelation.value() == TypeRelation::Implicit;
 	}
 
+	std::optional<CallableSignature> SemanticAnalyzer::ResolveOverload(TypeTable& localTypeTable, std::vector<CallableSignature> overloads, std::vector<Type> arguments)
+	{
+		struct SignatureWithSteps
+		{
+			int steps;
+			CallableSignature signature;
+		};
+
+		std::vector<SignatureWithSteps> stepsToSignatures;
+		for (CallableSignature signature : overloads)
+		{
+			bool allArgumentsMatched = true;
+			// Check if each argument type is compatible with corresponding parameter type
+			for (int i = 0; i < signature.parameterTypes.size(); i++)
+			{
+				O::Type& parameter = *localTypeTable.Lookup(signature.parameterTypes[i]);
+				O::Type& argument = arguments[i];
+
+				if (!DoesTypesMatch(localTypeTable, argument, parameter))
+				{
+					allArgumentsMatched = false;
+					break;
+				}
+			}
+
+			if (allArgumentsMatched)
+			{
+				// If they are, determine how far away each of the arguments are from the actuall parameter type
+				// This list is then sorted afterwards to determine which overload to use
+
+				int totalSteps = 0;
+				for (int i = 0; i < signature.parameterTypes.size(); i++)
+				{
+					O::Type& parameter = *localTypeTable.Lookup(signature.parameterTypes[i]);
+					O::Type& argument = arguments[i];
+
+					totalSteps += localTypeTable.GetHeightOfTypeRelation(parameter) - localTypeTable.GetHeightOfTypeRelation(argument);
+				}
+
+				stepsToSignatures.push_back({ totalSteps, signature });
+			}
+		}
+
+		if (stepsToSignatures.empty())
+			return {};
+
+		// Sort the matches and choose the closest one based on how many types differs
+		std::sort(stepsToSignatures.begin(), stepsToSignatures.end(), [](SignatureWithSteps s1, SignatureWithSteps s2) {
+			return s1.steps < s2.steps;
+		});
+
+		return stepsToSignatures[0].signature;
+	}
+
 	// Create symbol tables for each scope
 	void SemanticAnalyzer::Analyze(AST::Node* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable)
 	{
@@ -480,7 +598,22 @@ namespace O
 			Analyze(expression->m_Lhs, localSymbolTable, localTypeTable);
 			if (HasError())
 				return;
+
+
 			Analyze(expression->m_Rhs, localSymbolTable, localTypeTable);
+			if (HasError())
+				return;
+
+			O::Type& lhs = GetTypeOfNode(expression->m_Lhs, localSymbolTable, localTypeTable);
+			O::Type& rhs = GetTypeOfNode(expression->m_Rhs, localSymbolTable, localTypeTable);
+
+			auto operatorOpt = ResolveOverload(localTypeTable, m_OperatorDefinitions.m_OperatorSignatures[expression->m_Operator.m_Name], { lhs, rhs });
+
+			if (!operatorOpt.has_value())
+			{
+				MakeError("Operator " + expression->m_Operator.m_Symbol + " not defined for " + lhs.name + " and " + rhs.name);
+				return;
+			}
 
 			break;
 		}
@@ -488,6 +621,18 @@ namespace O
 		{
 			UnaryExpression* expression = (UnaryExpression*)node;
 			Analyze(expression->m_Operand, localSymbolTable, localTypeTable);
+			if (HasError())
+				return;
+
+			O::Type& operand = GetTypeOfNode(expression->m_Operand, localSymbolTable, localTypeTable);
+
+			auto operatorOpt = ResolveOverload(localTypeTable, m_OperatorDefinitions.m_OperatorSignatures[expression->m_Operator.m_Name], { operand });
+
+			if (!operatorOpt.has_value())
+			{
+				MakeError("Operator " + expression->m_Operator.m_Symbol + " not defined for " + operand.name);
+				return;
+			}
 
 			break;
 		}

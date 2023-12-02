@@ -158,5 +158,7 @@ namespace O::Operators
 
 	private:
 		std::vector<Operator> m_Operators;
+
+
 	};
 }

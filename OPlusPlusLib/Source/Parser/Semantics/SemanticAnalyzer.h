@@ -10,6 +10,29 @@
 namespace O
 {
 	using namespace AST;
+
+	struct CallableSignature
+	{
+		std::vector<TypeId> parameterTypes;
+		TypeId returnType;
+	};
+
+	class OperatorDefinitions
+	{
+	public:
+		OperatorDefinitions();
+
+	private:
+		void GeneratePrimitiveOperators(TypeId type);
+		void GenerateAssignmentOperators(TypeId type);
+
+	public:
+		std::unordered_map<Operators::Name, std::vector<CallableSignature>> m_OperatorSignatures;
+
+		std::unordered_map<Operators::Name, std::vector<CallableSignature>> m_BuiltInOperatorDefinitions;
+		std::unordered_map<Operators::Name, std::vector<Nodes::FunctionDefinitionStatement>> m_OverloadedOperatorDefinitions;
+	};
+
 	class SemanticAnalyzer : public CompileTimeErrorList
 	{
 		// Does typechecking between assignments and in expressions
@@ -48,11 +71,13 @@ namespace O
 		VariableSymbol* CreateSymbolForClassMemberDeclaration(Nodes::VariableDeclaration* node, ClassSymbol& classSymbol);
 		CallableSymbol* CreateSymbolForMethodDeclaration(Nodes::FunctionDefinitionStatement* node, ClassSymbol& classSymbol);
 
-		std::vector<ValueType> CreateSymbolsForCallableDefinition(Nodes::FunctionDefinitionStatement* node);
+		std::vector<TypeId> CreateSymbolsForCallableDefinition(Nodes::FunctionDefinitionStatement* node);
 		std::optional<Type> AnalyzeCallableDefinition(Nodes::FunctionDefinitionStatement* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable, std::optional<Type> returnType);
 
 		bool DoesTypesMatchThrowing(TypeTable& localTypeTable, Type& otherType, Type& expectedType);
 		bool DoesTypesMatch(TypeTable& localTypeTable, Type& otherType, Type& expectedType);
+
+		std::optional<CallableSignature> ResolveOverload(TypeTable& localTypeTable, std::vector<CallableSignature> overloads, std::vector<Type> arguments);
 
 		void MakeError(const std::string& message, CompileTimeError::Severity severity = CompileTimeError::Error);
 
@@ -63,6 +88,8 @@ namespace O
 
 	private:
 		AST::Node* m_Program;
+
+		OperatorDefinitions m_OperatorDefinitions;
 
 		SymbolTable* m_GlobalSymbolTable;
 		TypeTable* m_GlobalTypeTable;

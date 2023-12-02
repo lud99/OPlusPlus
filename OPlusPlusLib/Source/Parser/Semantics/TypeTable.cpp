@@ -34,7 +34,7 @@ namespace O
 		return false;
 	}
 
-	bool TypeTable::HasType(ValueType typeId)
+	bool TypeTable::HasType(TypeId typeId)
 	{
 		// First look in the current table
 		for (auto& type : m_Types)
@@ -65,7 +65,7 @@ namespace O
 		return false;
 	}
 
-	bool TypeTable::HasCompleteType(ValueType typeId)
+	bool TypeTable::HasCompleteType(TypeId typeId)
 	{
 		// First look in the current table
 		for (auto& type : m_Types)
@@ -95,7 +95,7 @@ namespace O
 		assert(m_TableType == TypeTableType::Global);
 	}
 
-	Type* TypeTable::Lookup(ValueType typeId)
+	Type* TypeTable::Lookup(TypeId typeId)
 	{
 		// First look in the current table
 		for (auto& type : m_Types)
@@ -178,7 +178,7 @@ namespace O
 		return InsertGeneric(TypeEntryType::Function, typeArguments);
 	}
 
-	void TypeTable::AddTypeRelation(Type& type, ValueType relatedType, TypeRelation::ConversionType subtypeConversion, TypeRelation::ConversionType supertypeConversion)
+	void TypeTable::AddTypeRelation(Type& type, TypeId relatedType, TypeRelation::ConversionType subtypeConversion, TypeRelation::ConversionType supertypeConversion)
 	{
 		assert(HasCompleteType(relatedType));
 
