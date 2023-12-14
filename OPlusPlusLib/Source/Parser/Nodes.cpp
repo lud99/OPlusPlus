@@ -5,7 +5,8 @@ namespace O::AST
 	std::string Node::TypeToString()
 	{
 		return std::string(magic_enum::enum_name(m_Type));
-	};
+	}
+	
 	void Node::Print(std::string padding)
 	{
 		std::cout << padding << TypeToString() << (ToString() != "" ? ": " : "") << ToString() << "\n";

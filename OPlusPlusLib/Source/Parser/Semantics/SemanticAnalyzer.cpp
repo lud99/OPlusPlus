@@ -215,13 +215,25 @@ namespace O
 	{
 		Type variableType;
 		if (node->m_VariableType)
+		{
+			Analyze(node->m_VariableType, localSymbolTable, localTypeTable);
+			if (HasError())
+				return nullptr;
+
 			variableType = GetTypeOfNode(node->m_VariableType, localSymbolTable, localTypeTable);
+			if (HasError())
+				return nullptr;
+		}
 		
 		if (HasError())
 			return nullptr;
 
 		if (node->m_AssignedValue)
 		{
+			Analyze(node->m_AssignedValue, localSymbolTable, localTypeTable);
+			if (HasError())
+				return nullptr;
+
 			Type assignedValueType = GetTypeOfNode(node->m_AssignedValue, localSymbolTable, localTypeTable);
 			if (HasError())
 				return nullptr;
@@ -281,12 +293,14 @@ namespace O
 	{
 		std::string functionName = node->m_Name->ToString();
 
+		
+
 		auto symbols = localSymbolTable.Lookup(functionName);
-		if (!symbols.empty())
-		{
+		bool isOverload = !symbols.empty();
+		/*{
 			MakeErrorAlreadyDefined(functionName, SymbolType::Function);
 			return nullptr;
-		}
+		}*/
 
 		// Initialize symbol table for the function parameters to live in
 		// They are not created in the body symbol table, as expressive functions has no scope node to attach the table to
@@ -294,6 +308,33 @@ namespace O
 		node->m_ParametersTypeTable = TypeTable(TypeTableType::Local, &localTypeTable);
 
 		auto parameterTypes = CreateSymbolsForCallableDefinition(node);
+
+		// Check if the parameter types are different from other functions with same name
+		// If not, then alreadyDefined error
+		for (Symbol* symbol : symbols)
+		{
+			CallableSymbol* function = (CallableSymbol*)symbol;
+			bool isIdentical = true;
+
+			if (parameterTypes.size() != function->m_ParameterTypes.size())
+				continue;
+
+			// Assume they are identical and look for contradictions
+			for (int i = 0; i < parameterTypes.size(); i++)
+			{
+				O::Type& parameterType = *node->m_ParametersTypeTable.Lookup(parameterTypes[i]);
+				O::Type& otherParameterType = *node->m_ParametersTypeTable.Lookup(function->m_ParameterTypes[i]);
+
+				if (parameterType.id != otherParameterType.id)
+					isIdentical = false;
+			}
+
+			if (isIdentical)
+			{
+				MakeErrorAlreadyDefined(functionName, SymbolType::Function);
+				return nullptr;
+			}
+		}
 
 		std::optional<Type> declaredReturnType = {};
 		if (node->m_ReturnType)
@@ -611,7 +652,6 @@ namespace O
 			if (HasError())
 				return;
 
-
 			Analyze(expression->m_Rhs, localSymbolTable, localTypeTable);
 			if (HasError())
 				return;
@@ -620,12 +660,13 @@ namespace O
 			O::Type& rhs = GetTypeOfNode(expression->m_Rhs, localSymbolTable, localTypeTable);
 
 			auto operatorOpt = ResolveOverload(localTypeTable, m_OperatorDefinitions.m_OperatorSignatures[expression->m_Operator.m_Name], { lhs, rhs });
-
 			if (!operatorOpt.has_value())
 			{
 				MakeError("Operator " + expression->m_Operator.m_Symbol + " not defined for " + lhs.name + " and " + rhs.name);
 				return;
 			}
+
+			m_ResolvedOverloadCache[node] = operatorOpt.value();
 
 			break;
 		}
@@ -639,12 +680,13 @@ namespace O
 			O::Type& operand = GetTypeOfNode(expression->m_Operand, localSymbolTable, localTypeTable);
 
 			auto operatorOpt = ResolveOverload(localTypeTable, m_OperatorDefinitions.m_OperatorSignatures[expression->m_Operator.m_Name], { operand });
-
 			if (!operatorOpt.has_value())
 			{
 				MakeError("Operator " + expression->m_Operator.m_Symbol + " not defined for " + operand.name);
 				return;
 			}
+
+			m_ResolvedOverloadCache[node] = operatorOpt.value();
 
 			break;
 		}
@@ -652,12 +694,34 @@ namespace O
 		{
 			CallExpression* call = (CallExpression*)node;
 
+			// Check function exists
 			Analyze(call->m_Callee, localSymbolTable, localTypeTable);
 
-			for (auto& argument : call->m_Arguments->m_Elements)
+			auto matchingFunctions = localSymbolTable.Lookup(call->m_Callee->ToString());
+
+			//ResolveOverload
+
+			CallableSymbol* matchingCallable = (CallableSymbol*)matchingFunctions[0];
+
+			// First validate
+			for (int i = 0; i < call->m_Arguments->m_Elements.size(); i++)
 			{
+				auto& argument = call->m_Arguments->m_Elements[i];
+
 				Analyze(argument, localSymbolTable, localTypeTable);
+
+				O::Type& argumentType = GetTypeOfNode(argument, localSymbolTable, localTypeTable);
+				O::Type& parameterType = *localTypeTable.Lookup(matchingCallable->m_ParameterTypes[i]);
+
+				if (!DoesTypesMatchThrowing(localTypeTable, argumentType, parameterType))
+					return;
 			}
+
+			// Then typecheck arguments
+
+
+			auto& a = m_OperatorDefinitions;
+			int b = 5;
 
 			break;
 		}
@@ -668,6 +732,20 @@ namespace O
 			{
 				Analyze(element, localSymbolTable, localTypeTable);
 			}
+
+			std::vector<O::Type> elementTypes;
+			std::vector<TypeId> elementTypeIds;
+			for (AST::Node* element : tuple->m_Elements)
+			{
+				auto& type = GetTypeOfNode(element, localSymbolTable, localTypeTable);
+				if (HasError()) return;
+
+				elementTypes.push_back(type);
+				elementTypeIds.push_back(type.id);
+			}
+
+			// Cache the type of the tuple
+			m_ResolvedOverloadCache[node] = { elementTypeIds, localTypeTable.InsertTuple(elementTypes).id };
 
 			break;
 		}
@@ -808,7 +886,7 @@ namespace O
 				elementTypes.push_back(GetTypeOfNode(element, localSymbolTable, localTypeTable));
 			}
 
-			return localTypeTable.InsertTuple(elementTypes);
+			return *localTypeTable.Lookup(m_ResolvedOverloadCache[node].returnType);
 		}
 		case NodeKind::FunctionType:
 		{
@@ -846,57 +924,28 @@ namespace O
 
 		case NodeKind::BinaryExpression:
 		{
-			BinaryExpression* expression = (BinaryExpression*)node;
-			auto& lhs = GetTypeOfNode(expression->m_Lhs, localSymbolTable, localTypeTable);
-			auto& rhs = GetTypeOfNode(expression->m_Rhs, localSymbolTable, localTypeTable);
-
-			auto operatorOpt = ResolveOverload(localTypeTable, m_OperatorDefinitions.m_OperatorSignatures[expression->m_Operator.m_Name], { lhs, rhs });
-
-			if (!operatorOpt.has_value())
-			{
-				MakeError("Operator " + expression->m_Operator.m_Symbol + " not defined for " + lhs.name + " and " + rhs.name);
-				return *localTypeTable.Lookup(PrimitiveValueTypes::Void);
-			}
-
-			return *localTypeTable.Lookup(operatorOpt.value().returnType);
+			return *localTypeTable.Lookup(m_ResolvedOverloadCache[node].returnType);
 		}
 		case NodeKind::UnaryExpression:
 		{
-			UnaryExpression* expression = (UnaryExpression*)node;
-			O::Type& operand = GetTypeOfNode(expression->m_Operand, localSymbolTable, localTypeTable);
-
-			auto operatorOpt = ResolveOverload(localTypeTable, m_OperatorDefinitions.m_OperatorSignatures[expression->m_Operator.m_Name], { operand });
-
-			if (!operatorOpt.has_value())
-			{
-				MakeError("Operator " + expression->m_Operator.m_Symbol + " not defined for " + operand.name);
-				return *localTypeTable.Lookup(PrimitiveValueTypes::Void);
-			}
-
-			return *localTypeTable.Lookup(operatorOpt.value().returnType);
+			assert(m_ResolvedOverloadCache.count(node) == 1);
+			
+			return *localTypeTable.Lookup(m_ResolvedOverloadCache[node].returnType);
 		}
 		case NodeKind::CallExpression:
 		{
 			CallExpression* call = (CallExpression*)node;
 
+			return *localTypeTable.Lookup(m_ResolvedOverloadCache[node].returnType);
+
 			// TODO: Determine function overloads?
-			return GetTypeOfNode(call->m_Callee, localSymbolTable, localTypeTable);
+			//return GetTypeOfNode(call->m_Callee, localSymbolTable, localTypeTable);
 		}
 		case NodeKind::TupleExpression:
 		{
 			TupleExpression* tuple = (TupleExpression*)node;
 
-			std::vector<O::Type> elementTypes;
-			for (AST::Node* element : tuple->m_Elements)
-			{
-				auto& type = GetTypeOfNode(element, localSymbolTable, localTypeTable);
-				if (HasError())
-					return *localTypeTable.Lookup(PrimitiveValueTypes::Void);
-				
-				elementTypes.push_back(type);
-			}
-
-			return localTypeTable.InsertTuple(elementTypes);
+			return *localTypeTable.Lookup(m_ResolvedOverloadCache[node].returnType);
 		}
 		case NodeKind::FunctionDefinition:
 			break;

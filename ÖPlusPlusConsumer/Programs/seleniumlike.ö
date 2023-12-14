@@ -2,7 +2,9 @@ let a : int = 5;
 let b = 5;
 let c : double;
 
-let result:int = a == b;
+let result:bool = a == b;
+
+let newA = -5;
 
 /*let f(x: int, y : int) {
 	if (1) { return true; }

@@ -11,8 +11,6 @@
 
 namespace O::AST
 {
-	struct Node;
-
 	enum class NodeKind {
 		EmptyStatement,
 
@@ -65,7 +63,7 @@ namespace O::AST
 		EXPORT Node() {};
 
 		NodeKind m_Type = NodeKind::EmptyStatement;
-
+		
 		EXPORT virtual std::string TypeToString();
 		EXPORT virtual void Print(std::string padding = "");
 		EXPORT virtual std::string ToString() { return ""; };

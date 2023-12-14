@@ -1,0 +1,17 @@
+let f(x: int) {
+	return 2;
+}
+let f(x: int) {
+
+	return 6677;
+}
+
+let f(x: double) {
+	return 2;
+}
+
+let f(x: string) {
+	return 2;
+}
+
+f(5);

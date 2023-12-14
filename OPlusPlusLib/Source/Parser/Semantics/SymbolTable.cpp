@@ -50,13 +50,18 @@ namespace O
         m_CallableType = callableType;
 	}
 
-    bool CallableSymbol::operator==(const CallableSymbol &other)
+    bool CallableSymbol::operator==(const Symbol &other_)
     {
-        return m_Name == other.m_Name &&
+        if (other_.m_SymbolType != SymbolType::Function && other_.m_SymbolType != SymbolType::Method)
+            return false;
+
+        CallableSymbol* other = (CallableSymbol*)&other_;
+        return m_Name == other->m_Name &&
             // method == function?. m_SymbolType == other.m_SymbolType &&
             // TODO: look into overloading of returnType. m_DataType == other.m_DataType &&
             // unique for callable
-            m_ParameterTypes == other.m_ParameterTypes;
+            m_ParameterTypes == other->m_ParameterTypes &&
+            m_DataType == other->m_DataType;
             //m_IsBuiltIn == other.m_IsBuiltIn &&
             //m_CallableType == other.m_CallableType;
     }

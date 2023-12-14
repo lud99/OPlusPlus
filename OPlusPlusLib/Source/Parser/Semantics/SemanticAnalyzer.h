@@ -79,6 +79,8 @@ namespace O
 
 		std::optional<CallableSignature> ResolveOverload(TypeTable& localTypeTable, std::vector<CallableSignature> overloads, std::vector<Type> arguments);
 
+
+
 		void MakeError(const std::string& message, CompileTimeError::Severity severity = CompileTimeError::Error);
 
 		void MakeErrorAlreadyDefined(const std::string symbolName, SymbolType symbolType);
@@ -90,6 +92,8 @@ namespace O
 		AST::Node* m_Program;
 
 		OperatorDefinitions m_OperatorDefinitions;
+
+		std::unordered_map<AST::Node*, CallableSignature> m_ResolvedOverloadCache;
 
 		SymbolTable* m_GlobalSymbolTable;
 		TypeTable* m_GlobalTypeTable;

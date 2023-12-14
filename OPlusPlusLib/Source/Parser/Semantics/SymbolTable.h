@@ -58,7 +58,7 @@ namespace O
         SymbolType m_SymbolType;
         TypeId m_DataType;
 
-        bool operator==(const Symbol& other);
+        virtual bool operator==(const Symbol& other);
 
         //Type& GetTypeTableEntry();
     };
@@ -83,7 +83,7 @@ namespace O
         CallableSymbol(std::string name, SymbolType symbolType, TypeId returnType, uint16_t id, CallableSymbolType callableType);
 
         // Compares parameters, isBuiltIn and functionType (and default)
-        bool operator==(const CallableSymbol& other);
+        bool operator==(const Symbol& other) override;
 
     public:
         uint16_t m_Id;
