@@ -293,14 +293,8 @@ namespace O
 	{
 		std::string functionName = node->m_Name->ToString();
 
-		
-
 		auto symbols = localSymbolTable.Lookup(functionName);
 		bool isOverload = !symbols.empty();
-		/*{
-			MakeErrorAlreadyDefined(functionName, SymbolType::Function);
-			return nullptr;
-		}*/
 
 		// Initialize symbol table for the function parameters to live in
 		// They are not created in the body symbol table, as expressive functions has no scope node to attach the table to
@@ -309,14 +303,28 @@ namespace O
 
 		auto parameterTypes = CreateSymbolsForCallableDefinition(node);
 
+		std::optional<Type> declaredReturnType = {};
+		if (node->m_ReturnType)
+			declaredReturnType = GetTypeOfNode(node->m_ReturnType, localSymbolTable, localTypeTable);
+
+		auto returnTypeOpt = AnalyzeCallableDefinition(node, node->m_ParametersSymbolTable, node->m_ParametersTypeTable, declaredReturnType);
+		if (HasError())
+			return nullptr;
+		assert(returnTypeOpt.has_value());
+		Type returnType = returnTypeOpt.value();
+
 		// Check if the parameter types are different from other functions with same name
 		// If not, then alreadyDefined error
+
 		for (Symbol* symbol : symbols)
 		{
 			CallableSymbol* function = (CallableSymbol*)symbol;
 			bool isIdentical = true;
 
 			if (parameterTypes.size() != function->m_ParameterTypes.size())
+				continue;
+
+			if (returnType.id != function->m_DataType)
 				continue;
 
 			// Assume they are identical and look for contradictions
@@ -335,16 +343,6 @@ namespace O
 				return nullptr;
 			}
 		}
-
-		std::optional<Type> declaredReturnType = {};
-		if (node->m_ReturnType)
-			declaredReturnType = GetTypeOfNode(node, localSymbolTable, localTypeTable);
-
-		auto returnTypeOpt = AnalyzeCallableDefinition(node, node->m_ParametersSymbolTable, node->m_ParametersTypeTable, declaredReturnType);
-		if (HasError())
-			return nullptr;
-		assert(returnTypeOpt.has_value());
-		Type returnType = returnTypeOpt.value();
 
 		// 	uint16_t functionId = m_ConstantsPool.AddAndGetFunctionReferenceIndex(functionName);
 		uint16_t callableId = 0; // TODO: Implement properly
@@ -934,6 +932,7 @@ namespace O
 		}
 		case NodeKind::CallExpression:
 		{
+			// TODO: The function overload is onyl cached when it is called,it should be upon generaton aswell
 			CallExpression* call = (CallExpression*)node;
 
 			return *localTypeTable.Lookup(m_ResolvedOverloadCache[node].returnType);
