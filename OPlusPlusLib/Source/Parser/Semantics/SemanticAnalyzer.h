@@ -27,6 +27,8 @@ namespace O
 		void GenerateAssignmentOperators(TypeId type);
 
 	public:
+		//std::unordered_map<, std::vector<CallableSignature>> m_OperatorSignatures;
+
 		std::unordered_map<Operators::Name, std::vector<CallableSignature>> m_OperatorSignatures;
 
 		std::unordered_map<Operators::Name, std::vector<CallableSignature>> m_BuiltInOperatorDefinitions;

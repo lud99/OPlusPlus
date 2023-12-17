@@ -563,6 +563,11 @@ namespace O
 		for (CallableSignature signature : overloads)
 		{
 			bool allArgumentsMatched = true;
+
+			// Must have same number of args. TODO: Add default values for parameters
+			if (signature.parameterTypes.size() != arguments.size())
+				continue;
+
 			// Check if each argument type is compatible with corresponding parameter type
 			for (int i = 0; i < signature.parameterTypes.size(); i++)
 			{
@@ -699,6 +704,22 @@ namespace O
 
 			//ResolveOverload
 
+			std::vector<CallableSignature> matchingCallableSignatures;
+			for (Symbol* symbol : matchingFunctions)
+			{
+				CallableSymbol* callable = (CallableSymbol*)symbol;
+
+				matchingCallableSignatures.push_back({ callable->m_ParameterTypes, callable->m_DataType });
+			}
+
+			std::vector<O::Type> argumentTypes;
+			for (O::AST::Node* argument : call->m_Arguments->m_Elements) 
+			{
+				argumentTypes.push_back(GetTypeOfNode(argument, localSymbolTable, localTypeTable));
+			}
+
+			auto opt = ResolveOverload(localTypeTable, matchingCallableSignatures, argumentTypes);
+
 			CallableSymbol* matchingCallable = (CallableSymbol*)matchingFunctions[0];
 
 			// First validate
@@ -805,7 +826,17 @@ namespace O
 		case NodeKind::Break:
 			break;
 		case NodeKind::Return:
+		{
+			ReturnStatement* returnNode = (ReturnStatement*)node;
+
+			// Returns void, nothing to analyze
+			if (!returnNode->m_ReturnValue)
+				return;
+
+			Analyze(returnNode->m_ReturnValue, localSymbolTable, localTypeTable);
+
 			break;
+		}
 		case NodeKind::ClassDeclaration:
 		{
 			ClassDeclarationStatement* classNode = (ClassDeclarationStatement*)node;

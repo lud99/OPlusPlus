@@ -1,7 +1,7 @@
-let f(x: int) {
+/*let f(x: int) {
 	return 2;
 }
-let f(x: int):double  {
+let f(x: int, y: string):double  {
 
 	return 6677;
 }
@@ -14,7 +14,7 @@ let f(x: string) {
 	return 2;
 }
 
-f(5);
+f(5);*/
 
 // example of return type overload
 let makeError(message: string) : void {
@@ -36,7 +36,7 @@ let doStuff() {
 }
 
 // ex 2 with class with multiple datatypes (union)
-class Value {
+/*class Value {
 	let intValue : int;
 	let boolValue : bool;
 	let doubleValue : double;
@@ -44,4 +44,4 @@ class Value {
 	let getValue() :int { return intValue; };
 	let getValue() :bool { return boolValue; };
 	let getValue() :double { return doubleValue; };
-};
+};*/
