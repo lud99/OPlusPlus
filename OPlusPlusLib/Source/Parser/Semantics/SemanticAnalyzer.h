@@ -3,8 +3,7 @@
 #include "../Parser.h"
 #include "../Nodes.h"
 
-#include "SymbolTable.h"
-#include "TypeTable.h"
+#include "SymbolTypeTable.h"
 #include "../CompileTimeErrorList.h"
 
 namespace O
@@ -50,37 +49,38 @@ namespace O
 		EXPORT void AnalyzeProgram();
 
 
-		Type& GetTypeOfNode(AST::Node* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable);
+		Type& GetTypeOfExpression(AST::Node* node, SymbolTypeTable& table);
+		Type& ResolveTypeNode(AST::Nodes::Type* node, SymbolTypeTable& table);
 
 		bool Typecheck(Type& lhs, Type& rhs);
 
-		EXPORT auto& GetGlobalTypeTable() { return m_GlobalTypeTable; };
+		EXPORT auto& GetGlobalTypeTable() { return m_GlobalSymbolTypeTable; };
 
 
 		EXPORT ~SemanticAnalyzer();
 
 	private:
-		void Analyze(AST::Node* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable);
+		void Analyze(AST::Node* node, SymbolTypeTable& table, std::optional<O::Type> expectedType = {});
 		void AnalyzeScope(Nodes::Scope* scope);
 
-		void GetReturnTypes(AST::Node* node, std::vector<Type>& returnTypes, SymbolTable& localSymbolTable, TypeTable& localTypeTable);
+		void GetReturnTypes(AST::Node* node, std::vector<Type>& returnTypes, SymbolTypeTable& table, std::optional<O::Type> expectedType = {});
 
-		void CreateTablesForScope(Nodes::Scope* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable);
-		
-		VariableSymbol* CreateSymbolForVariableDeclaration(Nodes::VariableDeclaration* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable, VariableSymbolType variableType);
-		CallableSymbol* CreateSymbolForFunctionDeclaration(Nodes::FunctionDefinitionStatement* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable, bool isMethod = false);
+		void CreateTablesForScope(Nodes::Scope* node, SymbolTypeTable& table);
+
+		VariableSymbol* CreateSymbolForVariableDeclaration(Nodes::VariableDeclaration* node, SymbolTypeTable& table, VariableSymbolType variableType);
+		CallableSymbol* CreateSymbolForFunctionDeclaration(Nodes::FunctionDefinitionStatement* node, SymbolTypeTable& table, bool isMethod = false);
 
 		VariableSymbol* CreateSymbolForClassMemberDeclaration(Nodes::VariableDeclaration* node, ClassSymbol& classSymbol);
 		CallableSymbol* CreateSymbolForMethodDeclaration(Nodes::FunctionDefinitionStatement* node, ClassSymbol& classSymbol);
 
 		std::vector<TypeId> CreateSymbolsForCallableDefinition(Nodes::FunctionDefinitionStatement* node);
-		std::optional<Type> AnalyzeCallableDefinition(Nodes::FunctionDefinitionStatement* node, SymbolTable& localSymbolTable, TypeTable& localTypeTable, std::optional<Type> returnType);
+		std::optional<Type> AnalyzeCallableDefinition(Nodes::FunctionDefinitionStatement* node, SymbolTypeTable& table, std::optional<Type> declaredReturnType);
 
 		bool DoesTypesMatchThrowing(TypeTable& localTypeTable, Type& otherType, Type& expectedType);
 		bool DoesTypesMatch(TypeTable& localTypeTable, Type& otherType, Type& expectedType);
 
-		std::optional<CallableSignature> ResolveOverload(TypeTable& localTypeTable, std::vector<CallableSignature> overloads, std::vector<Type> arguments);
-
+		std::optional<CallableSignature> ResolveOverload(TypeTable& localTypeTable, std::vector<CallableSignature> overloads, std::vector<Type> arguments, std::optional<O::Type> expectedReturnType = {});
+		
 
 
 		void MakeError(const std::string& message, CompileTimeError::Severity severity = CompileTimeError::Error);
@@ -97,8 +97,7 @@ namespace O
 
 		std::unordered_map<AST::Node*, CallableSignature> m_ResolvedOverloadCache;
 
-		SymbolTable* m_GlobalSymbolTable;
-		TypeTable* m_GlobalTypeTable;
+		SymbolTypeTable* m_GlobalSymbolTypeTable;
 	};
 
 }

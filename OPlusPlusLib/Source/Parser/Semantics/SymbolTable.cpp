@@ -3,6 +3,8 @@
 #include <assert.h>
 #include <iostream>
 
+#include "SymbolTypeTable.h"
+
 namespace O
 {
 	// Type& SymbolTable::Symbol::GetTypeTableEntry()
@@ -79,14 +81,15 @@ namespace O
         m_Name = name;
         m_DataType = dataType;
 
-        m_Symbols = new SymbolTable(SymbolTableType::Local, upwardSymbolTable);
-        m_Types = new TypeTable(TypeTableType::Local, upwardTypeTable);
+        m_Table = new SymbolTypeTable();
+
+        m_Table->symbols = SymbolTable(SymbolTableType::Local, upwardSymbolTable);
+        m_Table->types = TypeTable(TypeTableType::Local, upwardTypeTable);
     }
 
     ClassSymbol::~ClassSymbol()
     {
-        delete m_Symbols;
-        delete m_Types;
+        delete m_Table;
     }
 
     SymbolTable::SymbolTable()

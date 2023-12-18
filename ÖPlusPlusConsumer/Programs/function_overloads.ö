@@ -17,22 +17,31 @@ let f(x: string) {
 f(5);*/
 
 // example of return type overload
-let makeError(message: string) : void {
-	return;
+let makeError(message: int) : int {
+	return 0;
+}
+let makeError(message : int) : int {
+	return 0;
 }
 let makeError(message : string) : int {
 	return 0;
 }
+let makeError(message : string) : double {
+	return 0;
+}
+let makeError(message: double) : string {
+	return "";
+}
 
-let doStuff():void {
+let doStuff():double {
 	//...
-	return makeError("Error!");
+	return makeError(2);
 }
 
 // wont work as there is no expected type so function cannot be resolved
 let doStuff() {
 	//...
-	return makeError("Error!");
+	//return makeError(3);
 }
 
 // ex 2 with class with multiple datatypes (union)

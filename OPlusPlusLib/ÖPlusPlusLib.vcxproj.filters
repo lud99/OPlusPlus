@@ -57,6 +57,9 @@
     <ClInclude Include="Source\Parser\CompileTimeErrorList.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Source\Parser\Semantics\SymbolTypeTable.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source\ÖPlusPlusLib.cpp">

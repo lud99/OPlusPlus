@@ -6,8 +6,7 @@
 
 #include "../macro.h"
 #include "Operators.h"
-#include "Semantics/SymbolTable.h"
-#include "Semantics/TypeTable.h"
+#include "Semantics/SymbolTypeTable.h"
 
 namespace O::AST
 {
@@ -76,8 +75,7 @@ namespace O::AST::Nodes
 	{
 		std::vector<Node*> m_Lines;
 
-		SymbolTable m_LocalSymbolTable;
-		TypeTable m_LocalTypeTable;
+		SymbolTypeTable m_LocalTable;
 
 		virtual void Print(std::string padding) override;
 	};
@@ -243,8 +241,7 @@ namespace O::AST::Nodes
 		Identifier* m_Name;
 		FunctionParameters* m_Parameters;
 
-		SymbolTable m_ParametersSymbolTable;
-		TypeTable m_ParametersTypeTable; // Only needed for printing, nothing else. fixme
+		SymbolTypeTable m_ParametersTable;
 
 		Node* m_Body = nullptr;
 

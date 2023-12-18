@@ -277,6 +277,11 @@ namespace O
 		return false;
 	}
 
+	bool TypeTable::AreTypesEquivalent(Type& a, Type& b)
+	{
+		return a.id == b.id;
+	}
+
 	uint16_t TypeTable::GetHeightOfTypeRelation(Type& type)
 	{
 		uint16_t highestRelation = 0;
@@ -318,6 +323,12 @@ namespace O
 		// int -> double (implicit)
 		AddTypeRelation(m_Types[PrimitiveValueTypes::Double], PrimitiveValueTypes::Integer, TypeRelation::Explicit, TypeRelation::Implicit);
 		
+
+		// temp
+		// string -> int (explicit)
+		// int -> string (implicit)
+		AddTypeRelation(m_Types[PrimitiveValueTypes::String], PrimitiveValueTypes::Integer, TypeRelation::Explicit, TypeRelation::Implicit);
+
 		// int -> bool (explicit)
 		// bool -> int (explicit)
 		AddTypeRelation(m_Types[PrimitiveValueTypes::Integer], PrimitiveValueTypes::Bool, TypeRelation::Explicit, TypeRelation::Explicit);
