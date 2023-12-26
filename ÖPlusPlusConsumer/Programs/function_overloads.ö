@@ -17,8 +17,8 @@ let f(x: string) {
 f(5);*/
 
 // example of return type overload
-let makeError(message: int) : int {
-	return 0;
+let makeError(message: int) : void {
+	return;
 }
 let makeError(message : int) : int {
 	return 0;
@@ -29,13 +29,17 @@ let makeError(message : string) : int {
 let makeError(message : string) : double {
 	return 0;
 }
-let makeError(message: double) : string {
-	return "";
+let makeError(message: double) : double {
+	return 0;
 }
 
 let doStuff():double {
 	//...
 	return makeError(2);
+
+	// enum A = ::B
+	// Animal a = { "Bosse" }.Get(); (expected type is always the variable type)
+	// string b = { "Bosse" }.Name(); (wont work { "bosse" } is expected to be a string, but string doesnt have .Name())
 }
 
 // wont work as there is no expected type so function cannot be resolved

@@ -16,6 +16,15 @@ namespace O
 		TypeId returnType;
 	};
 
+	struct DetailedCallableSignature
+	{
+		std::vector<O::Type> parameterTypes;
+		O::Type returnType;
+
+		std::string name;
+		CallableSymbolType callableKind;
+	};
+
 	class OperatorDefinitions
 	{
 	public:
@@ -79,13 +88,14 @@ namespace O
 		bool DoesTypesMatchThrowing(TypeTable& localTypeTable, Type& otherType, Type& expectedType);
 		bool DoesTypesMatch(TypeTable& localTypeTable, Type& otherType, Type& expectedType);
 
-		std::optional<CallableSignature> ResolveOverload(TypeTable& localTypeTable, std::vector<CallableSignature> overloads, std::vector<Type> arguments, std::optional<O::Type> expectedReturnType = {});
+		std::optional<CallableSignature> ResolveOverload(TypeTable& localTypeTable, std::vector<CallableSignature> overloads, DetailedCallableSignature calle, std::optional<O::Type> expectedReturnType = {});
 		
 
 
 		void MakeError(const std::string& message, CompileTimeError::Severity severity = CompileTimeError::Error);
 
 		void MakeErrorAlreadyDefined(const std::string symbolName, SymbolType symbolType);
+		void MakeErrorCallableAlreadyDefined(const std::string symbolName, SymbolType symbolType, CallableSignature signature, TypeTable& types);
 		void MakeErrorNotDefined(const std::string symbolName);
 		void MakeErrorInvalidCallableName(const std::string symbolName, SymbolType symbol);
 		void MakeErrorInvalidDeclaredType(const std::string symbolName, const std::string declaredType, const std::string expetedType);

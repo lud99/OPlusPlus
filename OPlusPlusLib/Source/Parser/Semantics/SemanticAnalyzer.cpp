@@ -1,5 +1,7 @@
 #include "SemanticAnalyzer.h"
 
+#include "../../Utils.hpp"
+
 namespace O
 {
 	using namespace AST;
@@ -338,7 +340,7 @@ namespace O
 
 			if (isIdentical)
 			{
-				MakeErrorAlreadyDefined(functionName, SymbolType::Function);
+				MakeErrorCallableAlreadyDefined(functionName, SymbolType::Function, { parameterTypes, returnType.id }, table.types);
 				return nullptr;
 			}
 		}
@@ -549,7 +551,7 @@ namespace O
 		return typeRelation.value() == TypeRelation::Implicit;
 	}
 
-	std::optional<CallableSignature> SemanticAnalyzer::ResolveOverload(TypeTable& localTypeTable, std::vector<CallableSignature> overloads, std::vector<Type> arguments, std::optional<O::Type> expectedReturnType)
+	std::optional<CallableSignature> SemanticAnalyzer::ResolveOverload(TypeTable& localTypeTable, std::vector<CallableSignature> overloads, DetailedCallableSignature calle, std::optional<O::Type> expectedReturnType)
 	{
 		struct SignatureWithSteps
 		{
@@ -563,14 +565,14 @@ namespace O
 			bool allArgumentsMatched = true;
 
 			// Must have same number of args. TODO: Add default values for parameters
-			if (signature.parameterTypes.size() != arguments.size())
+			if (signature.parameterTypes.size() != calle.parameterTypes.size())
 				continue;
 
 			// Check if each argument type is compatible with corresponding parameter type
 			for (int i = 0; i < signature.parameterTypes.size(); i++)
 			{
 				O::Type& parameter = *localTypeTable.Lookup(signature.parameterTypes[i]);
-				O::Type& argument = arguments[i];
+				O::Type& argument = calle.parameterTypes[i];
 
 				if (!DoesTypesMatch(localTypeTable, argument, parameter))
 				{
@@ -588,7 +590,7 @@ namespace O
 				for (int i = 0; i < signature.parameterTypes.size(); i++)
 				{
 					O::Type& parameter = *localTypeTable.Lookup(signature.parameterTypes[i]);
-					O::Type& argument = arguments[i];
+					O::Type& argument = calle.parameterTypes[i];
 
 					totalSteps += localTypeTable.GetHeightOfTypeRelation(parameter) - localTypeTable.GetHeightOfTypeRelation(argument);
 				}
@@ -605,7 +607,7 @@ namespace O
 			return s1.steps < s2.steps;
 		});
 
-
+		// Put the all matches with the same steps as the closest one, to get all closest matches
 		std::vector<SignatureWithSteps> closestMatches;
 		int firstSteps = stepsToSignatures[0].steps;
 		for (int i = 0; i < stepsToSignatures.size(); i++)
@@ -621,15 +623,15 @@ namespace O
 
 			closestMatches.push_back(stepsToSignatures[i]);
 		}
+		
+		std::string calleArgumentTypesString = Join(calle.parameterTypes, std::string(", "), [](O::Type& t) { return t.name; });
+		std::string calleSignatureString = "(" + calleArgumentTypesString + " => " + calle.returnType.name + ")";
 
-
-		// TODO: If multiple with same number of steps at the start, choose the one based on expected type
-		// else: error
 
 		// multiple matches, but could not determine which to use
 		if (!expectedReturnType.has_value())
 		{
-			MakeError_Void("Found multiple matching overloaded functions, but could not determine which one to use", Token());
+			MakeError_Void("Found multiple matching overloaded functions for  " + calle.name + " , but could not determine which one to use. Argument types are " + calleArgumentTypesString, Token());
 			return {};
 		}
 
@@ -643,13 +645,20 @@ namespace O
 
 		if (potentialMatchesReturnType.empty())
 		{
-			MakeError_Void("Found no matching function with overloaded return type \"" + expectedReturnType.value().name + "\"", Token());
+			// TODO: hint system for printing potential functions
+			MakeError_Void("Found multiple matching overloads for " + calle.name + " based on argument types, but " +  
+				"none of them matched with the expected return type " + expectedReturnType.value().name, Token());
+
+			for (auto& match : closestMatches) {
+				MakeError_Void("Potential match based only on arguments", Token(), CompileTimeError::Info);
+			}
+
 			return {};
 		}
 
 		if (potentialMatchesReturnType.size() > 1)
 		{
-			MakeError_Void("Found multiple matching returntype overloaded functions, but could not determine which one to use", Token());
+			MakeError_Void("Found multiple matching return-type overloaded functions for  " + calle.name + " , but could not determine which one to use. Argument types are " + calleArgumentTypesString, Token());
 			return {};
 		}
 
@@ -660,8 +669,8 @@ namespace O
 	void SemanticAnalyzer::Analyze(AST::Node* node, SymbolTypeTable& table, std::optional<O::Type> expectedType)
 	{
 		using namespace Nodes;
-		//if (HasError())
-			//return;
+		if (HasError())
+			return;
 
 		switch (node->m_Type)
 		{
@@ -713,7 +722,14 @@ namespace O
 			O::Type& lhs = GetTypeOfExpression(expression->m_Lhs, table);
 			O::Type& rhs = GetTypeOfExpression(expression->m_Rhs, table);
 
-			auto operatorOpt = ResolveOverload(table.types, m_OperatorDefinitions.m_OperatorSignatures[expression->m_Operator.m_Name], { lhs, rhs });
+			DetailedCallableSignature calleSignature = {
+				{ lhs, rhs },
+				{},
+				expression->m_Operator.ToString(),
+				CallableSymbolType::Operator
+			};
+
+			auto operatorOpt = ResolveOverload(table.types, m_OperatorDefinitions.m_OperatorSignatures[expression->m_Operator.m_Name], calleSignature, expectedType);
 			if (!operatorOpt.has_value())
 			{
 				MakeError("Operator " + expression->m_Operator.m_Symbol + " not defined for " + lhs.name + " and " + rhs.name);
@@ -733,7 +749,14 @@ namespace O
 
 			O::Type& operand = GetTypeOfExpression(expression->m_Operand, table);
 
-			auto operatorOpt = ResolveOverload(table.types, m_OperatorDefinitions.m_OperatorSignatures[expression->m_Operator.m_Name], { operand });
+			DetailedCallableSignature calleSignature = {
+				{ operand },
+				{},
+				expression->m_Operator.ToString(),
+				CallableSymbolType::Operator
+			};
+
+			auto operatorOpt = ResolveOverload(table.types, m_OperatorDefinitions.m_OperatorSignatures[expression->m_Operator.m_Name], calleSignature, expectedType);
 			if (!operatorOpt.has_value())
 			{
 				MakeError("Operator " + expression->m_Operator.m_Symbol + " not defined for " + operand.name);
@@ -772,13 +795,19 @@ namespace O
 				matchingCallableSignatures.push_back({ callable->m_ParameterTypes, callable->m_DataType });
 			}
 
-			std::vector<O::Type> argumentTypes;
+			DetailedCallableSignature calleSignature = {
+				{},
+				{},
+				call->m_Callee->ToString(),
+				CallableSymbolType::Normal,
+			};
+
 			for (O::AST::Node* argument : call->m_Arguments->m_Elements) 
 			{
-				argumentTypes.push_back(GetTypeOfExpression(argument, table));
+				calleSignature.parameterTypes.push_back(GetTypeOfExpression(argument, table));
 			}
 
-			auto matchingCallableOpt = ResolveOverload(table.types, matchingCallableSignatures, argumentTypes, expectedType);
+			auto matchingCallableOpt = ResolveOverload(table.types, matchingCallableSignatures, calleSignature, expectedType);
 			if (!matchingCallableOpt.has_value())
 				return;
 
@@ -815,6 +844,8 @@ namespace O
 			FunctionDefinitionStatement* functionNode = (FunctionDefinitionStatement*)node;
 
 			CallableSymbol* function = CreateSymbolForFunctionDeclaration((FunctionDefinitionStatement*)node, table);
+			if (HasError())
+				return;
 			
 			std::optional<O::Type> returnType = {};
 			if (functionNode->m_ReturnType)
@@ -1070,6 +1101,20 @@ namespace O
 	void SemanticAnalyzer::MakeErrorAlreadyDefined(const std::string symbolName, SymbolType symbolType)
 	{
 		std::string message = SymbolTypeToString(symbolType) + " " + symbolName + " is already defined";
+		MakeError(message);
+	}
+
+	void SemanticAnalyzer::MakeErrorCallableAlreadyDefined(const std::string symbolName, SymbolType symbolType, CallableSignature signature, TypeTable& types)
+	{
+		std::string signatureStr = "(";
+		for (int i = 0; i < signature.parameterTypes.size() - 1; i++)
+		{
+			signatureStr += types.Lookup(signature.parameterTypes[i])->name + ", ";
+		}
+
+		signatureStr += types.Lookup(signature.parameterTypes.back())->name + " => " + types.Lookup(signature.returnType)->name + ")";
+
+		std::string message = SymbolTypeToString(symbolType) + " " + symbolName + " " + signatureStr + " is already defined";
 		MakeError(message);
 	}
 

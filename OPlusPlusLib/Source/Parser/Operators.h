@@ -102,6 +102,11 @@ namespace O::Operators
 			return invertedPrecedence - (m_Associaticity == Operators::Associativity::Right ? 1 : 0);
 		}
 
+		std::string NameAsString()
+		{
+			return std::string(magic_enum::enum_name(m_Name));
+		}
+
 		std::string ToString() 
 		{
 			return std::string(magic_enum::enum_name(m_Type)) + " operator " + std::string(magic_enum::enum_name(m_Name));
