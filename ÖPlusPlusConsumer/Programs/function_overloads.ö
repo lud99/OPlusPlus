@@ -1,7 +1,7 @@
-let f(x: int) {
+/*let f(x: int) {
 	return 2;
 }
-let f(x: int):double  {
+let f(x: int, y: string):double  {
 
 	return 6677;
 }
@@ -14,29 +14,44 @@ let f(x: string) {
 	return 2;
 }
 
-f(5);
+f(5);*/
 
 // example of return type overload
-let makeError(message: string) : void {
-	return;
+let makeError(message: int) : double {
+	return 0.0;
+}
+let makeError(message : int) : int {
+	return 0;
 }
 let makeError(message : string) : int {
 	return 0;
 }
+let makeError(message : string) : double {
+	return 0;
+}
+let makeError(message: double) : double {
+	return 0;
+}
 
-let doStuff():void {
+let doStuff():double {
 	//...
-	return makeError("Error!");
+	//return makeError(2);
+
+	let a : double = a + 2.0;
+
+	// enum A = ::B
+	// Animal a = { "Bosse" }.Get(); (expected type is always the variable type)
+	// string b = Animal("Bosse").Name(); (wont work { "bosse" } is expected to be a string, but string doesnt have .Name())
 }
 
 // wont work as there is no expected type so function cannot be resolved
 let doStuff() {
 	//...
-	return makeError("Error!");
+	//return makeError(3);
 }
 
 // ex 2 with class with multiple datatypes (union)
-class Value {
+/*class Value {
 	let intValue : int;
 	let boolValue : bool;
 	let doubleValue : double;
@@ -44,4 +59,4 @@ class Value {
 	let getValue() :int { return intValue; };
 	let getValue() :bool { return boolValue; };
 	let getValue() :double { return doubleValue; };
-};
+};*/

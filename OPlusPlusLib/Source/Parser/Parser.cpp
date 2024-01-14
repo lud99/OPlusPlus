@@ -26,7 +26,7 @@ namespace O::AST
 		m_DefinedOperators.AddOperator(PostfixDecrement, "--", Postfix, Unary, Token::Decrement, 2, Left);
 		m_DefinedOperators.AddOperator(Call, "()", Postfix, Unary, Token::LeftParentheses, 2, Left);
 		m_DefinedOperators.AddOperator(Subscript, "[]", Postfix, Unary, Token::LeftSquareBracket, 2, Left);
-		m_DefinedOperators.AddOperator(MemberAccess, ".", Midfix, Unary, Token::MemberAccessor, 2, Left);
+		m_DefinedOperators.AddOperator(MemberAccess, ".", Midfix, Binary, Token::Period, 2, Left);
 
 		// p = 3
 		m_DefinedOperators.AddOperator(Closure, "closure", Prefix, Unary, Token::Closure, 3, Right);
@@ -95,6 +95,8 @@ namespace O::AST
 
 		// Infix. Binary operators, a + b etc.
 		m_InfixParselets[Token::LeftParentheses] = new CallParselet();
+		m_InfixParselets[Token::Period] = new BinaryOperatorParselet();
+
 
 		m_InfixParselets[Token::Multiply] = new BinaryOperatorParselet();
 		m_InfixParselets[Token::Divide] = new BinaryOperatorParselet();

@@ -652,4 +652,13 @@ namespace O::AST
 
 		return nullptr;
 	}
+
+	Node* InferedObjectInitializerParselet::Parse(Parser& parser, Token token)
+	{
+		return nullptr;
+	}
+	Node* PropertyAccessParselet::Parse(Parser& parser, Node* left, Token token)
+	{
+		return nullptr;
+	}
 }

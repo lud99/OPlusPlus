@@ -81,11 +81,21 @@ static std::string RemoveTabs(std::string line)
 }
 
 static std::string Replicate(int count, std::string str) {
-	std::string result = "";
+	std::stringstream result;
 	for (int i = 0; i < count; i++)
-		result += str;
+		result << str;
 
-	return result;
+	return result.str();
+};
+
+template <typename T, typename Func>
+static std::string Join(std::vector<T>& elements, std::string delimiter, Func toString) {
+	std::stringstream result;
+	for (int i = 0; i < elements.size() - 1; i++) {
+		result << toString(elements[i]) << delimiter;
+	}
+	result << toString(elements.back());
+	return result.str();
 };
 
 static std::vector<std::string> split(const std::string& txt, char ch)

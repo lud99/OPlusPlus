@@ -118,6 +118,7 @@ namespace O
 		std::optional<TypeRelation::ConversionType> GetFullTypeRelationTo(Type& type, Type& expectedType);
 
 		bool IsTypeImplicitSubtypeOf(Type& subtype, Type& expectedSupertype);
+		bool AreTypesEquivalent(Type& a, Type& b);
 
 		// If the type relations is seen like a tree, then this function returns the height of the tree from this node
 		uint16_t GetHeightOfTypeRelation(Type& type);

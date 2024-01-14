@@ -508,7 +508,7 @@ namespace O::Lexer
 
 				else if (Current() == '#')
 				{
-					token = AddNewToken(Token::MemberAccessor, "#");
+					token = AddNewToken(Token::Period, "#");
 				}
 
 				// If parsing variable name (or a variable typeEntry, as long as it is a valid variable name)
@@ -557,7 +557,7 @@ namespace O::Lexer
 
 				// Check for property access
 				if (Current() == '.')
-					AddNewToken(Token::PropertyAccess, ".");
+					AddNewToken(Token::Period, ".");
 
 				// Check for curly brackets
 				if (Current() == '{')

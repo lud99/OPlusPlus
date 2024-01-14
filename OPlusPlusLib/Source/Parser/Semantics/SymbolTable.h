@@ -47,6 +47,7 @@ namespace O
 
     typedef std::string SymbolName;
     class SymbolTable;
+    struct SymbolTypeTable;
     class Symbol
     {
     public:
@@ -105,8 +106,7 @@ namespace O
         ~ClassSymbol();
 
     public:
-        SymbolTable* m_Symbols;
-        TypeTable* m_Types;
+        SymbolTypeTable* m_Table;
     };
 
 	class SymbolTable;

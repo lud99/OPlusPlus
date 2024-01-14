@@ -227,11 +227,11 @@ namespace O::AST::Nodes
 		std::string newPadding = padding + "        ";
 
 		std::cout << padding << "    " << (m_Type == NodeKind::Program ? "Global type table" : "Local type table") << ": \n";
-		m_LocalTypeTable.Print(newPadding);
+		m_LocalTable.types.Print(newPadding);
 		std::cout << "\n";
 
 		std::cout << padding << "    " << (m_Type == NodeKind::Program ? "Global symbol table" : "Local symbol table") << ": \n";
-		m_LocalSymbolTable.Print(m_LocalTypeTable, newPadding);
+		m_LocalTable.symbols.Print(m_LocalTable.types, newPadding);
 		std::cout << "\n";
 
 		std::cout << padding << "    (lines):\n";
@@ -267,7 +267,7 @@ namespace O::AST::Nodes
 		std::cout << padding << TypeToString() << ": \n";
 
 		std::cout << padding << "    Parameters symbol table" << ": \n";
-		m_ParametersSymbolTable.Print(m_ParametersTypeTable, newPadding);
+		m_ParametersTable.symbols.Print(m_ParametersTable.types, newPadding);
 		std::cout << "\n";
 
 		std::cout << padding + "    (return type): \n";
@@ -331,10 +331,10 @@ namespace O::AST::Nodes
 		std::cout << padding << TypeToString() << ": \n";
 
 		std::cout << padding + "    (class symbols): \n";
-		m_ClassSymbol->m_Symbols->Print(*m_ClassSymbol->m_Types, newPadding);
+		m_ClassSymbol->m_Table->symbols.Print(m_ClassSymbol->m_Table->types, newPadding);
 
 		std::cout << "\n" << padding + "    (class types): \n";
-		m_ClassSymbol->m_Types->Print(newPadding);
+		m_ClassSymbol->m_Table->types.Print(newPadding);
 		std::cout << "\n";
 
 		m_Name->Print(padding + "    ");
