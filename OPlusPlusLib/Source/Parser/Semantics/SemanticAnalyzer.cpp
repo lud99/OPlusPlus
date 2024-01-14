@@ -448,6 +448,7 @@ namespace O
 		Analyze(node->m_Body, localSymbolTable, localTypeTable);
 
 		// Analyze the body and look for the return statements
+		// TODO: Does not work for expressive functions
 		assert(node->m_Body->m_Type == NodeKind::BlockStatement);
 
 		Scope* body = (Scope*)node->m_Body;
