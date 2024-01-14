@@ -451,11 +451,7 @@ namespace O
 		Analyze(node->m_Body, table, declaredReturnType);
 
 		// Analyze the body and look for the return statements
-<<<<<<< HEAD
 		// TODO: Does not work for expressive functions
-=======
-		// TODO: Remove
->>>>>>> 28bde893b9ec9ff06f10180aaa82aba6b908d878
 		assert(node->m_Body->m_Type == NodeKind::BlockStatement);
 
 		Scope* body = (Scope*)node->m_Body;
