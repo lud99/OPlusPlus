@@ -35,12 +35,10 @@ namespace O::Lexer
 
 			Identifier,
 
-			MemberAccessor,
 			ScopeResultion,
 
-			PropertyAccess,
-
 			Semicolon,
+			Period,
 			Comma,
 			Colon,
 
@@ -114,7 +112,7 @@ namespace O::Lexer
 				Not,
 				Increment,
 				Decrement,
-				MemberAccessor,
+				Period,
 				Remainder,
 				SetEquals,
 				PlusEquals,

@@ -10,7 +10,7 @@ int main(const char* args)
 
 	setlocale(LC_ALL, "");
 
-	std::ifstream file("Programs/function_overloads.ö");
+	std::ifstream file("Programs/class_constructor.ö");
 	if (!file.good())
 	{
 		std::cout << "Could not open file :(\n";
@@ -45,12 +45,13 @@ int main(const char* args)
 	SemanticAnalyzer anal(tree);
 	anal.AnalyzeProgram();
 
+	if (tree)
+		tree->Print();
+
+	std::cout << "\n\n";
+
 	if (anal.HasError())
 	{
 		anal.PrintErrors(lexer.GetTokens());
-		return 0;
 	}
-
-	if (tree)
-		tree->Print();
 }

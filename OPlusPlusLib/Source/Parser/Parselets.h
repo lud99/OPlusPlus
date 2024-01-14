@@ -70,6 +70,14 @@ namespace O::AST
 	{
 		Node* Parse(Parser& parser, Node* left, Token token) override;
 	};
+	struct InferedObjectInitializerParselet : public PrefixParselet
+	{
+		Node* Parse(Parser& parser, Token token) override;
+	};
+	struct PropertyAccessParselet : public InfixParselet
+	{
+		Node* Parse(Parser& parser, Node* left, Token token) override;
+	};
 
 	// Type parselets
 	struct TypenameParselet : public PrefixTypeParselet

@@ -1,0 +1,28 @@
+class Animal {
+	let m_Name: string;
+	let m_Age: int;
+
+	let Animal(name: string, age: int) {
+		
+	}
+
+	let meth(id:int) {
+		return 0;
+	}
+}
+
+let bosse: Animal = Animal("Bosse", 3);
+let age = bosse.m_Age;
+// access(bosse, m)
+
+/*let arr = int[][](4, 4);
+let arr: int[] = [1, 2, 3];
+
+let l: List<int> = [1, 2, 3]; // using List(T[]) constructor implicitly. The '[' is creating an array, not a list
+let l: List<int> = List<>([1, 2, 3]); // using same constructor explicitly
+let l: List<int> = { [1, 2, 3] }; // using same constructor explicitly, but implicitly using List<int>
+
+class List<T> {
+	List(int count);
+	List(T[] elems);
+}*/

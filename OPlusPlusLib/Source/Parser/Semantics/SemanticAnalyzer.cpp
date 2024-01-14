@@ -395,7 +395,11 @@ namespace O
 		VariableSymbol* thisSymbol = (VariableSymbol*)classTable.symbols.Lookup("this")[0];
 		assert(thisSymbol);
 
-		parameterTypes.insert(parameterTypes.begin(), thisSymbol->m_DataType);
+		if (methodType == CallableSymbolType::Normal)
+			parameterTypes.insert(parameterTypes.begin(), thisSymbol->m_DataType);
+
+		// TODO: figure out if operators should have 'this' as parameter
+		assert(methodType != CallableSymbolType::Operator); 
 
 		std::optional<Type> declaredReturnTypeOpt;
 		if (node->m_ReturnType)
@@ -499,6 +503,147 @@ namespace O
 		}
 
 		return returnType;
+	}
+
+	Symbol* SemanticAnalyzer::GetSymbolForNode(AST::Node* node, SymbolTypeTable& table)
+	{
+		using namespace Nodes;
+
+		switch (node->m_Type)
+		{
+		case O::AST::NodeKind::BasicType:
+		case O::AST::NodeKind::ArrayType:
+		case O::AST::NodeKind::TupleType:
+		case O::AST::NodeKind::FunctionType:
+		{
+			MakeError("Member accessor does not work on a type directly, did you mean to use '::' to access static members instead?");
+			return nullptr;
+		}
+		case O::AST::NodeKind::Identifier:
+		{
+			Identifier* identifier = (Identifier*)node;
+			auto symbols = table.symbols.Lookup(identifier->m_Name);
+			assert(symbols.size() == 1);
+			
+			return symbols[0];
+		}
+		case O::AST::NodeKind::VariableDeclaration:
+			break;
+		case O::AST::NodeKind::BinaryExpression:
+			break;
+		case O::AST::NodeKind::UnaryExpression:
+			break;
+		case O::AST::NodeKind::CallExpression:
+
+		case O::AST::NodeKind::TupleExpression:
+			break;
+		case O::AST::NodeKind::FunctionParameters:
+			break;
+		case O::AST::NodeKind::FunctionDefinition:
+			break;
+		case O::AST::NodeKind::ExpressionFunctionDefinition:
+			break;
+		case O::AST::NodeKind::LambdaExpression:
+			break;
+		case O::AST::NodeKind::BlockStatement:
+			break;
+		case O::AST::NodeKind::IfStatement:
+			break;
+		case O::AST::NodeKind::WhileStatement:
+			break;
+		case O::AST::NodeKind::ForStatement:
+			break;
+		case O::AST::NodeKind::LoopStatement:
+			break;
+		case O::AST::NodeKind::Closure:
+			break;
+		case O::AST::NodeKind::Continue:
+			break;
+		case O::AST::NodeKind::Break:
+			break;
+		case O::AST::NodeKind::Return:
+			break;
+		case O::AST::NodeKind::ClassDeclaration:
+			break;
+		case O::AST::NodeKind::IntLiteral:
+			break;
+		case O::AST::NodeKind::FloatLiteral:
+			break;
+		case O::AST::NodeKind::DoubleLiteral:
+			break;
+		case O::AST::NodeKind::BoolLiteral:
+			break;
+		case O::AST::NodeKind::StringLiteral:
+			break;
+		default:
+			break;
+		}
+	}
+
+	VariableSymbol* SemanticAnalyzer::AnalyzeMemberAccess(AST::Node* node, SymbolTypeTable& table)
+	{
+		// f(1).a
+		// a.b
+		// (a + b).c
+		// (++a).c
+		// (statics?) Animal.count 
+		// (maybe) { "a" }.a
+		// [1, 2, 3].length
+		// otherwise error
+
+		// let f() ...
+		// f.b
+		// perhaps function pointers should have properties?
+
+		using namespace Nodes;
+
+		// base case
+		
+		if (node->m_Type == NodeKind::Identifier)
+		{
+			Identifier* identifier = (Identifier*)node;
+			auto symbols = table.symbols.Lookup(identifier->m_Name);
+			assert(symbols.size() == 1);
+
+			if (symbols[0]->m_SymbolType == SymbolType::Variable)
+				return (VariableSymbol*) symbols[0];
+
+
+			// Need to check all types the symbol could be
+			// ex: Animal.a;
+			// Animal is an identifier, but a class name
+			if (symbols[0]->m_SymbolType == SymbolType::Class)
+			{
+				MakeError("Cannot access (potentially) static class member with '.', it only works on instances");
+			}
+
+			if (symbols[0]->m_SymbolType == SymbolType::Function || symbols[0]->m_SymbolType == SymbolType::Method)
+			{
+				MakeError("Cannot access properties on function pointers");
+			}
+
+			abort();
+			return nullptr;
+		}
+		else if (node->m_)
+		{
+			// TODO: implement
+			assert(node->m_Type != NodeKind::CallExpression);
+
+			MakeError("Can only access members on variables and function return values");
+			return nullptr;
+		}
+
+
+
+		// ex: bosse.age
+		// analyze 'bosse'
+		AnalyzeMemberAccess(expression->m_Lhs, table);
+		if (HasError())
+			return;
+
+		// then get the symbol for the left side
+		table.symbols.Lookup()
 	}
 
 	bool SemanticAnalyzer::DoesTypesMatchThrowing(TypeTable& localTypeTable, Type& otherType, Type& expectedType)
@@ -623,6 +768,9 @@ namespace O
 
 			closestMatches.push_back(stepsToSignatures[i]);
 		}
+
+		if (stepsToSignatures.size() == 1)
+			return stepsToSignatures[0].signature;
 		
 		std::string calleArgumentTypesString = Join(calle.parameterTypes, std::string(", "), [](O::Type& t) { return t.name; });
 		std::string calleSignatureString = "(" + calleArgumentTypesString + " => " + calle.returnType.name + ")";
@@ -635,12 +783,23 @@ namespace O
 			return {};
 		}
 
+		// Should return type overloading only match if the return type and expected type are equivalent, or if they are compatible?
+		// Compatible: Might make it confusing which overload is choosen, and cases where f: int and f: double would both be matches
+		// Equivalent: More strict and may reduce unintented behavior. But issue with "let a: int = 2.0 + 2.0". 
+		// double + double has no overload with int, so wont compile.
+		// For now: do "compatible" variant.
+
+		// Steps are the steps to the return type only
 		std::vector<SignatureWithSteps> potentialMatchesReturnType;
 		for (auto& match : closestMatches)
 		{
 			O::Type& returnType = *localTypeTable.Lookup(match.signature.returnType);
-			if (localTypeTable.AreTypesEquivalent(returnType, expectedReturnType.value()))
-				potentialMatchesReturnType.push_back(match);
+			if (localTypeTable.IsTypeImplicitSubtypeOf(returnType, expectedReturnType.value()))
+			{
+				int steps = localTypeTable.GetHeightOfTypeRelation(expectedReturnType.value()) - localTypeTable.GetHeightOfTypeRelation(returnType);
+
+				potentialMatchesReturnType.push_back({ steps, match.signature });
+			}
 		}
 
 		if (potentialMatchesReturnType.empty())
@@ -655,6 +814,8 @@ namespace O
 
 			return {};
 		}
+
+		// Do as with arguments: Choose the ones with least steps
 
 		if (potentialMatchesReturnType.size() > 1)
 		{
@@ -711,9 +872,13 @@ namespace O
 		case NodeKind::BinaryExpression:
 		{
 			BinaryExpression* expression = (BinaryExpression*)node;
+			if (expression->m_Operator.m_Name == Operators::Name::MemberAccess)
+				AnalyzeMemberAccess(expression, table);
+
 			Analyze(expression->m_Lhs, table, expectedType);
 			if (HasError())
 				return;
+
 
 			Analyze(expression->m_Rhs, table, expectedType);
 			if (HasError())
@@ -732,7 +897,7 @@ namespace O
 			auto operatorOpt = ResolveOverload(table.types, m_OperatorDefinitions.m_OperatorSignatures[expression->m_Operator.m_Name], calleSignature, expectedType);
 			if (!operatorOpt.has_value())
 			{
-				MakeError("Operator " + expression->m_Operator.m_Symbol + " not defined for " + lhs.name + " and " + rhs.name);
+				MakeError("Operator " + expression->m_Operator.m_Symbol + " not defined for types " + lhs.name + " and " + rhs.name);
 				return;
 			}
 
@@ -786,11 +951,28 @@ namespace O
 				return;
 
 			auto matchingFunctions = table.symbols.Lookup(call->m_Callee->ToString());
+			if (matchingFunctions.empty())
+				return MakeErrorNotDefined(call->m_Callee->ToString());
+
+			// If function has name of a class, then the class constructor should be used
+			// Look it up in the class table
+			if (matchingFunctions[0]->m_SymbolType == SymbolType::Class)
+			{
+				assert(matchingFunctions.size() == 1);
+				ClassSymbol* classSymbol = (ClassSymbol*)matchingFunctions[0];
+
+				matchingFunctions = classSymbol->m_Table->symbols.Lookup(call->m_Callee->ToString());
+			}
 
 			// Create signature object
 			std::vector<CallableSignature> matchingCallableSignatures;
 			for (Symbol* symbol : matchingFunctions)
 			{
+				// If function has name of a class, then the class constructor should be used
+				// Look it up in the class table
+				if (symbol->m_SymbolType == SymbolType::Variable)
+					abort();
+				
 				CallableSymbol* callable = (CallableSymbol*)symbol;
 				matchingCallableSignatures.push_back({ callable->m_ParameterTypes, callable->m_DataType });
 			}

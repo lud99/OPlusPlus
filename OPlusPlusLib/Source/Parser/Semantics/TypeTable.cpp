@@ -327,7 +327,7 @@ namespace O
 		// temp
 		// string -> int (explicit)
 		// int -> string (implicit)
-		AddTypeRelation(m_Types[PrimitiveValueTypes::String], PrimitiveValueTypes::Integer, TypeRelation::Explicit, TypeRelation::Implicit);
+		//AddTypeRelation(m_Types[PrimitiveValueTypes::String], PrimitiveValueTypes::Integer, TypeRelation::Explicit, TypeRelation::Implicit);
 
 		// int -> bool (explicit)
 		// bool -> int (explicit)
