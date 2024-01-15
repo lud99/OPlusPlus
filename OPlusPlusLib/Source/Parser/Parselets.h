@@ -74,6 +74,10 @@ namespace O::AST
 	{
 		Node* Parse(Parser& parser, Node* left, Token token) override;
 	};
+	struct SubscriptOperatorParselet : public InfixParselet
+	{
+		Node* Parse(Parser& parser, Node* left, Token token) override;
+	};
 	struct InferedObjectInitializerParselet : public PrefixParselet
 	{
 		Node* Parse(Parser& parser, Token token) override;

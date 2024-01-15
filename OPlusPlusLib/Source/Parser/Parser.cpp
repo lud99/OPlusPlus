@@ -25,7 +25,7 @@ namespace O::AST
 		m_DefinedOperators.AddOperator(PostfixIncrement, "++", Postfix, Unary, Token::Increment, 2, Left);
 		m_DefinedOperators.AddOperator(PostfixDecrement, "--", Postfix, Unary, Token::Decrement, 2, Left);
 		m_DefinedOperators.AddOperator(Call, "()", Postfix, Unary, Token::LeftParentheses, 2, Left);
-		m_DefinedOperators.AddOperator(Subscript, "[]", Postfix, Unary, Token::LeftSquareBracket, 2, Left);
+		m_DefinedOperators.AddOperator(Subscript, "[]", Midfix, Binary, Token::LeftSquareBracket, 2, Left);
 		m_DefinedOperators.AddOperator(MemberAccess, ".", Midfix, Binary, Token::Period, 2, Left);
 
 		// p = 3
@@ -120,6 +120,7 @@ namespace O::AST
 		// Unary postfix
 		m_InfixParselets[Token::Increment] = new PostfixOperatorParselet();
 		m_InfixParselets[Token::Decrement] = new PostfixOperatorParselet();
+		m_InfixParselets[Token::LeftSquareBracket] = new SubscriptOperatorParselet();
 
 
 		// Type parselets

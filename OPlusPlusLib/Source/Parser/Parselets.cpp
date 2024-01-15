@@ -678,4 +678,30 @@ namespace O::AST
 
 		return new ArrayLiteral(elements);
 	}
+	Node* SubscriptOperatorParselet::Parse(Parser& parser, Node* left, Token token)
+	{
+		auto opOp = parser.m_DefinedOperators.GetBinary(token.m_Type);
+		assert(opOp.has_value());
+		auto& op = opOp.value();
+
+		Token nextToken = parser.PeekToken(0);
+		if (nextToken.IsOperator())
+		{
+			// Two ops next to each other is only allowed if {binary} {unary prefix}, eg 2 + !2
+			if (!parser.m_DefinedOperators.GetUnaryPrefix(nextToken.m_Type))
+				return parser.MakeError("Cannot have two binary operators next to each other", token);
+		}
+
+		Node* right = parser.ParseExpression(op.GetParsePrecedence());
+
+		if (parser.HasError())
+			return nullptr;
+
+		if (!right)
+			return parser.MakeError("Expected expression on right side of " + op.ToString(), nextToken);
+
+		parser.ConsumeToken(Token::RightSquareBracket);
+
+		return new BinaryExpression(left, op, right);
+	}
 }
