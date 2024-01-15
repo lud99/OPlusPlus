@@ -55,7 +55,7 @@ namespace O
 	{
 		// First look in the current table
 		if (m_Typenames.count(typeName) != 0)
-			return m_Types[m_Typenames[typeName]].type != TypeEntryType::Incomplete;
+			return m_Types[m_Typenames[typeName]].kind != TypeKind::Incomplete;
 
 		// Otherwise look upward
 		if (m_UpwardTypeTable)
@@ -71,7 +71,7 @@ namespace O
 		for (auto& type : m_Types)
 		{
 			if (type.id == typeId)
-				return type.type != TypeEntryType::Incomplete;
+				return type.kind != TypeKind::Incomplete;
 		}
 
 		// Otherwise look upward
@@ -112,7 +112,7 @@ namespace O
 		return nullptr;
 	}
 
-	Type& TypeTable::Insert(const std::string& typeName, TypeEntryType type)
+	Type& TypeTable::Insert(const std::string& typeName, TypeKind type)
 	{
 		assert(!HasCompleteType(typeName));
 
@@ -123,10 +123,10 @@ namespace O
 
 		return m_Types[id];
 	}
-	Type& TypeTable::InsertGeneric(TypeEntryType type, std::vector<Type> typeArguments)
+	Type& TypeTable::InsertGeneric(TypeKind type, std::vector<Type> typeArguments)
 	{
 		assert(!typeArguments.empty());
-		if (type == TypeEntryType::Array)
+		if (type == TypeKind::Array)
 			assert(typeArguments.size() == 1);
 		// TODO: Validate the rest of generic types
 
@@ -150,7 +150,7 @@ namespace O
 
 		return typeEntry;
 	}
-	/*Type& TypeTable::InsertPrivateType(const std::string& typeName, TypeEntryType type, Type* redirect)
+	/*Type& TypeTable::InsertPrivateType(const std::string& typeName, TypeKind type, Type* redirect)
 	{
 		assert (!Has(typeName));
 
@@ -164,18 +164,18 @@ namespace O
 	}*/
 	Type& TypeTable::InsertArray(Type& underlyingType)
 	{
-		return InsertGeneric(TypeEntryType::Array, { underlyingType });
+		return InsertGeneric(TypeKind::Array, { underlyingType });
 	}
 	Type& TypeTable::InsertTuple(std::vector<Type> underlyingTypes)
 	{
-		return InsertGeneric(TypeEntryType::Tuple, underlyingTypes);
+		return InsertGeneric(TypeKind::Tuple, underlyingTypes);
 	}
 	Type& TypeTable::InsertFunction(std::vector<Type> argumentTypes, Type returnType)
 	{
 		std::vector<Type> typeArguments = argumentTypes;
 		typeArguments.push_back(returnType);
 
-		return InsertGeneric(TypeEntryType::Function, typeArguments);
+		return InsertGeneric(TypeKind::Function, typeArguments);
 	}
 
 	void TypeTable::AddTypeRelation(Type& type, TypeId relatedType, TypeRelation::ConversionType subtypeConversion, TypeRelation::ConversionType supertypeConversion)
@@ -303,7 +303,7 @@ namespace O
 		for (auto& entry : m_Types)
 		{
 			std::cout << padding << "#" << entry.id << ": " << entry.name << ", "
-				<< TypeEntryTypeToString(entry.type) << "\n";
+				<< TypeEntryTypeToString(entry.kind) << "\n";
 		}
 	}
 
@@ -315,7 +315,7 @@ namespace O
 		for (uint16_t i = 0; i < typeKeywords.size(); i++)
 		{
 			m_Typenames[typeKeywords[i]] = i;
-			m_Types.push_back({ typeKeywords[i], i, TypeEntryType::Primitive });
+			m_Types.push_back({ typeKeywords[i], i, TypeKind::Primitive });
 		}
 
 		// Insert relation for types

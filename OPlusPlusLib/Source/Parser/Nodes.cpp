@@ -1,5 +1,7 @@
 #include "Nodes.h"
 
+#include "../Utils.hpp"
+
 namespace O::AST
 {
 	std::string Node::TypeToString()
@@ -331,10 +333,12 @@ namespace O::AST::Nodes
 		std::cout << padding << TypeToString() << ": \n";
 
 		std::cout << padding + "    (class symbols): \n";
-		m_ClassSymbol->m_Table->symbols.Print(m_ClassSymbol->m_Table->types, newPadding);
+		if (m_ClassSymbol)
+			m_ClassSymbol->m_Table->symbols.Print(m_ClassSymbol->m_Table->types, newPadding);
 
 		std::cout << "\n" << padding + "    (class types): \n";
-		m_ClassSymbol->m_Table->types.Print(newPadding);
+		if (m_ClassSymbol)
+			m_ClassSymbol->m_Table->types.Print(newPadding);
 		std::cout << "\n";
 
 		m_Name->Print(padding + "    ");
@@ -450,5 +454,15 @@ namespace O::AST::Nodes
 	{
 		std::cout << padding << TypeToString() << (m_IsNullable ? "?" : "") << ": \n";
 		m_UnderlyingType->Print(padding + "    ");
+	}
+	ArrayLiteral::ArrayLiteral(std::vector<Node*> elements)
+	{
+		m_Type = NodeKind::ArrayLiteral;
+		m_Elements = elements;
+	}
+
+	std::string ArrayLiteral::ToString()
+	{
+		return "[" + Join(m_Elements, ", ", [](Node* t) { return t->ToString(); }) + "]";
 	}
 }

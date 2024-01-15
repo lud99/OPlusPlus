@@ -1,6 +1,6 @@
 class Animal {
 	let m_Name: string;
-	let m_Age: int;
+	//private m_Age: static const int = 0;
 
 	let Animal(name: string, age: int) {
 		
@@ -12,7 +12,7 @@ class Animal {
 }
 
 let bosse: Animal = Animal("Bosse", 3);
-let age = bosse.m_Age;
+let age = Animal.m_Name; // fix
 // access(bosse, m)
 
 /*let arr = int[][](4, 4);

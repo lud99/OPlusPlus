@@ -41,6 +41,10 @@ namespace O::AST
 	{
 		Node* Parse(Parser& parser, Token token) override;
 	};
+	struct ArrayLiteralParselet : public PrefixParselet
+	{
+		Node* Parse(Parser& parser, Token token) override;
+	};
 
 
 	// Operators

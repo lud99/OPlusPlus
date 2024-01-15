@@ -580,12 +580,13 @@ namespace O
 		}
 	}
 
-	VariableSymbol* SemanticAnalyzer::AnalyzeMemberAccess(AST::Node* node, SymbolTypeTable& table)
+	std::optional<O::Type> SemanticAnalyzer::AnalyzeMemberAccess(AST::Node* node, SymbolTypeTable& table)
 	{
 		// f(1).a
 		// a.b
 		// (a + b).c
 		// (++a).c
+		// a.f()
 		// (statics?) Animal.count 
 		// (maybe) { "a" }.a
 		// [1, 2, 3].length
@@ -597,53 +598,94 @@ namespace O
 
 		using namespace Nodes;
 
-		// base case
-		
-		if (node->m_Type == NodeKind::Identifier)
+		BinaryExpression* expr = (BinaryExpression*)node;
+
+		Analyze(expr->m_Lhs, table);
+		O::Type& lhsType = GetTypeOfExpression(expr->m_Lhs, table);
+
+		switch (lhsType.kind)
 		{
-			Identifier* identifier = (Identifier*)node;
-			auto symbols = table.symbols.Lookup(identifier->m_Name);
-			assert(symbols.size() == 1);
+		case O::TypeKind::Incomplete:
+		case O::TypeKind::Error:
+			break;
+		case O::TypeKind::Class:
+		{
+			// a.b
+			// TODO: How wil this work on nested classes?
+			// TODO: this code will run for class variables aswell, may want to change
 
-			if (symbols[0]->m_SymbolType == SymbolType::Variable)
-				return (VariableSymbol*) symbols[0];
+			// lhs
+			ClassSymbol* classSymbol = (ClassSymbol*)table.symbols.LookupOne(lhsType.name);
 
+			//expr->m_Lhs
+			
+			// rhs
 
-			// Need to check all types the symbol could be
-			// ex: Animal.a;
-			// Animal is an identifier, but a class name
-			if (symbols[0]->m_SymbolType == SymbolType::Class)
+			// cases: 
+			// .a
+			// .f() 
+			if (expr->m_Rhs->m_Type == NodeKind::Identifier) 
 			{
-				MakeError("Cannot access (potentially) static class member with '.', it only works on instances");
-			}
+				Identifier* prop = (Identifier*)expr->m_Rhs;
+				auto result = classSymbol->m_Table->symbols.Lookup(prop->m_Name);
+				if (result.empty()) 
+				{
+					MakeError("Member '" + prop->m_Name + "' doesn't exist on class " + lhsType.name);
+					return {};
+				}
 
-			if (symbols[0]->m_SymbolType == SymbolType::Function || symbols[0]->m_SymbolType == SymbolType::Method)
+				// TODO: Handle when accessing an overloaded function pointer. How to determine which variant to choose?
+				assert(result.size() == 1);
+
+				m_ResolvedOverloadCache[node] = { {}, result[0]->m_DataType };
+				return *classSymbol->m_Table->types.Lookup(result[0]->m_DataType);
+
+			} else if (expr->m_Rhs->m_Type == NodeKind::CallExpression)
 			{
-				MakeError("Cannot access properties on function pointers");
-			}
+				CallExpression* call = (CallExpression*)expr->m_Rhs;
+				std::string name = call->m_Callee->ToString();
 
+				// TODO: Should error if function has no name
+				assert(call->m_Callee);
+				assert(name != "");
+
+				auto result = classSymbol->m_Table->symbols.Lookup(name);
+				if (result.empty())
+				{
+					MakeError("Member '" + name + "' doesn't exist on class " + lhsType.name);
+					return {};
+				}
+
+				m_ResolvedOverloadCache[node] = { {}, result[0]->m_DataType };
+
+				return *classSymbol->m_Table->types.Lookup(m_ResolvedOverloadCache[expr->m_Rhs].returnType);
+			}
+			
 			abort();
-			return nullptr;
+			
+			break;
 		}
-		else if (node->m_)
+		case O::TypeKind::Function:
+		case O::TypeKind::Method:
 		{
-			// TODO: implement
-			assert(node->m_Type != NodeKind::CallExpression);
-
-			MakeError("Can only access members on variables and function return values");
-			return nullptr;
+			MakeError("Type " + lhsType.name + " doesn't have property " + expr->m_Rhs->ToString());
+			return {};
+		}
+		case O::TypeKind::Primitive:
+		case O::TypeKind::Array:
+		case O::TypeKind::Tuple:
+		case O::TypeKind::Nullable:
+		{
+			// TODO: Add methods to primitives
+			MakeError("Type " + lhsType.name + " doesn't have property " + expr->m_Rhs->ToString());
+			return {};
+		}
+		case O::TypeKind::Typedef:
+		default:
+			abort();
 		}
 
-
-
-		// ex: bosse.age
-		// analyze 'bosse'
-		AnalyzeMemberAccess(expression->m_Lhs, table);
-		if (HasError())
-			return;
-
-		// then get the symbol for the left side
-		table.symbols.Lookup()
+		return {};
 	}
 
 	bool SemanticAnalyzer::DoesTypesMatchThrowing(TypeTable& localTypeTable, Type& otherType, Type& expectedType)
@@ -873,7 +915,10 @@ namespace O
 		{
 			BinaryExpression* expression = (BinaryExpression*)node;
 			if (expression->m_Operator.m_Name == Operators::Name::MemberAccess)
+			{
 				AnalyzeMemberAccess(expression, table);
+				return;
+			}
 
 			Analyze(expression->m_Lhs, table, expectedType);
 			if (HasError())
@@ -1105,7 +1150,7 @@ namespace O
 			if (table.types.HasCompleteType(name))
 				return MakeErrorAlreadyDefined(name, SymbolType::Class);
 
-			O::Type classType = table.types.Insert(name, TypeEntryType::Class);
+			O::Type classType = table.types.Insert(name, TypeKind::Class);
 
 			classNode->m_ClassSymbol = table.symbols.InsertClass(name, classType.id, &table.symbols, &table.types);
 			auto& classSymbol = *classNode->m_ClassSymbol;
@@ -1133,6 +1178,48 @@ namespace O
 			break;
 		case NodeKind::StringLiteral:
 			break;
+		case NodeKind::ArrayLiteral:
+		{
+			ArrayLiteral* arr = (ArrayLiteral*)node;
+
+			// First validate all elements
+			for (auto& element : arr->m_Elements)
+			{
+				Analyze(element, table, expectedType);
+			}
+
+			// If empty array, then the type of it is the expected type
+			// otherwise probably error? or should an empty array be subtype of all arrays?
+			if (arr->m_Elements.empty())
+			{
+				if (!expectedType.has_value())
+				{
+					MakeError("Could not infer type of empty array");
+					return;
+				}
+
+				m_ResolvedOverloadCache[node] = { {}, expectedType.value().id };
+				return;
+			}
+
+			// Ensure all elements are of the same type (identical)
+			O::Type& firstType = GetTypeOfExpression(arr->m_Elements[0], table);
+			for (int i = 1; i < arr->m_Elements.size(); i++)
+			{
+				O::Type& type = GetTypeOfExpression(arr->m_Elements[i], table);
+
+				// TODO: This should run for literal types only, reference types that are subtypes should be ok
+				if (!table.types.AreTypesEquivalent(firstType, type))
+				{
+					MakeError("Array cannot contain elements of different types (" + firstType.name + " and " + type.name + ")");
+					return;
+				}
+			}
+
+			// Cache the type of the tuple
+			m_ResolvedOverloadCache[node] = { {}, table.types.InsertArray(firstType).id };
+			return;
+		}
 		default:
 			break;
 		}
@@ -1165,6 +1252,8 @@ namespace O
 
 		case NodeKind::BinaryExpression:
 		{
+			assert(m_ResolvedOverloadCache.count(node) == 1);
+
 			return *table.types.Lookup(m_ResolvedOverloadCache[node].returnType);
 		}
 		case NodeKind::UnaryExpression:
@@ -1218,6 +1307,8 @@ namespace O
 			return *table.types.Lookup(PrimitiveValueTypes::Bool);
 		case NodeKind::StringLiteral:
 			return *table.types.Lookup(PrimitiveValueTypes::String);
+		case NodeKind::ArrayLiteral:
+			return *table.types.Lookup(m_ResolvedOverloadCache[node].returnType);
 
 		default:
 			break;

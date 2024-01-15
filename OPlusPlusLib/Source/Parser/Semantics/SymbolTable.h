@@ -106,6 +106,7 @@ namespace O
         ~ClassSymbol();
 
     public:
+        // Table for members, methods and nested classes
         SymbolTypeTable* m_Table;
     };
 

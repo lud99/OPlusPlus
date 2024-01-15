@@ -460,7 +460,7 @@ namespace O::AST
 		if (parser.m_TypeTable.HasCompleteType(className))
 			return parser.MakeError("Class '" + className + "' has already been declared elsewhere");
 
-		parser.m_TypeTable.Insert(className, TypeEntryType::Incomplete);
+		parser.m_TypeTable.Insert(className, TypeKind::Incomplete);
 
 		Token nextToken = parser.ConsumeToken();
 		if (parser.HasError()) return nullptr;
@@ -538,7 +538,7 @@ namespace O::AST
 		if (!type)
 			return (Type*)parser.MakeError("Expected typename");
 
-		//if (type->type == TypeEntryType::Incomplete)
+		//if (type->type == TypeKind::Incomplete)
 			//return (Type*)parser.MakeError("Cannot use incomplete typename, probably because it is being parsed right now");
 
 		return new BasicType(token.m_Value);
@@ -657,8 +657,25 @@ namespace O::AST
 	{
 		return nullptr;
 	}
-	Node* PropertyAccessParselet::Parse(Parser& parser, Node* left, Token token)
+
+	Node* ArrayLiteralParselet::Parse(Parser& parser, Token token)
 	{
-		return nullptr;
+		std::vector<Node*> elements;
+
+		// Parse until we find a closing parentheses
+		if (!parser.MatchToken(Token::RightSquareBracket))
+		{
+			do
+			{
+				elements.push_back(parser.ParseExpression());
+			} while (parser.MatchToken(Token::Comma));
+			parser.ConsumeToken(Token::RightSquareBracket);
+		}
+		else
+		{
+			//parser.ConsumeToken(Token::RightSquareBracket);
+		}
+
+		return new ArrayLiteral(elements);
 	}
 }

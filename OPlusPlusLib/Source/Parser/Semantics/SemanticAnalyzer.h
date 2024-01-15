@@ -86,7 +86,7 @@ namespace O
 		std::optional<Type> AnalyzeCallableDefinition(Nodes::FunctionDefinitionStatement* node, SymbolTypeTable& table, std::optional<Type> declaredReturnType);
 
 		Symbol* GetSymbolForNode(AST::Node* node, SymbolTypeTable& table);
-		VariableSymbol* AnalyzeMemberAccess(AST::Node* node, SymbolTypeTable& table);
+		std::optional<O::Type> AnalyzeMemberAccess(AST::Node* node, SymbolTypeTable& table);
 
 		bool DoesTypesMatchThrowing(TypeTable& localTypeTable, Type& otherType, Type& expectedType);
 		bool DoesTypesMatch(TypeTable& localTypeTable, Type& otherType, Type& expectedType);

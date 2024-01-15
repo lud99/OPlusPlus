@@ -19,7 +19,7 @@ namespace O
 	};
 	typedef uint16_t TypeId;
 
-	enum class TypeEntryType
+	enum class TypeKind
 	{
 		Incomplete,
 		Error,
@@ -34,7 +34,7 @@ namespace O
 		Typedef
 	};
 
-	static std::string TypeEntryTypeToString(TypeEntryType type)
+	static std::string TypeEntryTypeToString(TypeKind type)
 	{
 		return std::string(magic_enum::enum_name(type));
 	}
@@ -62,7 +62,7 @@ namespace O
 		std::string name;
 		TypeId id;
 
-		TypeEntryType type = TypeEntryType::Primitive;
+		TypeKind kind = TypeKind::Primitive;
 
 		std::vector<TypeId> typeArguments; // Type arguments for generic types
 
@@ -102,9 +102,9 @@ namespace O
 		Type* Lookup(const std::string& typeName);
 		Type* Lookup(TypeId typeId);
 
-		Type& Insert(const std::string& typeName, TypeEntryType type);
+		Type& Insert(const std::string& typeName, TypeKind type);
 
-		Type& InsertGeneric(TypeEntryType type, std::vector<Type> typeArguments);
+		Type& InsertGeneric(TypeKind type, std::vector<Type> typeArguments);
 
 		Type& InsertArray(Type& underlyingType);
 		Type& InsertTuple(std::vector<Type> underlyingTypes);

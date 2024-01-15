@@ -53,7 +53,8 @@ namespace O::AST
 		FloatLiteral,
 		DoubleLiteral,
 		BoolLiteral,
-		StringLiteral
+		StringLiteral,
+		ArrayLiteral
 	};
 
 	struct Node;
@@ -367,5 +368,12 @@ namespace O::AST::Nodes
 
 		std::string ToString() override { return "\"" + m_Value + "\""; }
 	};
+	struct ArrayLiteral : public Literal
+	{
+		ArrayLiteral(std::vector<Node*> elements);
 
+		std::vector<Node*> m_Elements;
+
+		std::string ToString() override;
+	};
 }

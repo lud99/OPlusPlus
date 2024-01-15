@@ -91,10 +91,12 @@ static std::string Replicate(int count, std::string str) {
 template <typename T, typename Func>
 static std::string Join(std::vector<T>& elements, std::string delimiter, Func toString) {
 	std::stringstream result;
-	for (int i = 0; i < elements.size() - 1; i++) {
+	for (int i = 0; i < (int)elements.size() - 1; i++) {
 		result << toString(elements[i]) << delimiter;
 	}
-	result << toString(elements.back());
+	if (!elements.empty())
+		result << toString(elements.back());
+	
 	return result.str();
 };
 
