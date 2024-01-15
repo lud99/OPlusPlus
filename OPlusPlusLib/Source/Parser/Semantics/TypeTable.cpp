@@ -123,7 +123,7 @@ namespace O
 
 		return m_Types[id];
 	}
-	Type& TypeTable::InsertGeneric(TypeKind type, std::vector<Type> typeArguments)
+	Type& TypeTable::InsertGeneric(TypeKind type, std::vector<Type> typeArguments, bool& existed)
 	{
 		assert(!typeArguments.empty());
 		if (type == TypeKind::Array)
@@ -137,7 +137,8 @@ namespace O
 		}
 		name += typeArguments.back().name + ">";
 
-		if (HasCompleteType(name))
+		existed = HasCompleteType(name);
+		if (existed)
 			return *Lookup(name);
 
 		Type& typeEntry = Insert(name, type);
@@ -149,6 +150,11 @@ namespace O
 		}
 
 		return typeEntry;
+	}
+	Type& TypeTable::InsertGeneric(TypeKind type, std::vector<Type> typeArguments)
+	{
+		bool discard = false;
+		return InsertGeneric(type, typeArguments, discard);
 	}
 	/*Type& TypeTable::InsertPrivateType(const std::string& typeName, TypeKind type, Type* redirect)
 	{
@@ -162,9 +168,9 @@ namespace O
 
 		return m_Types[id];
 	}*/
-	Type& TypeTable::InsertArray(Type& underlyingType)
+	Type& TypeTable::InsertArray(Type& underlyingType, bool& existed)
 	{
-		return InsertGeneric(TypeKind::Array, { underlyingType });
+		return InsertGeneric(TypeKind::Array, { underlyingType }, existed);
 	}
 	Type& TypeTable::InsertTuple(std::vector<Type> underlyingTypes)
 	{

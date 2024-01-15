@@ -104,9 +104,10 @@ namespace O
 
 		Type& Insert(const std::string& typeName, TypeKind type);
 
+		Type& InsertGeneric(TypeKind type, std::vector<Type> typeArguments, bool& existed);
 		Type& InsertGeneric(TypeKind type, std::vector<Type> typeArguments);
 
-		Type& InsertArray(Type& underlyingType);
+		Type& InsertArray(Type& underlyingType, bool& existed);
 		Type& InsertTuple(std::vector<Type> underlyingTypes);
 		Type& InsertFunction(std::vector<Type> argumentTypes, Type returnType);
 

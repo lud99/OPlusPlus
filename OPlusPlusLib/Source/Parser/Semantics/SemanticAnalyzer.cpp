@@ -13,6 +13,13 @@ namespace O
 
 		GeneratePrimitiveOperators((TypeId)PrimitiveValueTypes::Double);
 		GenerateAssignmentOperators((TypeId)PrimitiveValueTypes::Double);
+
+		// TODO: Add ops for booleans
+
+		// Strings
+		m_OperatorSignatures[Operators::Addition].push_back({ { PrimitiveValueTypes::String, PrimitiveValueTypes::String }, PrimitiveValueTypes::String });
+
+
 	}
 
 	void OperatorDefinitions::GeneratePrimitiveOperators(TypeId type)
@@ -868,6 +875,26 @@ namespace O
 		return potentialMatchesReturnType[0].signature;
 	}
 
+	O::Type& SemanticAnalyzer::InsertArray(O::Type& underlyingType, TypeTable& localTypeTable)
+	{
+		bool typeExisted = false;
+		O::Type& type = localTypeTable.InsertArray(underlyingType, typeExisted);
+
+		if (!typeExisted)
+		{
+			m_OperatorDefinitions.m_OperatorSignatures[Operators::Subscript]
+				.push_back({ { type.id, (TypeId)PrimitiveValueTypes::Integer }, underlyingType.id });
+		}
+		
+		return type;
+	}
+
+	//O::Type& SemanticAnalyzer::InsertTuple(std::vector<O::Type> underlyingTypes, TypeTable& localTypeTable)
+	//{
+	//	// TODO: tuples of different types cannot have their accessed type known at compiletime since the index might be a variable
+
+	//}
+
 	// Create symbol tables for each scope
 	void SemanticAnalyzer::Analyze(AST::Node* node, SymbolTypeTable& table, std::optional<O::Type> expectedType)
 	{
@@ -1203,7 +1230,7 @@ namespace O
 			}
 
 			// Ensure all elements are of the same type (identical)
-			O::Type& firstType = GetTypeOfExpression(arr->m_Elements[0], table);
+			O::Type firstType = GetTypeOfExpression(arr->m_Elements[0], table);
 			for (int i = 1; i < arr->m_Elements.size(); i++)
 			{
 				O::Type& type = GetTypeOfExpression(arr->m_Elements[i], table);
@@ -1217,7 +1244,7 @@ namespace O
 			}
 
 			// Cache the type of the tuple
-			m_ResolvedOverloadCache[node] = { {}, table.types.InsertArray(firstType).id };
+			m_ResolvedOverloadCache[node] = { {}, InsertArray(firstType, table.types).id };
 			return;
 		}
 		default:
@@ -1332,7 +1359,7 @@ namespace O
 			ArrayType* arrType = (ArrayType*)node;
 
 			O::Type& type = ResolveTypeNode(arrType->m_UnderlyingType, table);
-			return table.types.InsertArray(type);
+			return InsertArray(type, table.types);
 		}
 		case NodeKind::TupleType:
 		{

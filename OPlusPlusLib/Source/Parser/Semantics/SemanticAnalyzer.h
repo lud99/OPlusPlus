@@ -10,6 +10,8 @@ namespace O
 {
 	using namespace AST;
 
+
+
 	struct CallableSignature
 	{
 		std::vector<TypeId> parameterTypes;
@@ -93,7 +95,9 @@ namespace O
 
 		std::optional<CallableSignature> ResolveOverload(TypeTable& localTypeTable, std::vector<CallableSignature> overloads, DetailedCallableSignature calle, std::optional<O::Type> expectedReturnType = {});
 		
-
+		O::Type& InsertArray(O::Type& underlyingType, TypeTable& localTypeTable);
+		//O::Type& InsertTuple(std::vector<O::Type> underlyingTypes, TypeTable& localTypeTable);
+		//O::Type& InsertFunction(std::vector<O::Type> argumentTypes, O::Type returnType);
 
 		void MakeError(const std::string& message, CompileTimeError::Severity severity = CompileTimeError::Error);
 
