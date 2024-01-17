@@ -675,16 +675,29 @@ namespace O
 		case O::TypeKind::Function:
 		case O::TypeKind::Method:
 		{
-			MakeError("Type " + lhsType.name + " doesn't have property " + expr->m_Rhs->ToString());
+			MakeErrorTypeInvalidProperty(lhsType, expr->m_Rhs->ToString());
 			return {};
 		}
-		case O::TypeKind::Primitive:
 		case O::TypeKind::Array:
+		{
+			// TODO: Use some other way of storing all properties
+			if (expr->m_Rhs->ToString() == "length")
+			{
+				m_ResolvedOverloadCache[node] = { {}, (TypeId)PrimitiveValueTypes::Integer };
+
+				return *table.types.Lookup((TypeId)PrimitiveValueTypes::Integer);
+			}
+
+			MakeErrorTypeInvalidProperty(lhsType, expr->m_Rhs->ToString());
+			
+			break;
+		}
+		case O::TypeKind::Primitive:
 		case O::TypeKind::Tuple:
 		case O::TypeKind::Nullable:
 		{
 			// TODO: Add methods to primitives
-			MakeError("Type " + lhsType.name + " doesn't have property " + expr->m_Rhs->ToString());
+			MakeErrorTypeInvalidProperty(lhsType, expr->m_Rhs->ToString());
 			return {};
 		}
 		case O::TypeKind::Typedef:
@@ -1434,6 +1447,11 @@ namespace O
 	{
 		std::string message = "Invalid type " + declaredType + " declared for callable " + symbolName + ", expected type " + expectedType;
 		MakeError(message);
+	}
+
+	void SemanticAnalyzer::MakeErrorTypeInvalidProperty(O::Type& type, const std::string property)
+	{
+		MakeError("Type " + type.name + " doesn't have a property '" + property + "'");
 	}
 
 	SemanticAnalyzer::~SemanticAnalyzer()

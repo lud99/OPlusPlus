@@ -7,8 +7,10 @@
 
 #include "../Operators.h"
 
+
 namespace O
 {
+	typedef uint16_t TypeId;
 	enum PrimitiveValueTypes
 	{
 		Void = 0,
@@ -17,7 +19,6 @@ namespace O
 		Double = 3,
 		String = 4,
 	};
-	typedef uint16_t TypeId;
 
 	enum class TypeKind
 	{

@@ -106,6 +106,8 @@ namespace O
 		void MakeErrorNotDefined(const std::string symbolName);
 		void MakeErrorInvalidCallableName(const std::string symbolName, SymbolType symbol);
 		void MakeErrorInvalidDeclaredType(const std::string symbolName, const std::string declaredType, const std::string expetedType);
+		void MakeErrorTypeInvalidProperty(O::Type& type, const std::string property);
+
 
 	private:
 		AST::Node* m_Program;
