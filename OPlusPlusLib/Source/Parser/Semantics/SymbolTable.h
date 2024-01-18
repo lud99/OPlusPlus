@@ -54,12 +54,16 @@ namespace O
         Symbol() {};
         Symbol(std::string name, SymbolType symbolType, TypeId dataType);
 
+        virtual std::string ToString(TypeTable& types);
+
     public:
         std::string m_Name;
         SymbolType m_SymbolType;
         TypeId m_DataType;
 
         virtual bool operator==(const Symbol& other);
+
+        bool IsCallable() { return m_SymbolType == SymbolType::Function || m_SymbolType == SymbolType::Method; }
 
         //Type& GetTypeTableEntry();
     };
@@ -72,6 +76,9 @@ namespace O
 
         // Does not compare the indicies
         bool operator==(const VariableSymbol& other);
+
+        //virtual void Print(TypeTable& types);
+    public:
         
         uint16_t m_Index = 0;
         VariableSymbolType m_VariableType = VariableSymbolType::Local;
@@ -85,6 +92,8 @@ namespace O
 
         // Compares parameters, isBuiltIn and functionType (and default)
         bool operator==(const Symbol& other) override;
+
+        //virtual void Print(TypeTable& types);
 
     public:
         uint16_t m_Id;
@@ -102,6 +111,8 @@ namespace O
     public:
         using Symbol::Symbol;
         ClassSymbol(std::string name, TypeId dataType, SymbolTable* upwardSymbolTable, TypeTable* upwardTypeTable);
+
+      //  virtual void Print(TypeTable& types);
 
         ~ClassSymbol();
 

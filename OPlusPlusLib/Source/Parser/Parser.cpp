@@ -26,7 +26,7 @@ namespace O::AST
 		m_DefinedOperators.AddOperator(PostfixDecrement, "--", Postfix, Unary, Token::Decrement, 2, Left);
 		m_DefinedOperators.AddOperator(Call, "()", Postfix, Unary, Token::LeftParentheses, 2, Left);
 		m_DefinedOperators.AddOperator(Subscript, "[]", Postfix, Binary, Token::LeftSquareBracket, 2, Left);
-		m_DefinedOperators.AddOperator(MemberAccess, ".", Midfix, Binary, Token::Period, 2, Right);
+		m_DefinedOperators.AddOperator(MemberAccess, ".", Midfix, Binary, Token::Period, 1, Right);
 
 		// p = 3
 		m_DefinedOperators.AddOperator(Closure, "closure", Prefix, Unary, Token::Closure, 3, Right);
@@ -378,7 +378,7 @@ namespace O::AST
 		return new Identifier(variableName);
 	}
 
-	TupleExpression* Parser::ParseTupleExpression(Token token)
+	std::vector<Node*> Parser::ParseTupleLikeExpression(Token token)
 	{
 		std::vector<Node*> elements;
 
@@ -397,7 +397,7 @@ namespace O::AST
 			ConsumeToken(Token::RightParentheses);
 		}
 
-		return new TupleExpression(elements);
+		return elements;
 	}
 
 	VariableDeclaration* Parser::ParseVariableDeclaration(Token token, bool consumeEndToken, std::vector<Token::Types> endTokens)

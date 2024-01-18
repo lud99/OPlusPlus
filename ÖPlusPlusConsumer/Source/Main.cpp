@@ -42,20 +42,22 @@ int main(const char* args)
 		return 0;
 	}
 
-	if (tree)
-		tree->Print();
+	//if (tree)
+		//tree->Print();
 
 
 	SemanticAnalyzer anal(tree);
 	anal.AnalyzeProgram();
 
-	if (tree)
-		tree->Print();
-
-	std::cout << "\n\n";
-
 	if (anal.HasError())
 	{
 		anal.PrintErrors(lexer.GetTokens());
 	}
+	else
+	{
+		if (tree)
+			tree->Print("", anal.GetGlobalTypeTable(), &anal);
+	}
+	std::cout << "\n\n";
+
 }

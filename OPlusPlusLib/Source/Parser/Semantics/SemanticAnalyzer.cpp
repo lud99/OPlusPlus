@@ -358,11 +358,23 @@ namespace O
 		CallableSymbol callable = CallableSymbol(functionName, SymbolType::Function, returnType.id, callableId, CallableSymbolType::Normal);
 		callable.m_ParameterTypes = parameterTypes;
 
+		std::vector<O::Type> parameterTypesFull;
+		for (TypeId id : parameterTypes)
+		{
+			parameterTypesFull.push_back(*table.types.Lookup(id));
+		}
+
+		O::Type functionPointerType = table.types.InsertFunction(parameterTypesFull, returnType);
+
+		m_ResolvedOverloadCache[node] = { parameterTypes, returnType.id };
+		m_ResolvedOverloadCache[node->m_Name] = { {}, functionPointerType.id };
+
 		return table.symbols.InsertCallable(callable);
 	}
 
 	VariableSymbol* SemanticAnalyzer::CreateSymbolForClassMemberDeclaration(Nodes::VariableDeclaration* node, ClassSymbol& classSymbol)
 	{
+		// TODO: name clash with local variables in class member name
 		return CreateSymbolForVariableDeclaration(node, *classSymbol.m_Table, VariableSymbolType::Member);
 	}
 
@@ -373,23 +385,23 @@ namespace O
 		std::string methodName = node->m_Name->ToString();
 		CallableSymbolType methodType = CallableSymbolType::Normal;
 
-		// TODO: Add function overloading
+		// TODO: Add function overloading for constructos?
 		auto symbols = classTable.symbols.Lookup(methodName);
 		if (!symbols.empty())
 		{
 			// Special case for constructors as the class symbol has already been declared
-			if (symbols[0]->m_SymbolType != SymbolType::Class)
-				return nullptr;
-
-			ClassSymbol* symbol = (ClassSymbol*)symbols[0];
-			if (symbol->m_Name != methodName)
+			if (symbols[0]->m_SymbolType == SymbolType::Class)
 			{
-				MakeErrorInvalidCallableName(methodName, SymbolType::Class);
-				return nullptr;
-			}
+				ClassSymbol* symbol = (ClassSymbol*)symbols[0];
+				if (symbol->m_Name != methodName)
+				{
+					MakeErrorInvalidCallableName(methodName, SymbolType::Class);
+					return nullptr;
+				}
 
-			// Otherwise its a constructor
-			methodType = CallableSymbolType::Constructor;
+				// Otherwise its a constructor
+				methodType = CallableSymbolType::Constructor;
+			}
 		}
 
 		// Initialize symbol table for the function parameters to live in
@@ -438,13 +450,54 @@ namespace O
 		assert(returnTypeOpt.has_value());
 		Type returnType = returnTypeOpt.value();
 
-		// If the function 
+
+		// Check if the parameter types are different from other functions with same name
+		// If not, then alreadyDefined error
+
+		for (Symbol* symbol : symbols)
+		{
+			CallableSymbol* function = (CallableSymbol*)symbol;
+			bool isIdentical = true;
+
+			if (parameterTypes.size() != function->m_ParameterTypes.size())
+				continue;
+
+			if (returnType.id != function->m_DataType)
+				continue;
+
+			// Assume they are identical and look for contradictions
+			for (int i = 0; i < parameterTypes.size(); i++)
+			{
+				O::Type& parameterType = *node->m_ParametersTable.types.Lookup(parameterTypes[i]);
+				O::Type& otherParameterType = *node->m_ParametersTable.types.Lookup(function->m_ParameterTypes[i]);
+
+				if (parameterType.id != otherParameterType.id)
+					isIdentical = false;
+			}
+
+			if (isIdentical)
+			{
+				MakeErrorCallableAlreadyDefined(methodName, SymbolType::Function, { parameterTypes, returnType.id }, classTable.types);
+				return nullptr;
+			}
+		}
 
 		// 	uint16_t functionId = m_ConstantsPool.AddAndGetFunctionReferenceIndex(functionName);
 		uint16_t callableId = 0; // TODO: Implement properly
 
 		CallableSymbol callable = CallableSymbol(methodName, SymbolType::Method, returnType.id, callableId, methodType);
 		callable.m_ParameterTypes = parameterTypes;
+
+		std::vector<O::Type> parameterTypesFull;
+		for (TypeId id : parameterTypes)
+		{
+			parameterTypesFull.push_back(*classSymbol.m_Table->types.Lookup(id));
+		}
+
+		O::Type functionPointerType = classSymbol.m_Table->types.InsertFunction(parameterTypesFull, returnType);
+
+		m_ResolvedOverloadCache[node] = { parameterTypes, returnType.id };
+		m_ResolvedOverloadCache[node->m_Name] = { {}, functionPointerType.id };
 
 		return classTable.symbols.InsertCallable(callable);
 	}
@@ -523,7 +576,8 @@ namespace O
 		case O::AST::NodeKind::TupleType:
 		case O::AST::NodeKind::FunctionType:
 		{
-			MakeError("Member accessor does not work on a type directly, did you mean to use '::' to access static members instead?");
+			// TODO: Add symbols to primitive types with methods
+			abort();
 			return nullptr;
 		}
 		case O::AST::NodeKind::Identifier:
@@ -541,7 +595,7 @@ namespace O
 		case O::AST::NodeKind::UnaryExpression:
 			break;
 		case O::AST::NodeKind::CallExpression:
-
+			break;
 		case O::AST::NodeKind::TupleExpression:
 			break;
 		case O::AST::NodeKind::FunctionParameters:
@@ -585,9 +639,13 @@ namespace O
 		default:
 			break;
 		}
+
+		abort();
+
+		return nullptr;
 	}
 
-	std::optional<O::Type> SemanticAnalyzer::AnalyzeMemberAccess(AST::Node* node, SymbolTypeTable& table)
+	ResolvedMemberAccess SemanticAnalyzer::AnalyzeMemberAccess(AST::Node* node, SymbolTypeTable& table, std::optional<O::Type> expectedType)
 	{
 		// f(1).a
 		// a.b
@@ -634,38 +692,32 @@ namespace O
 			if (expr->m_Rhs->m_Type == NodeKind::Identifier) 
 			{
 				Identifier* prop = (Identifier*)expr->m_Rhs;
-				auto result = classSymbol->m_Table->symbols.Lookup(prop->m_Name);
-				if (result.empty()) 
+				auto results = classSymbol->m_Table->symbols.Lookup(prop->m_Name);
+				if (results.empty()) 
 				{
 					MakeError("Member '" + prop->m_Name + "' doesn't exist on class " + lhsType.name);
 					return {};
 				}
 
-				// TODO: Handle when accessing an overloaded function pointer. How to determine which variant to choose?
-				assert(result.size() == 1);
-
-				m_ResolvedOverloadCache[node] = { {}, result[0]->m_DataType };
-				return *classSymbol->m_Table->types.Lookup(result[0]->m_DataType);
-
-			} else if (expr->m_Rhs->m_Type == NodeKind::CallExpression)
-			{
-				CallExpression* call = (CallExpression*)expr->m_Rhs;
-				std::string name = call->m_Callee->ToString();
-
-				// TODO: Should error if function has no name
-				assert(call->m_Callee);
-				assert(name != "");
-
-				auto result = classSymbol->m_Table->symbols.Lookup(name);
-				if (result.empty())
+				if (results.size() > 1)
 				{
-					MakeError("Member '" + name + "' doesn't exist on class " + lhsType.name);
-					return {};
+					std::vector<O::Type> types;
+					for (Symbol* result : results)
+					{
+						assert(result->IsCallable());
+						types.push_back(*table.types.Lookup(result->m_DataType));
+					}
+
+					// Create function pointer
+					//table.types.InsertFunction(types, )
+				}
+				else
+				{
+					m_ResolvedOverloadCache[node] = { {}, results[0]->m_DataType };
 				}
 
-				m_ResolvedOverloadCache[node] = { {}, result[0]->m_DataType };
+				return { classSymbol, results };
 
-				return *classSymbol->m_Table->types.Lookup(m_ResolvedOverloadCache[expr->m_Rhs].returnType);
 			}
 			
 			abort();
@@ -685,7 +737,9 @@ namespace O
 			{
 				m_ResolvedOverloadCache[node] = { {}, (TypeId)PrimitiveValueTypes::Integer };
 
-				return *table.types.Lookup((TypeId)PrimitiveValueTypes::Integer);
+				// TODO TODO: Memoryleak, super hacky
+				return { nullptr,
+					{ new VariableSymbol("length", SymbolType::Variable, (TypeId)PrimitiveValueTypes::Integer) } };
 			}
 
 			MakeErrorTypeInvalidProperty(lhsType, expr->m_Rhs->ToString());
@@ -956,7 +1010,10 @@ namespace O
 			BinaryExpression* expression = (BinaryExpression*)node;
 			if (expression->m_Operator.m_Name == Operators::Name::MemberAccess)
 			{
-				AnalyzeMemberAccess(expression, table);
+				auto resolved = AnalyzeMemberAccess(expression, table, expectedType);
+				assert(resolved.rhs.size() == 1);
+				m_ResolvedOverloadCache[node] = { {}, resolved.rhs[0]->m_DataType };
+
 				return;
 			}
 
@@ -1021,13 +1078,38 @@ namespace O
 		{
 			CallExpression* call = (CallExpression*)node;
 
-			// Check function exists
-			Analyze(call->m_Callee, table, expectedType);
+			// Check if the function is called on a method or instance of function pointer type.
+
+			std::vector<O::Symbol*> matchingFunctions;
+			bool isCallingMethod = false;
+			Symbol* calleeSymbol = nullptr;
+			if (call->m_Callee->m_Type == NodeKind::BinaryExpression)
+			{
+				BinaryExpression* expr = (BinaryExpression*)call->m_Callee;
+				if (expr->m_Operator.m_Name == Operators::Name::MemberAccess)
+				{
+					auto resolved = AnalyzeMemberAccess(expr, table);
+					calleeSymbol = resolved.lhs;
+					matchingFunctions = resolved.rhs;
+
+					if (HasError())
+						return;
+
+					isCallingMethod = true;
+
+					m_ResolvedOverloadCache[expr] = { {}, resolved.rhs[0]->m_DataType };
+				}
+			}
+
+			if (!isCallingMethod)
+				Analyze(call->m_Callee, table, expectedType);
+
 			if (HasError())
-				return;
+				return; 
 			
-			// Validade arguments
-			for (auto& argument : call->m_Arguments->m_Elements)
+			// Validate arguments
+			std::vector<O::Type> functionSignature;
+			for (auto& argument : call->m_Arguments)
 			{
 				Analyze(argument, table, expectedType);
 			}
@@ -1035,9 +1117,25 @@ namespace O
 			if (HasError())
 				return;
 
-			auto matchingFunctions = table.symbols.Lookup(call->m_Callee->ToString());
-			if (matchingFunctions.empty())
-				return MakeErrorNotDefined(call->m_Callee->ToString());
+			// If calling a normal function, then look for symbols with it's name in the scope
+			std::string callee;
+			std::optional<O::Type> calledOnType = {};
+			if (!isCallingMethod)
+			{
+				callee = call->m_Callee->ToString();
+				matchingFunctions = table.symbols.Lookup(callee);
+				if (matchingFunctions.empty())
+					return MakeErrorNotDefined(callee);
+			}
+			else
+			{
+				O::Type& calledOnType = *table.types.Lookup(calleeSymbol->m_DataType);
+
+				if (matchingFunctions.empty())
+					return MakeErrorTypeCallableNotDefined(calledOnType.name, "!!TODO!!");
+
+				callee = matchingFunctions[0]->m_Name;
+			}
 
 			// If function has name of a class, then the class constructor should be used
 			// Look it up in the class table
@@ -1046,18 +1144,19 @@ namespace O
 				assert(matchingFunctions.size() == 1);
 				ClassSymbol* classSymbol = (ClassSymbol*)matchingFunctions[0];
 
-				matchingFunctions = classSymbol->m_Table->symbols.Lookup(call->m_Callee->ToString());
+				matchingFunctions = classSymbol->m_Table->symbols.Lookup(callee);
 			}
 
 			// Create signature object
 			std::vector<CallableSignature> matchingCallableSignatures;
+			
 			for (Symbol* symbol : matchingFunctions)
 			{
 				// If function has name of a class, then the class constructor should be used
 				// Look it up in the class table
 				if (symbol->m_SymbolType == SymbolType::Variable)
 					abort();
-				
+
 				CallableSymbol* callable = (CallableSymbol*)symbol;
 				matchingCallableSignatures.push_back({ callable->m_ParameterTypes, callable->m_DataType });
 			}
@@ -1065,20 +1164,41 @@ namespace O
 			DetailedCallableSignature calleSignature = {
 				{},
 				{},
-				call->m_Callee->ToString(),
+				callee,
 				CallableSymbolType::Normal,
 			};
 
-			for (O::AST::Node* argument : call->m_Arguments->m_Elements) 
+			// Add the class instance the object is access on (in the case of method invokation)
+			if (isCallingMethod)
+				calleSignature.parameterTypes.push_back(*table.types.Lookup(calleeSymbol->m_DataType));
+
+			for (O::AST::Node* argument : call->m_Arguments) 
 			{
 				calleSignature.parameterTypes.push_back(GetTypeOfExpression(argument, table));
 			}
 
 			auto matchingCallableOpt = ResolveOverload(table.types, matchingCallableSignatures, calleSignature, expectedType);
 			if (!matchingCallableOpt.has_value())
-				return;
+			{
+				if (isCallingMethod)
+				{
+					// TODO: Better error
+					O::Type& calledOnType = *table.types.Lookup(calleeSymbol->m_DataType);
+					return MakeError("No matching function '" + callee + "' found on " + calledOnType.name);
+					//return MakeErrorTypeCallableNotDefined(calledOnType.name, callee);
+				}
+
+				return MakeErrorNotDefined(callee);
+			}
 
 			m_ResolvedOverloadCache[node] = matchingCallableOpt.value();
+
+			if (isCallingMethod)
+			{
+				O::Type returnType = *table.types.Lookup(matchingCallableOpt.value().returnType);
+
+				m_ResolvedOverloadCache[call->m_Callee] = { {}, table.types.InsertFunction(calleSignature.parameterTypes, returnType).id };
+			}
 
 			break;
 		}
@@ -1281,7 +1401,13 @@ namespace O
 
 			// TODO: support retriving type of overloaded functions. Should be infered from the context (i think)
 			auto symbols = table.symbols.Lookup(identifier->m_Name);
-			assert(symbols[0]->m_SymbolType != SymbolType::Function && symbols[0]->m_SymbolType != SymbolType::Method);
+
+			if (symbols[0]->m_SymbolType == SymbolType::Function || symbols[0]->m_SymbolType == SymbolType::Method)
+			{
+				//table.types.InsertFunction()
+
+				return *table.types.Lookup(m_ResolvedOverloadCache[node].returnType);
+			}
 
 			return *table.types.Lookup(symbols[0]->m_DataType);
 		}
@@ -1292,6 +1418,7 @@ namespace O
 
 		case NodeKind::BinaryExpression:
 		{
+			BinaryExpression* expr = (BinaryExpression*)node;
 			assert(m_ResolvedOverloadCache.count(node) == 1);
 
 			return *table.types.Lookup(m_ResolvedOverloadCache[node].returnType);
@@ -1453,6 +1580,18 @@ namespace O
 	{
 		MakeError("Type " + type.name + " doesn't have a property '" + property + "'");
 	}
+
+	void SemanticAnalyzer::MakeErrorTypeCallableNotDefined(const std::string typeName, DetailedCallableSignature signature)
+	{
+		//MakeError("Function " + "is not defined on type " + type.name);
+
+	}
+
+	void SemanticAnalyzer::MakeErrorTypeCallableNotDefined(const std::string typeName, const std::string name)
+	{
+		MakeError("Function " + name + " is not defined on type " + typeName);
+	}
+
 
 	SemanticAnalyzer::~SemanticAnalyzer()
 	{

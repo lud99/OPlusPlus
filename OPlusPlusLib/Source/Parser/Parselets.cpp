@@ -55,7 +55,7 @@ namespace O::AST
 		return nullptr;
 	}
 
-	Node* ParseTupleExpression(Parser& parser)
+	std::vector<Node*> ParseTupleLikeExpression(Parser& parser)
 	{
 		std::vector<Node*> arguments;
 
@@ -69,7 +69,7 @@ namespace O::AST
 			parser.ConsumeToken(Token::RightParentheses);
 		}
 
-		return new TupleExpression(arguments);
+		return arguments;
 	}
 
 	Node* ParenthesesGroupParselet::Parse(Parser& parser, Token token)
@@ -104,7 +104,7 @@ namespace O::AST
 						return parser.MakeError("Expected '=>' after lamda parameters, block scopes are not supported in lambda");
 
 					// Otherwise a normal tuple
-					return parser.ParseTupleExpression(token);
+					return new TupleExpression(parser.ParseTupleLikeExpression(token));
 				}
 
 				// No tuple :(
@@ -187,7 +187,7 @@ namespace O::AST
 
 	Node* CallParselet::Parse(Parser& parser, Node* left, Token token)
 	{
-		TupleExpression* arguments = (TupleExpression*)ParseTupleExpression(parser);
+		std::vector<Node*> arguments = ParseTupleLikeExpression(parser);
 
 		if (parser.HasError()) return nullptr;
 

@@ -111,6 +111,9 @@ namespace O
 		Type& InsertArray(Type& underlyingType, bool& existed);
 		Type& InsertTuple(std::vector<Type> underlyingTypes);
 		Type& InsertFunction(std::vector<Type> argumentTypes, Type returnType);
+		Type& InsertFunction(std::vector<Type> argumentTypesAndReturnType);
+
+		uint16_t GetAllTypesCount();
 
 		void AddTypeRelation(Type& type, TypeId relatedType, TypeRelation::ConversionType subtypeConversion, TypeRelation::ConversionType supertypeConversion);
 		void AddTypeRelation(Type& type, Type& relatedType, TypeRelation::ConversionType subtypeConversion, TypeRelation::ConversionType supertypeConversion);

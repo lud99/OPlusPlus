@@ -42,7 +42,7 @@ namespace O::AST
 		Nodes::Type* ParseType(Token token, int precedence = 0);
 		Nodes::Type* ParseTypeAnnotation();
 		Nodes::Identifier* ParseIdentifier(Token token);
-		Nodes::TupleExpression* ParseTupleExpression(Token token);
+		std::vector<Node*> ParseTupleLikeExpression(Token token);
 
 		Nodes::VariableDeclaration* ParseVariableDeclaration(Token token, bool consumeEndToken = true, std::vector<Token::Types> endTokens = { Token::Semicolon });
 		Nodes::FunctionParameters* ParseFunctionParameters(Token token);

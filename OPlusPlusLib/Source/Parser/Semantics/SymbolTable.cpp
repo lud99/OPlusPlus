@@ -19,6 +19,11 @@ namespace O
 		m_DataType = dataType;
 	}
 
+    std::string Symbol::ToString(TypeTable& types)
+    {
+        return m_Name + ", " + SymbolTypeToString(m_SymbolType) + ", " + types.Lookup(m_DataType)->name;
+    }
+
     bool Symbol::operator==(const Symbol &other)
     {
         return m_Name == other.m_Name &&
@@ -101,6 +106,12 @@ namespace O
     {
         m_TableType = tableType;
         m_UpwardSymbolTable = upwardSymbolTable;
+
+        // Add 
+        if (m_TableType == SymbolTableType::Global)
+        {
+
+        }
     }
 
     VariableSymbol* SymbolTable::InsertVariable(std::string name, TypeId dataType, VariableSymbolType variableType)

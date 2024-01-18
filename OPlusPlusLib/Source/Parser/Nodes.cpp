@@ -2,6 +2,8 @@
 
 #include "../Utils.hpp"
 
+#include "Semantics/SemanticAnalyzer.h";
+
 namespace O::AST
 {
 	std::string Node::TypeToString()
@@ -9,7 +11,7 @@ namespace O::AST
 		return std::string(magic_enum::enum_name(m_Type));
 	}
 	
-	void Node::Print(std::string padding)
+	void Node::Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer)
 	{
 		std::cout << padding << TypeToString() << (ToString() != "" ? ": " : "") << ToString() << "\n";
 	}
@@ -17,10 +19,24 @@ namespace O::AST
 
 namespace O::AST::Nodes 
 {
+	std::string CachedTypeToString(Node* node, SymbolTypeTable* table, SemanticAnalyzer* analyzer)
+	{
+		return analyzer->GetTypeOfExpression(node, *table).name;
+	}
+	std::string SymbolDataTypeToString(std::string symbolName, SymbolTypeTable* table)
+	{
+		return table->types.Lookup(table->symbols.LookupOne(symbolName)->m_DataType)->name;
+	}
+
 	Identifier::Identifier(const std::string& name)
 	{
 		m_Name = name;
 		m_Type = NodeKind::Identifier;
+	}
+
+	void Identifier::Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer)
+	{
+		std::cout << padding << TypeToString() << ": " << ToString() << " -> " << CachedTypeToString(this, table, analyzer) << "\n";
 	}
 
 	BasicType::BasicType(const std::string& typeName)
@@ -38,7 +54,7 @@ namespace O::AST::Nodes
 		return str;
 	}
 
-	/*void BasicType::Print(std::string padding)
+	/*void BasicType::Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer)
 	{
 		std::cout << padding << TypeToString() << ": " << ToString() << "\n";
 		if (m_IsArray)
@@ -54,19 +70,24 @@ namespace O::AST::Nodes
 		m_AssignedValue = assignedValue;
 	}
 
-	void VariableDeclaration::Print(std::string padding)
+	void VariableDeclaration::Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer)
 	{
-		std::cout << padding << TypeToString() << ":\n";
-		m_VariableName->Print(padding + "    ");
+		std::cout << padding << TypeToString() << "\n";
+		m_VariableName->Print(padding + "    ", table, analyzer);
+
 		if (m_VariableType)
-			m_VariableType->Print(padding + "    ");
+			m_VariableType->Print(padding + "    ", table, analyzer);
 		else
 			std::cout << padding << "    (infered type)\n";
 
+		//std::cout << padding << table->types.Lookup(table->symbols.LookupOne(m_VariableName->m_Name)->m_DataType)->name << "\n";
+
+		//std::cout << table->types.Lookup(analyzer->GetCachedTypes()[m_].returnType)->name << "\n";
+
 		if (m_AssignedValue)
 		{
-			std::cout << padding + "    (value):\n";
-			m_AssignedValue->Print(padding + "        ");
+			std::cout << padding + "    (value)\n";
+			m_AssignedValue->Print(padding + "        ", table, analyzer);
 		}
 	}
 
@@ -79,16 +100,17 @@ namespace O::AST::Nodes
 		m_Rhs = right;
 	}
 
-	void BinaryExpression::Print(std::string padding)
+	void BinaryExpression::Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer)
 	{
-		std::cout << padding << TypeToString() << " (" << ToString() << "):\n";
-		m_Lhs->Print(padding + "    ");
-		m_Rhs->Print(padding + "    ");
+		std::cout << padding << TypeToString() << " (" << ToString() << ") -> " << CachedTypeToString(this, table, analyzer) << "\n";
+
+		m_Lhs->Print(padding + "    ", table, analyzer);
+		m_Rhs->Print(padding + "    ", table, analyzer);
 	}
 
 	std::string BinaryExpression::ToString()
 	{
-		return std::string(magic_enum::enum_name(m_Operator.m_Name)) + " (" + m_Operator.m_Symbol + ")";
+		return std::string(magic_enum::enum_name(m_Operator.m_Name)) + " " + m_Operator.m_Symbol;
 	}
 
 	UnaryExpression::UnaryExpression(Node* operand, Operators::Operator op)
@@ -98,30 +120,44 @@ namespace O::AST::Nodes
 		m_Operand = operand;
 	}
 
-	void UnaryExpression::Print(std::string padding)
+	void UnaryExpression::Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer)
 	{
-		std::cout << padding << TypeToString() << " (" << ToString() << "):\n";
-		m_Operand->Print(padding + "    ");
+		std::cout << padding << TypeToString() << "(" << ToString() << ") -> " << CachedTypeToString(this, table, analyzer) << "\n";
+
+		m_Operand->Print(padding + "    ", table, analyzer);
 	}
 
 	std::string UnaryExpression::ToString()
 	{
-		return std::string(magic_enum::enum_name(m_Operator.m_Name)) + " (" + m_Operator.m_Symbol + ")";
+		return std::string(magic_enum::enum_name(m_Operator.m_Name)) + m_Operator.m_Symbol;
 	}
 
-	CallExpression::CallExpression(Node* callee, TupleExpression* arguments)
+	CallExpression::CallExpression(Node* callee, std::vector<Node*> arguments)
 	{
 		m_Type = NodeKind::CallExpression;
 		m_Callee = callee;
 		m_Arguments = arguments;
 	}
 
-	void CallExpression::Print(std::string padding)
+	void CallExpression::Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer)
 	{
-		// todo: print correctly
-		std::cout << padding << TypeToString() << " (" << m_Callee->ToString() << "):\n";
+		CallableSignature signature = analyzer->GetCachedTypes()[this];
 
-		m_Arguments->Print(padding + "    ");
+		std::cout << padding << TypeToString() << " ";
+
+		std::cout << "(" << Join(signature.parameterTypes, ", ",
+			[&](TypeId& id) {
+				return table->types.Lookup(id)->name;
+			}) << ") -> ";
+
+		std::cout << table->types.Lookup(signature.returnType)->name << "\n";
+
+		m_Callee->Print(padding + "    ", table, analyzer);
+		
+		for (Node* argument : m_Arguments)
+		{
+			argument->Print(padding + "    ", table, analyzer);
+		}
 	}
 
 	IntLiteral::IntLiteral(int value)
@@ -167,21 +203,21 @@ namespace O::AST::Nodes
 		m_ElseArm = elseArm;
 		m_Type = NodeKind::IfStatement;
 	}
-	void IfStatement::Print(std::string padding)
+	void IfStatement::Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer)
 	{
 		std::string newPadding = padding + "        ";
 		std::cout << padding << TypeToString() << ": \n";
 
-		std::cout << padding + "    (condition): \n";
-		m_Condition->Print(newPadding);
+		std::cout << padding + "    (condition) \n";
+		m_Condition->Print(newPadding, table, analyzer);
 
-		std::cout << padding + "    (body): \n";
-		m_Body->Print(newPadding);
+		std::cout << padding + "    (body) \n";
+		m_Body->Print(newPadding, &m_Body->m_LocalTable, analyzer);
 
 		if (m_ElseArm)
 		{
-			std::cout << padding + "    (else): \n";
-			m_ElseArm->Print(newPadding);
+			std::cout << padding + "    (else) \n";
+			m_ElseArm->Print(newPadding, &m_ElseArm->m_LocalTable, analyzer);
 		}
 	}
 
@@ -194,35 +230,35 @@ namespace O::AST::Nodes
 		m_Advancement = advancement;
 		m_Body = body;
 	}
-	void ForStatement::Print(std::string padding)
+	void ForStatement::Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer)
+	{
+		std::string newPadding = padding + "        ";
+		std::cout << padding << TypeToString() << " \n";
+
+		std::cout << padding + "    (initialization) \n";
+		if (m_Initialization) m_Initialization->Print(newPadding, table, analyzer);
+
+		std::cout << padding + "    (condition) \n";
+		if (m_Condition) m_Condition->Print(newPadding, table, analyzer);
+
+		std::cout << padding + "    (advancement) \n";
+		if (m_Advancement) m_Advancement->Print(newPadding, table, analyzer);
+
+		std::cout << padding + "    (body) \n";
+		if (m_Body) m_Body->Print(newPadding, &m_Body->m_LocalTable, analyzer);
+	}
+	void ConditionalStatement::Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer)
 	{
 		std::string newPadding = padding + "        ";
 		std::cout << padding << TypeToString() << ": \n";
 
-		std::cout << padding + "    (initialization): \n";
-		if (m_Initialization) m_Initialization->Print(newPadding);
+		std::cout << padding + "    (condition) \n";
+		m_Condition->Print(newPadding, table, analyzer);
 
-		std::cout << padding + "    (condition): \n";
-		if (m_Condition) m_Condition->Print(newPadding);
-
-		std::cout << padding + "    (advancement): \n";
-		if (m_Advancement) m_Advancement->Print(newPadding);
-
-		std::cout << padding + "    (body): \n";
-		if (m_Body) m_Body->Print(newPadding);
+		std::cout << padding + "    (body) \n";
+		m_Body->Print(newPadding, &m_Body->m_LocalTable, analyzer);
 	}
-	void ConditionalStatement::Print(std::string padding)
-	{
-		std::string newPadding = padding + "        ";
-		std::cout << padding << TypeToString() << ": \n";
-
-		std::cout << padding + "    (condition): \n";
-		m_Condition->Print(newPadding);
-
-		std::cout << padding + "    (body): \n";
-		m_Body->Print(newPadding);
-	}
-	void Scope::Print(std::string padding)
+	void Scope::Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer)
 	{
 		std::cout << padding << TypeToString() << ": \n";
 
@@ -236,9 +272,9 @@ namespace O::AST::Nodes
 		m_LocalTable.symbols.Print(m_LocalTable.types, newPadding);
 		std::cout << "\n";
 
-		std::cout << padding << "    (lines):\n";
+		std::cout << padding << "    (lines)\n";
 		for (auto& line : m_Lines)
-			line->Print(newPadding);
+			line->Print(newPadding, &m_LocalTable, analyzer);
 	}
 
 	ReturnStatement::ReturnStatement(Node* returnValue)
@@ -247,11 +283,11 @@ namespace O::AST::Nodes
 		m_ReturnValue = returnValue;
 	}
 
-	void ReturnStatement::Print(std::string padding)
+	void ReturnStatement::Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer)
 	{
-		std::cout << padding << TypeToString() << ": \n";
+		std::cout << padding << TypeToString() << " \n";
 		if (m_ReturnValue)
-			m_ReturnValue->Print(padding + "    ");
+			m_ReturnValue->Print(padding + "    ", table, analyzer);
 	}
 
 	FunctionDefinitionStatement::FunctionDefinitionStatement(Type* returnType, Identifier* name, FunctionParameters* parameters, Node* body)
@@ -263,27 +299,41 @@ namespace O::AST::Nodes
 		m_Body = body;
 	}
 
-	void FunctionDefinitionStatement::Print(std::string padding)
+	void FunctionDefinitionStatement::Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer)
 	{
 		std::string newPadding = padding + "        ";
-		std::cout << padding << TypeToString() << ": \n";
+		std::cout << padding << TypeToString() << "\n";
 
 		std::cout << padding << "    Parameters symbol table" << ": \n";
 		m_ParametersTable.symbols.Print(m_ParametersTable.types, newPadding);
 		std::cout << "\n";
 
-		std::cout << padding + "    (return type): \n";
-		if (m_ReturnType) m_ReturnType->Print(newPadding);
+		CallableSignature signature = analyzer->GetCachedTypes()[this];
 
-		std::cout << padding + "    (name): \n";
-		if (m_Name) m_Name->Print(newPadding);
+		if (m_ReturnType)
+		{
+			std::cout << padding << "    (return type) -> " << table->types.Lookup(signature.returnType)->name << "\n";
+			m_ReturnType->Print(newPadding, table, analyzer);
+		}
+		else
+		{
+			std::cout << padding << "    (infered return type) -> " << table->types.Lookup(signature.returnType)->name << "\n";
 
-		std::cout << padding + "    (parameters): \n";
-		m_Parameters->Print(newPadding);
+		}
 
-		std::cout << padding + "    (body): \n";
+
+		std::cout << padding + "    (name) \n";
+		if (m_Name) m_Name->Print(newPadding, table, analyzer);
+
+		std::cout << padding << "    (parameters) -> (" << Join(signature.parameterTypes, ", ", 
+		[&](TypeId& id) {
+			return table->types.Lookup(id)->name;
+		}) << ")\n";
+		m_Parameters->Print(newPadding, &m_ParametersTable, analyzer);
+
+		std::cout << padding + "    (body) \n";
 		if (m_Body)
-			m_Body->Print(newPadding);
+			m_Body->Print(newPadding, &m_ParametersTable, analyzer);
 	}
 
 	ClosureExpression::ClosureExpression(BlockStatement* body)
@@ -292,10 +342,10 @@ namespace O::AST::Nodes
 		m_Body = body;
 	}
 
-	void ClosureExpression::Print(std::string padding)
+	void ClosureExpression::Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer)
 	{
-		std::cout << padding << TypeToString() << ": \n";
-		m_Body->Print(padding + "    ");
+		std::cout << padding << TypeToString() << " \n";
+		m_Body->Print(padding + "    ", &m_Body->m_LocalTable, analyzer);
 	}
 
 	LoopStatement::LoopStatement(BlockStatement* body)
@@ -304,21 +354,21 @@ namespace O::AST::Nodes
 		m_Body = body;
 	}
 
-	void LoopStatement::Print(std::string padding)
+	void LoopStatement::Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer)
 	{
-		std::cout << padding << TypeToString() << ": \n";
-		m_Body->Print(padding + "    ");
+		std::cout << padding << TypeToString() << " \n";
+		m_Body->Print(padding + "    ", table, analyzer);
 	}
 	BreakStatement::BreakStatement(Node* breakValue)
 	{
 		m_Type = NodeKind::Break;
 		m_BreakValue = breakValue;
 	}
-	void BreakStatement::Print(std::string padding)
+	void BreakStatement::Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer)
 	{
-		std::cout << padding << TypeToString() << ": \n";
+		std::cout << padding << TypeToString() << " \n";
 		if (m_BreakValue)
-			m_BreakValue->Print(padding + "    ");
+			m_BreakValue->Print(padding + "    ", table, analyzer);
 	}
 
 	ClassDeclarationStatement::ClassDeclarationStatement(Identifier* name)
@@ -327,31 +377,31 @@ namespace O::AST::Nodes
 		m_Name = name;
 	}
 
-	void ClassDeclarationStatement::Print(std::string padding)
+	void ClassDeclarationStatement::Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer)
 	{
 		std::string newPadding = padding + "        ";
-		std::cout << padding << TypeToString() << ": \n";
+		std::cout << padding << TypeToString() << "\n";
 
-		std::cout << padding + "    (class symbols): \n";
+		std::cout << padding + "    (class symbols)\n";
 		if (m_ClassSymbol)
 			m_ClassSymbol->m_Table->symbols.Print(m_ClassSymbol->m_Table->types, newPadding);
 
-		std::cout << "\n" << padding + "    (class types): \n";
+		std::cout << "\n" << padding + "    (class types) \n";
 		if (m_ClassSymbol)
 			m_ClassSymbol->m_Table->types.Print(newPadding);
 		std::cout << "\n";
 
-		m_Name->Print(padding + "    ");
+		m_Name->Print(padding + "    ", table, analyzer);
 
-		std::cout << padding + "    (member variables): \n";
+		std::cout << padding + "    (member variables) \n";
 		for (auto& node : m_MemberDeclarations)
-			node->Print(newPadding);
-		std::cout << padding + "    (methods): \n";
+			node->Print(newPadding, m_ClassSymbol->m_Table, analyzer);
+		std::cout << padding + "    (methods) \n";
 		for (auto& node : m_MethodDeclarations)
-			node->Print(newPadding);
-		std::cout << padding + "    (nested classes): \n";
+			node->Print(newPadding, m_ClassSymbol->m_Table, analyzer);
+		std::cout << padding + "    (nested classes) \n";
 		for (auto& node : m_NestedClassDeclarations)
-			node->Print(newPadding);
+			node->Print(newPadding, m_ClassSymbol->m_Table, analyzer);
 	}
 
 	TupleExpression::TupleExpression(std::vector<Node*> elements)
@@ -360,12 +410,12 @@ namespace O::AST::Nodes
 		m_Elements = elements;
 	}
 
-	void TupleExpression::Print(std::string padding)
+	void TupleExpression::Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer)
 	{
-		std::cout << padding << TypeToString() << " (" << m_Elements.size() << "): \n";
+		std::cout << padding << TypeToString() << " (" << m_Elements.size() << ") \n";
 
 		for (auto& element : m_Elements)
-			element->Print(padding + "    ");
+			element->Print(padding + "    ", table, analyzer);
 	}
 
 	LambdaExpression::LambdaExpression(Type* returnType, TupleExpression* parameters, Node* body)
@@ -375,20 +425,20 @@ namespace O::AST::Nodes
 		m_Parameters = parameters;
 		m_Body = body;
 	}
-	void LambdaExpression::Print(std::string padding)
+	void LambdaExpression::Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer)
 	{
 		std::string newPadding = padding + "        ";
 		std::cout << padding << TypeToString() << ": \n";
 
 		std::cout << padding + "    (return type): \n";
-		if (m_ReturnType) m_ReturnType->Print(newPadding);
+		if (m_ReturnType) m_ReturnType->Print(newPadding, table, analyzer);
 
 		std::cout << padding + "    (parameters): \n";
-		m_Parameters->Print(newPadding);
+		m_Parameters->Print(newPadding, table, analyzer);
 
 		std::cout << padding + "    (body): \n";
 		if (m_Body)
-			m_Body->Print(newPadding);
+			m_Body->Print(newPadding, table, analyzer);
 	}
 
 	FunctionType::FunctionType(std::vector<Type*> parameters, Type* returnType)
@@ -398,7 +448,7 @@ namespace O::AST::Nodes
 		m_ReturnType = returnType;
 	}
 
-	void FunctionType::Print(std::string padding)
+	void FunctionType::Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer)
 	{
 		std::string newPadding = padding + "        ";
 		std::cout << padding << TypeToString() << ": \n";
@@ -406,11 +456,11 @@ namespace O::AST::Nodes
 		std::cout << padding + "    (parameter types): \n";
 		for (auto& type : m_Parameters)
 		{
-			type->Print(newPadding);
+			type->Print(newPadding, table, analyzer);
 		}
 
 		std::cout << padding + "    (return type): \n";
-		m_ReturnType->Print(newPadding);
+		m_ReturnType->Print(newPadding, table, analyzer);
 	}
 
 	TupleType::TupleType(std::vector<Type*> elements)
@@ -419,14 +469,14 @@ namespace O::AST::Nodes
 		m_Elements = elements;
 	}
 
-	void TupleType::Print(std::string padding)
+	void TupleType::Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer)
 	{
 		std::string newPadding = padding + "        ";
 		std::cout << padding << TypeToString() << ": \n";
 
 		for (auto& type : m_Elements)
 		{
-			type->Print(newPadding);
+			type->Print(newPadding, table, analyzer);
 		}
 	}
 	FunctionParameters::FunctionParameters(std::vector<VariableDeclaration*> parameters)
@@ -434,11 +484,11 @@ namespace O::AST::Nodes
 		m_Type = NodeKind::FunctionParameters;
 		m_Parameters = parameters;
 	}
-	void FunctionParameters::Print(std::string padding)
+	void FunctionParameters::Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer)
 	{
 		for (auto& parameter : m_Parameters)
 		{
-			parameter->Print(padding);
+			parameter->Print(padding, table, analyzer);
 		}
 	}
 	ArrayType::ArrayType(Type* underlyingType)
@@ -450,10 +500,11 @@ namespace O::AST::Nodes
 	{
 		return ->ToString();
 	}*/
-	void ArrayType::Print(std::string padding)
+	void ArrayType::Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer)
 	{
-		std::cout << padding << TypeToString() << (m_IsNullable ? "?" : "") << ": \n";
-		m_UnderlyingType->Print(padding + "    ");
+		std::cout << padding << TypeToString() << " -> " << analyzer->ResolveTypeNode(this, *table).name << "\n";
+
+		m_UnderlyingType->Print(padding + "    ", table, analyzer);
 	}
 	ArrayLiteral::ArrayLiteral(std::vector<Node*> elements)
 	{
@@ -464,5 +515,10 @@ namespace O::AST::Nodes
 	std::string ArrayLiteral::ToString()
 	{
 		return "[" + Join(m_Elements, ", ", [](Node* t) { return t->ToString(); }) + "]";
+	}
+
+	void Literal::Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer)
+	{
+		std::cout << padding << TypeToString() << ": " << ToString() << " -> " << CachedTypeToString(this, table, analyzer) << "\n";
 	}
 }

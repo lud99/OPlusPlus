@@ -116,12 +116,12 @@ namespace O
 	{
 		assert(!HasCompleteType(typeName));
 
-		uint16_t id = m_Types.size();
+		uint16_t id = GetAllTypesCount();
 
 		m_Typenames[typeName] = id;
 		m_Types.push_back({ typeName, id, type });
 
-		return m_Types[id];
+		return m_Types.back();
 	}
 	Type& TypeTable::InsertGeneric(TypeKind type, std::vector<Type> typeArguments, bool& existed)
 	{
@@ -141,7 +141,15 @@ namespace O
 		if (existed)
 			return *Lookup(name);
 
-		Type& typeEntry = Insert(name, type);
+		// Go to the global table to insert generic types
+		// This is to prevent the same type having different id's in different scopes
+		TypeTable* global = m_UpwardTypeTable;
+		while (global && global->m_UpwardTypeTable)
+		{
+			global = global->m_UpwardTypeTable;
+		}
+
+		Type& typeEntry = global->Insert(name, type);
 
 		// Set the type arguments
 		for (auto& argument : typeArguments)
@@ -182,6 +190,18 @@ namespace O
 		typeArguments.push_back(returnType);
 
 		return InsertGeneric(TypeKind::Function, typeArguments);
+	}
+	Type& TypeTable::InsertFunction(std::vector<Type> argumentTypesAndReturnType)
+	{
+		return InsertGeneric(TypeKind::Function, argumentTypesAndReturnType);
+	}
+
+	uint16_t TypeTable::GetAllTypesCount()
+	{
+		uint16_t count = m_Types.size();
+		if (m_UpwardTypeTable)
+			count += m_UpwardTypeTable->GetAllTypesCount();
+		return count;
 	}
 
 	void TypeTable::AddTypeRelation(Type& type, TypeId relatedType, TypeRelation::ConversionType subtypeConversion, TypeRelation::ConversionType supertypeConversion)

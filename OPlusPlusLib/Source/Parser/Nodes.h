@@ -8,6 +8,12 @@
 #include "Operators.h"
 #include "Semantics/SymbolTypeTable.h"
 
+
+namespace O 
+{
+	class SemanticAnalyzer;
+}
+
 namespace O::AST
 {
 	enum class NodeKind {
@@ -57,6 +63,7 @@ namespace O::AST
 		ArrayLiteral
 	};
 
+
 	struct Node;
 	extern "C" struct Node
 	{
@@ -65,7 +72,7 @@ namespace O::AST
 		NodeKind m_Type = NodeKind::EmptyStatement;
 		
 		EXPORT virtual std::string TypeToString();
-		EXPORT virtual void Print(std::string padding = "");
+		EXPORT virtual void Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer);
 		EXPORT virtual std::string ToString() { return ""; };
 	};
 };
@@ -78,7 +85,7 @@ namespace O::AST::Nodes
 
 		SymbolTypeTable m_LocalTable;
 
-		virtual void Print(std::string padding) override;
+		virtual void Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer) override;
 	};
 	struct Program : public Scope
 	{
@@ -96,7 +103,7 @@ namespace O::AST::Nodes
 		Node* m_Condition;
 		BlockStatement* m_Body;
 
-		virtual void Print(std::string padding) override;
+		virtual void Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer) override;
 	};
 	struct WhileStatement : public ConditionalStatement
 	{
@@ -108,7 +115,7 @@ namespace O::AST::Nodes
 		
 		BlockStatement* m_ElseArm;
 
-		virtual void Print(std::string padding) override;
+		virtual void Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer) override;
 	};
 	struct ForStatement : public Node
 	{
@@ -120,7 +127,7 @@ namespace O::AST::Nodes
 
 		BlockStatement* m_Body;
 
-		virtual void Print(std::string padding) override;
+		virtual void Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer) override;
 	};
 	struct LoopStatement : public Node
 	{
@@ -128,7 +135,7 @@ namespace O::AST::Nodes
 
 		BlockStatement* m_Body;
 
-		virtual void Print(std::string padding) override;
+		virtual void Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer) override;
 	};
 
 	struct ClosureExpression : public Node
@@ -137,7 +144,7 @@ namespace O::AST::Nodes
 
 		BlockStatement* m_Body;
 		
-		virtual void Print(std::string padding) override;
+		virtual void Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer) override;
 	};
 
 	struct SingleKeywordStatement : public Node
@@ -150,7 +157,7 @@ namespace O::AST::Nodes
 
 		Node* m_ReturnValue;
 
-		virtual void Print(std::string padding) override;
+		virtual void Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer) override;
 	};
 	struct BreakStatement : public Node
 	{
@@ -158,7 +165,7 @@ namespace O::AST::Nodes
 
 		Node* m_BreakValue;
 
-		virtual void Print(std::string padding) override;
+		virtual void Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer) override;
 	};
 
 	struct Identifier : public Node
@@ -168,12 +175,14 @@ namespace O::AST::Nodes
 		std::string m_Name;
 
 		std::string ToString() override { return m_Name; }
+		virtual void Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer) override;
+
 	};
 
 	// Any sort of type
 	struct Type : public Node 
 	{
-		bool m_IsNullable = false;
+		bool m_IsNullable = false; // TODO: remove
 	};
 
 	// Represents basic types. int, float, Animal, int?[] etc
@@ -184,7 +193,7 @@ namespace O::AST::Nodes
 		std::string m_TypeName;
 	
 		std::string ToString() override;
-		//void Print(std::string padding) override;
+		//void Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer) override;
 	};
 	struct ArrayType : public Type
 	{
@@ -193,7 +202,7 @@ namespace O::AST::Nodes
 		Type* m_UnderlyingType;
 
 		//std::string ToString() override;
-		void Print(std::string padding) override;
+		void Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer) override;
 	};
 
 	struct TupleType : public Type
@@ -202,7 +211,7 @@ namespace O::AST::Nodes
 
 		std::vector<Type*> m_Elements;
 
-		void Print(std::string padding) override;
+		void Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer) override;
 	};
 	struct FunctionType : public Type
 	{
@@ -211,7 +220,7 @@ namespace O::AST::Nodes
 		std::vector<Type*> m_Parameters;
 		Type* m_ReturnType;
 
-		void Print(std::string padding) override;
+		void Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer) override;
 	};
 
 	struct VariableDeclaration : public Node
@@ -222,7 +231,7 @@ namespace O::AST::Nodes
 		Type* m_VariableType;
 		Node* m_AssignedValue;
 
-		virtual void Print(std::string padding) override;
+		virtual void Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer) override;
 	};
 
 	struct FunctionParameters : public Node
@@ -231,7 +240,7 @@ namespace O::AST::Nodes
 
 		std::vector<VariableDeclaration*> m_Parameters;
 
-		virtual void Print(std::string padding) override;
+		virtual void Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer) override;
 	};
 
 	struct FunctionDefinitionStatement : public Node
@@ -249,7 +258,7 @@ namespace O::AST::Nodes
 		bool IsPrototype() { return m_Body == nullptr; }
 		bool IsExpressionFunction() { return m_Body->m_Type != NodeKind::BlockStatement; }
 
-		virtual void Print(std::string padding) override;
+		virtual void Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer) override;
 	};
 	
 	struct Expression : public Node { };
@@ -262,7 +271,7 @@ namespace O::AST::Nodes
 		Operators::Operator m_Operator;
 		Node* m_Rhs;
 
-		virtual void Print(std::string padding) override;
+		virtual void Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer) override;
 		std::string ToString() override;
 	};
 
@@ -273,7 +282,7 @@ namespace O::AST::Nodes
 		Node* m_Operand;
 		Operators::Operator m_Operator;
 
-		virtual void Print(std::string padding) override;
+		virtual void Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer) override;
 		std::string ToString() override;
 	};
 
@@ -283,17 +292,17 @@ namespace O::AST::Nodes
 
 		std::vector<Node*> m_Elements;
 
-		virtual void Print(std::string padding) override;
+		virtual void Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer) override;
 	};
 
 	struct CallExpression : public Expression
 	{
-		CallExpression(Node* callee, TupleExpression* arguments);
+		CallExpression(Node* callee, std::vector<Node*> arguments);
 
 		Node* m_Callee; // The 'name' of the function called
-		TupleExpression* m_Arguments; // TODO: Not semantically correct
+		std::vector<Node*> m_Arguments;
 
-		virtual void Print(std::string padding) override;
+		virtual void Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer) override;
 	};
 
 	struct LambdaExpression : public Node
@@ -305,7 +314,7 @@ namespace O::AST::Nodes
 
 		Node* m_Body = nullptr;
 
-		virtual void Print(std::string padding) override;
+		virtual void Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer) override;
 	};
 
 
@@ -324,10 +333,14 @@ namespace O::AST::Nodes
 		ClassSymbol* m_ClassSymbol = nullptr;
 		//SymbolTable m_MemberSymbolTable;
 
-		virtual void Print(std::string padding) override;
+		virtual void Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer) override;
 	};
 
-	class Literal : public Node {};
+	class Literal : public Node 
+	{
+		virtual void Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer) override;
+	};
+
 	struct IntLiteral : public Literal
 	{
 		IntLiteral(int value);
