@@ -37,11 +37,8 @@ namespace O
 	bool TypeTable::HasType(TypeId typeId)
 	{
 		// First look in the current table
-		for (auto& type : m_Types)
-		{
-			if (type.id == typeId)
-				return true;
-		}
+		if (m_Types.count(typeId) == 1)
+			return true;
 
 		// Otherwise look upward
 		if (m_UpwardTypeTable)
@@ -68,11 +65,8 @@ namespace O
 	bool TypeTable::HasCompleteType(TypeId typeId)
 	{
 		// First look in the current table
-		for (auto& type : m_Types)
-		{
-			if (type.id == typeId)
-				return type.kind != TypeKind::Incomplete;
-		}
+		if (m_Types.count(typeId) != 0)
+			return m_Types[typeId].kind != TypeKind::Incomplete;
 
 		// Otherwise look upward
 		if (m_UpwardTypeTable)
@@ -98,11 +92,8 @@ namespace O
 	Type* TypeTable::Lookup(TypeId typeId)
 	{
 		// First look in the current table
-		for (auto& type : m_Types)
-		{
-			if (type.id == typeId)
-				return &type;
-		}
+		if (m_Types.count(typeId) != 0)
+			return &m_Types[typeId];
 
 		// Otherwise look upward
 		if (m_UpwardTypeTable)
@@ -119,9 +110,9 @@ namespace O
 		uint16_t id = GetAllTypesCount();
 
 		m_Typenames[typeName] = id;
-		m_Types.push_back({ typeName, id, type });
+		m_Types[id] = { typeName, id, type };
 
-		return m_Types.back();
+		return m_Types[id];
 	}
 	Type& TypeTable::InsertGeneric(TypeKind type, std::vector<Type> typeArguments, bool& existed)
 	{
@@ -326,7 +317,7 @@ namespace O
 
 	void TypeTable::Print(std::string padding)
 	{
-		for (auto& entry : m_Types)
+		for (auto& [_, entry] : m_Types)
 		{
 			std::cout << padding << "#" << entry.id << ": " << entry.name << ", "
 				<< TypeEntryTypeToString(entry.kind) << "\n";
@@ -341,7 +332,7 @@ namespace O
 		for (uint16_t i = 0; i < typeKeywords.size(); i++)
 		{
 			m_Typenames[typeKeywords[i]] = i;
-			m_Types.push_back({ typeKeywords[i], i, TypeKind::Primitive });
+			m_Types[i] = { typeKeywords[i], i, TypeKind::Primitive };
 		}
 
 		// Insert relation for types

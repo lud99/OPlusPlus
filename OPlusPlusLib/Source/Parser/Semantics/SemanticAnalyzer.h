@@ -16,6 +16,11 @@ namespace O
 		std::vector<Symbol*> rhs;
 	};
 
+	enum ExpressionType {
+		PlaceExpression,
+		ValueExpression
+	};
+
 	struct CallableSignature
 	{
 		std::vector<TypeId> parameterTypes;
@@ -51,23 +56,16 @@ namespace O
 
 	class SemanticAnalyzer : public CompileTimeErrorList
 	{
-		// Does typechecking between assignments and in expressions
-		// Validates syntax?
-		// Handles resolving implicit casts and operator overloads
-		// Function overload resolution
-		// Validate no multiple declarations of variables
-		// Creates symbol tables for each scope used in compilation
-
 	public:
 		EXPORT SemanticAnalyzer(AST::Node* program);
 
 		EXPORT void AnalyzeProgram();
 
+		static int c;
+
 
 		Type& GetTypeOfExpression(AST::Node* node, SymbolTypeTable& table);
 		Type& ResolveTypeNode(AST::Nodes::Type* node, SymbolTypeTable& table);
-
-		bool Typecheck(Type& lhs, Type& rhs);
 
 		EXPORT auto& GetGlobalTypeTable() { return m_GlobalSymbolTypeTable; };
 		EXPORT auto& GetCachedTypes() { return m_ResolvedOverloadCache; };
@@ -81,6 +79,7 @@ namespace O
 
 		// Returns all matching properties on the object
 		ResolvedMemberAccess AnalyzeMemberAccess(AST::Node* node, SymbolTypeTable& table, std::optional<O::Type> expectedType = {});
+		std::optional<Symbol*> AnalyzeScopeResolution(AST::Node* node, SymbolTypeTable& table, std::optional<O::Type> expectedType = {});
 
 		void GetReturnTypes(AST::Node* node, std::vector<Type>& returnTypes, SymbolTypeTable& table, std::optional<O::Type> expectedType = {});
 
@@ -125,6 +124,8 @@ namespace O
 		OperatorDefinitions m_OperatorDefinitions;
 
 		std::unordered_map<AST::Node*, CallableSignature> m_ResolvedOverloadCache;
+		std::unordered_map<AST::Node*, ExpressionType> m_CachedExpressionTypes;
+		std::unordered_map<AST::Node*, Symbol*> m_CachedSymbolsForNodes;
 
 		SymbolTypeTable* m_GlobalSymbolTypeTable;
 	};

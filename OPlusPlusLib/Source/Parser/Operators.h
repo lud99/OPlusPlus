@@ -32,6 +32,7 @@ namespace O::Operators
 		Call,
 		Subscript,
 		MemberAccess,
+		ScopeResolution,
 
 		// p = 3
 		Closure,

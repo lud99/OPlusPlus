@@ -1,0 +1,25 @@
+
+
+class A {
+	class B {
+		class C {
+
+		};
+	};
+
+	let b : B;
+};
+
+// let age: int = 6;
+// age::MaxInt
+// Math::PI
+
+// let name: string;
+// name.length()
+
+/*traits int{
+	static let toString() : string;
+	static let MaxInt : int = 255;
+}*/
+
+A::B::C;

@@ -189,6 +189,7 @@ namespace O
 		auto symbols = Lookup(name);
 		if (symbols.empty())
 			return nullptr;
+        assert(symbols.size() == 1);
 		
 		return symbols[0];
 	}

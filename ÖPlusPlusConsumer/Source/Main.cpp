@@ -10,7 +10,7 @@ int main(const char* args)
 
 	setlocale(LC_ALL, "");
 
-	std::ifstream file("Programs/array.ö");
+	std::ifstream file("Programs/scope_resolution.ö");
 	if (!file.good())
 	{
 		std::cout << "Could not open file :(\n";

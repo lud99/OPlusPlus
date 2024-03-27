@@ -32,6 +32,7 @@ namespace O
 		Array,
 		Tuple,
 		Nullable,
+		Reference,
 		Typedef
 	};
 
@@ -56,10 +57,6 @@ namespace O
 	class Type
 	{
 	public:
-		// typeEntry: built in, object ref, array, typedef
-		// redirect: pointer to actual typeEntry entry, if a typedef
-		// id: id
-
 		std::string name;
 		TypeId id;
 
@@ -70,14 +67,6 @@ namespace O
 		std::vector<TypeRelation> supertypes;
 		std::vector<TypeRelation> subtypes;
 		// TODO: Add types at the same level
-
-		// 
-		//std::unordered_map<Operators::Name, Type*> definedOperators;
-
-		// A private type is a type that cannot be instantiated like any type
-		// TODO: Will be removed once types in the type table are restricted to scopes, 
-		// like the symbol table.
-		//bool isPrivate = false;
 	};
 
 
@@ -141,7 +130,7 @@ namespace O
 	private:
 		TypeTableType m_TableType = TypeTableType::Local;
 
-		std::vector<Type> m_Types;
+		std::unordered_map<uint16_t, Type> m_Types;
 
 		// Perhaps a bad name, but refers to int, float, string etc. 
 		std::unordered_map<std::string, TypeId> m_Typenames;
