@@ -21,6 +21,9 @@ namespace O::AST::Nodes
 {
 	std::string CachedTypeToString(Node* node, SymbolTypeTable* table, SemanticAnalyzer* analyzer)
 	{
+		if (analyzer->HasTableForNode(node))
+			table = analyzer->GetSymbolTypeTableForNode(node);
+
 		return analyzer->GetTypeOfExpression(node, *table).name;
 	}
 	std::string SymbolDataTypeToString(std::string symbolName, SymbolTypeTable* table)
@@ -212,12 +215,12 @@ namespace O::AST::Nodes
 		m_Condition->Print(newPadding, table, analyzer);
 
 		std::cout << padding + "    (body) \n";
-		m_Body->Print(newPadding, &m_Body->m_LocalTable, analyzer);
+		m_Body->Print(newPadding, analyzer->GetSymbolTypeTableForNode(m_Body), analyzer);
 
 		if (m_ElseArm)
 		{
 			std::cout << padding + "    (else) \n";
-			m_ElseArm->Print(newPadding, &m_ElseArm->m_LocalTable, analyzer);
+			m_ElseArm->Print(newPadding, analyzer->GetSymbolTypeTableForNode(m_ElseArm), analyzer);
 		}
 	}
 
@@ -245,7 +248,7 @@ namespace O::AST::Nodes
 		if (m_Advancement) m_Advancement->Print(newPadding, table, analyzer);
 
 		std::cout << padding + "    (body) \n";
-		if (m_Body) m_Body->Print(newPadding, &m_Body->m_LocalTable, analyzer);
+		if (m_Body) m_Body->Print(newPadding, analyzer->GetSymbolTypeTableForNode(m_Body), analyzer);
 	}
 	void ConditionalStatement::Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer)
 	{
@@ -256,7 +259,7 @@ namespace O::AST::Nodes
 		m_Condition->Print(newPadding, table, analyzer);
 
 		std::cout << padding + "    (body) \n";
-		m_Body->Print(newPadding, &m_Body->m_LocalTable, analyzer);
+		m_Body->Print(newPadding, analyzer->GetSymbolTypeTableForNode(m_Body), analyzer);
 	}
 	void Scope::Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer)
 	{
@@ -265,16 +268,17 @@ namespace O::AST::Nodes
 		std::string newPadding = padding + "        ";
 
 		std::cout << padding << "    " << (m_Type == NodeKind::Program ? "Global type table" : "Local type table") << ": \n";
-		m_LocalTable.types.Print(newPadding);
+		auto localTable = analyzer->GetSymbolTypeTableForNode(this);
+		localTable->types.Print(newPadding);//m_LocalTable.types.Print(newPadding);
 		std::cout << "\n";
 
 		std::cout << padding << "    " << (m_Type == NodeKind::Program ? "Global symbol table" : "Local symbol table") << ": \n";
-		m_LocalTable.symbols.Print(m_LocalTable.types, newPadding);
+		analyzer->GetSymbolTypeTableForNode(this)->symbols.Print(localTable->types, newPadding);
 		std::cout << "\n";
 
 		std::cout << padding << "    (lines)\n";
 		for (auto& line : m_Lines)
-			line->Print(newPadding, &m_LocalTable, analyzer);
+			line->Print(newPadding, localTable, analyzer);
 	}
 
 	ReturnStatement::ReturnStatement(Node* returnValue)
@@ -305,7 +309,7 @@ namespace O::AST::Nodes
 		std::cout << padding << TypeToString() << "\n";
 
 		std::cout << padding << "    Parameters symbol table" << ": \n";
-		m_ParametersTable.symbols.Print(m_ParametersTable.types, newPadding);
+		m_ParametersTable->symbols.Print(m_ParametersTable->types, newPadding);
 		std::cout << "\n";
 
 		CallableSignature signature = analyzer->GetCachedTypes()[this];
@@ -329,11 +333,11 @@ namespace O::AST::Nodes
 		[&](TypeId& id) {
 			return table->types.Lookup(id)->name;
 		}) << ")\n";
-		m_Parameters->Print(newPadding, &m_ParametersTable, analyzer);
+		m_Parameters->Print(newPadding, m_ParametersTable, analyzer);
 
 		std::cout << padding + "    (body) \n";
 		if (m_Body)
-			m_Body->Print(newPadding, &m_ParametersTable, analyzer);
+			m_Body->Print(newPadding, m_ParametersTable, analyzer);
 	}
 
 	ClosureExpression::ClosureExpression(BlockStatement* body)
@@ -345,7 +349,7 @@ namespace O::AST::Nodes
 	void ClosureExpression::Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer)
 	{
 		std::cout << padding << TypeToString() << " \n";
-		m_Body->Print(padding + "    ", &m_Body->m_LocalTable, analyzer);
+		m_Body->Print(padding + "    ", analyzer->GetSymbolTypeTableForNode(m_Body), analyzer);
 	}
 
 	LoopStatement::LoopStatement(BlockStatement* body)

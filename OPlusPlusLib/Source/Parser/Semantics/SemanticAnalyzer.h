@@ -69,6 +69,8 @@ namespace O
 
 		EXPORT auto& GetGlobalTypeTable() { return m_GlobalSymbolTypeTable; };
 		EXPORT auto& GetCachedTypes() { return m_ResolvedOverloadCache; };
+		SymbolTypeTable* GetSymbolTypeTableForNode(AST::Node* node);
+		bool HasTableForNode(AST::Node* node);
 
 
 		EXPORT ~SemanticAnalyzer();
@@ -101,6 +103,9 @@ namespace O
 
 		std::optional<CallableSignature> ResolveOverload(TypeTable& localTypeTable, std::vector<CallableSignature> overloads, DetailedCallableSignature calle, std::optional<O::Type> expectedReturnType = {});
 		
+		void SetTableForNode(AST::Node* node, SymbolTypeTable* table);
+
+
 		O::Type& InsertArray(O::Type& underlyingType, TypeTable& localTypeTable);
 		//O::Type& InsertTuple(std::vector<O::Type> underlyingTypes, TypeTable& localTypeTable);
 		//O::Type& InsertFunction(std::vector<O::Type> argumentTypes, O::Type returnType);
@@ -126,6 +131,7 @@ namespace O
 		std::unordered_map<AST::Node*, CallableSignature> m_ResolvedOverloadCache;
 		std::unordered_map<AST::Node*, ExpressionType> m_CachedExpressionTypes;
 		std::unordered_map<AST::Node*, Symbol*> m_CachedSymbolsForNodes;
+		std::unordered_map<AST::Node*, SymbolTypeTable*> m_TableForNode;
 
 		SymbolTypeTable* m_GlobalSymbolTypeTable;
 	};

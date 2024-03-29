@@ -83,7 +83,7 @@ namespace O::AST::Nodes
 	{
 		std::vector<Node*> m_Lines;
 
-		SymbolTypeTable m_LocalTable;
+		//SymbolTypeTable m_LocalTable;
 
 		virtual void Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer) override;
 	};
@@ -251,7 +251,7 @@ namespace O::AST::Nodes
 		Identifier* m_Name;
 		FunctionParameters* m_Parameters;
 
-		SymbolTypeTable m_ParametersTable;
+		SymbolTypeTable* m_ParametersTable;
 
 		Node* m_Body = nullptr;
 

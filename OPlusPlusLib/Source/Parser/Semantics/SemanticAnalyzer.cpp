@@ -202,7 +202,7 @@ namespace O
 	{
 		for (auto& line : scope->m_Lines)
 		{
-			Analyze(line, scope->m_LocalTable);
+			Analyze(line, *GetSymbolTypeTableForNode(scope));
 			//if (HasError())
 				//return;
 		}
@@ -226,7 +226,7 @@ namespace O
 			{
 				assert(line);
 
-				GetReturnTypes(line, returnTypes, scope->m_LocalTable, expectedType);
+				GetReturnTypes(line, returnTypes, *GetSymbolTypeTableForNode(scope), expectedType);
 
 			}
 
@@ -238,7 +238,7 @@ namespace O
 			BlockStatement* body = statement->m_Body;
 			if (!body) return;
 
-			GetReturnTypes(node, returnTypes, body->m_LocalTable, expectedType);
+			GetReturnTypes(node, returnTypes, *GetSymbolTypeTableForNode(body), expectedType);
 
 			return;
 		}
@@ -248,7 +248,7 @@ namespace O
 			BlockStatement* body = statement->m_Body;
 			if (!body) return;
 
-			GetReturnTypes(node, returnTypes, body->m_LocalTable, expectedType);
+			GetReturnTypes(node, returnTypes, *GetSymbolTypeTableForNode(body), expectedType);
 
 			return;
 		}
@@ -259,13 +259,13 @@ namespace O
 			BlockStatement* body = statement->m_Body;
 			if (!body) return;
 
-			GetReturnTypes(node, returnTypes, body->m_LocalTable, expectedType);
+			GetReturnTypes(node, returnTypes, *GetSymbolTypeTableForNode(body), expectedType);
 
 			// Else body
 			BlockStatement* elseBody = statement->m_ElseArm;
 			if (!elseBody) return;
 			
-			GetReturnTypes(node, returnTypes, elseBody->m_LocalTable, expectedType);
+			GetReturnTypes(node, returnTypes, *GetSymbolTypeTableForNode(elseBody), expectedType);
 
 			return;
 		}
@@ -300,23 +300,23 @@ namespace O
 		}
 	}
 
-	SymbolTypeTable CreateSymbolTypeTable(SymbolTableType tableKind, SymbolTypeTable& upwardTable)
+	SymbolTypeTable* CreateSymbolTypeTable(SymbolTableType tableKind, SymbolTypeTable& upwardTable)
 	{
 		if (tableKind == SymbolTableType::Global)
-			return { SymbolTable(SymbolTableType::Global, nullptr), TypeTable(TypeTableType::Global, nullptr) };
+			return new SymbolTypeTable { SymbolTable(SymbolTableType::Global, nullptr), TypeTable(TypeTableType::Global, nullptr) };
 		
-		return { SymbolTable(SymbolTableType::Local, &upwardTable.symbols), TypeTable(TypeTableType::Local, &upwardTable.types) };
+		return new SymbolTypeTable { SymbolTable(SymbolTableType::Local, &upwardTable.symbols), TypeTable(TypeTableType::Local, &upwardTable.types) };
 	}
 
 	void SemanticAnalyzer::CreateTablesForScope(Nodes::Scope* node, SymbolTypeTable& table)
 	{
 		if (node->m_Type == NodeKind::Program)
 		{
-			node->m_LocalTable = CreateSymbolTypeTable(SymbolTableType::Global, table);
-			m_GlobalSymbolTypeTable = &node->m_LocalTable;
+			SetTableForNode(node, CreateSymbolTypeTable(SymbolTableType::Global, table));
+			m_GlobalSymbolTypeTable = GetSymbolTypeTableForNode(node);
 		} else
 		{
-			node->m_LocalTable = CreateSymbolTypeTable(SymbolTableType::Local, table);
+			SetTableForNode(node, CreateSymbolTypeTable(SymbolTableType::Local, table));
 		}
 	}
 
@@ -386,7 +386,7 @@ namespace O
 		std::vector<TypeId> parameterTypes;
 		for (Nodes::VariableDeclaration* parameter : node->m_Parameters->m_Parameters)
 		{
-			auto symbol = CreateSymbolForVariableDeclaration(parameter, node->m_ParametersTable, VariableSymbolType::Local);
+			auto symbol = CreateSymbolForVariableDeclaration(parameter, *node->m_ParametersTable, VariableSymbolType::Local);
 			if (HasError())
 				return {};
 
@@ -412,7 +412,7 @@ namespace O
 		if (node->m_ReturnType)
 			declaredReturnType = ResolveTypeNode(node->m_ReturnType, table);
 
-		auto returnTypeOpt = AnalyzeCallableDefinition(node, node->m_ParametersTable, declaredReturnType);
+		auto returnTypeOpt = AnalyzeCallableDefinition(node, *node->m_ParametersTable, declaredReturnType);
 		if (HasError())
 			return nullptr;
 		assert(returnTypeOpt.has_value());
@@ -435,8 +435,8 @@ namespace O
 			// Assume they are identical and look for contradictions
 			for (int i = 0; i < parameterTypes.size(); i++)
 			{
-				O::Type& parameterType = *node->m_ParametersTable.types.Lookup(parameterTypes[i]);
-				O::Type& otherParameterType = *node->m_ParametersTable.types.Lookup(function->m_ParameterTypes[i]);
+				O::Type& parameterType = *node->m_ParametersTable->types.Lookup(parameterTypes[i]);
+				O::Type& otherParameterType = *node->m_ParametersTable->types.Lookup(function->m_ParameterTypes[i]);
 
 				if (parameterType.id != otherParameterType.id)
 					isIdentical = false;
@@ -541,7 +541,7 @@ namespace O
 			}
 		}
 
-		auto returnTypeOpt = AnalyzeCallableDefinition(node, node->m_ParametersTable, declaredReturnTypeOpt);
+		auto returnTypeOpt = AnalyzeCallableDefinition(node, *node->m_ParametersTable, declaredReturnTypeOpt);
 		if (HasError())
 			return nullptr;
 		assert(returnTypeOpt.has_value());
@@ -565,8 +565,8 @@ namespace O
 			// Assume they are identical and look for contradictions
 			for (int i = 0; i < parameterTypes.size(); i++)
 			{
-				O::Type& parameterType = *node->m_ParametersTable.types.Lookup(parameterTypes[i]);
-				O::Type& otherParameterType = *node->m_ParametersTable.types.Lookup(function->m_ParameterTypes[i]);
+				O::Type& parameterType = *node->m_ParametersTable->types.Lookup(parameterTypes[i]);
+				O::Type& otherParameterType = *node->m_ParametersTable->types.Lookup(function->m_ParameterTypes[i]);
 
 				if (parameterType.id != otherParameterType.id)
 					isIdentical = false;
@@ -580,7 +580,7 @@ namespace O
 		}
 
 		// 	uint16_t functionId = m_ConstantsPool.AddAndGetFunctionReferenceIndex(functionName);
-		uint16_t callableId = 0; // TODO: Implement properly
+		uint16_t callableId = 0; // TODO: 5Implement properly
 
 		CallableSymbol callable = CallableSymbol(methodName, SymbolType::Method, returnType.id, callableId, methodType);
 		callable.m_ParameterTypes = parameterTypes;
@@ -754,6 +754,17 @@ namespace O
 		return nullptr;
 	}
 
+	SymbolTypeTable* SemanticAnalyzer::GetSymbolTypeTableForNode(AST::Node* node)
+	{
+		assert(HasTableForNode(node));
+		return m_TableForNode[node];
+	}
+
+	bool SemanticAnalyzer::HasTableForNode(AST::Node* node)
+	{
+		return m_TableForNode.count(node) == 1;
+	}
+
 	ResolvedMemberAccess SemanticAnalyzer::AnalyzeMemberAccess(AST::Node* node, SymbolTypeTable& table, std::optional<O::Type> expectedType)
 	{
 		// f(1).a
@@ -916,6 +927,11 @@ namespace O
 				Symbol* member = classSymbol->m_Table->symbols.LookupOne(prop->m_Name);
 
 				m_CachedSymbolsForNodes[node] = member;
+
+				SetTableForNode(expr, localTable);
+
+				SetTableForNode(expr->m_Lhs, localTable);
+				SetTableForNode(expr->m_Rhs, classSymbol->m_Table);
 
 				// The results could be multiple symbols if the identifier is a name for a function
 				// TODO: Resolve overload based on expectedType
@@ -1195,6 +1211,15 @@ namespace O
 		return potentialMatchesReturnType[0].signature;
 	}
 
+	void SemanticAnalyzer::SetTableForNode(AST::Node* node, SymbolTypeTable* table)
+	{
+		
+		if (m_TableForNode.count(node) != 0)
+			assert(m_TableForNode[node] != table);
+
+		m_TableForNode[node] = table;
+	}
+
 	O::Type& SemanticAnalyzer::InsertArray(O::Type& underlyingType, TypeTable& localTypeTable)
 	{
 		bool typeExisted = false;
@@ -1234,7 +1259,7 @@ namespace O
 			
 			for (auto& line : scope->m_Lines)
 			{
-				Analyze(line, scope->m_LocalTable, expectedType);
+				Analyze(line, *GetSymbolTypeTableForNode(scope), expectedType);
 			}
 
 			break;
@@ -1266,6 +1291,7 @@ namespace O
 				std::optional<Symbol*> symbol = AnalyzeScopeResolution(expression, table, expectedType);
 				assert(symbol.has_value());
 				m_ResolvedOverloadCache[node] = { {}, symbol.value()->m_DataType };
+				//SetTableForNode(node, symbol.value().)
 
 				return;
 			}
@@ -1503,7 +1529,7 @@ namespace O
 			// Analyze the body
 			// TODO: Ensure a return exists
 			// TODO: Typecheck returned type and function return type
-			Analyze(functionNode->m_Body, functionNode->m_ParametersTable, returnType);
+			Analyze(functionNode->m_Body, *functionNode->m_ParametersTable, returnType);
 
 			return;
 		}
