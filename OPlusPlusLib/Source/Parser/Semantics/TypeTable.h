@@ -89,33 +89,33 @@ namespace O
 		bool HasCompleteType(const std::string& typeName);
 		bool HasCompleteType(TypeId typeId);
 
-		Type* Lookup(const std::string& typeName);
-		Type* Lookup(TypeId typeId);
-		Type& LookupReference(TypeId typeId);
+		const Type* Lookup(const std::string& typeName);
+		const Type* Lookup(TypeId typeId);
+		const Type* LookupReference(TypeId typeId);
 
-		Type& Insert(const std::string& typeName, TypeKind type, bool insertReference = true);
+		const Type* Insert(const std::string& typeName, TypeKind type, bool insertReference = true);
 
-		Type& InsertGeneric(TypeKind type, std::vector<Type> typeArguments, bool& existed, bool insertReference = true);
-		Type& InsertGeneric(TypeKind type, std::vector<Type> typeArguments, bool insertReference = true);
+		const Type* InsertGeneric(TypeKind type, std::vector<const Type*> typeArguments, bool& existed, bool insertReference = true);
+		const Type* InsertGeneric(TypeKind type, std::vector<const Type*> typeArguments, bool insertReference = true);
 
 
-		Type& InsertArray(Type& underlyingType, bool& existed);
-		Type& InsertTuple(std::vector<Type> underlyingTypes);
-		Type& InsertFunction(std::vector<Type> argumentTypes, Type returnType);
-		Type& InsertFunction(std::vector<Type> argumentTypesAndReturnType);
+		const Type* InsertArray(const Type* underlyingType, bool& existed);
+		const Type* InsertTuple(std::vector<const Type*> underlyingTypes);
+		const Type* InsertFunction(std::vector<const Type*> argumentTypes, const Type* returnType);
+		const Type* InsertFunction(std::vector<const Type*> argumentTypesAndReturnType);
 
-		void AddTypeRelation(Type& type, TypeId relatedType, TypeRelation::ConversionType subtypeConversion, TypeRelation::ConversionType supertypeConversion);
-		void AddTypeRelation(Type& type, Type& relatedType, TypeRelation::ConversionType subtypeConversion, TypeRelation::ConversionType supertypeConversion);
+		void AddTypeRelation(Type* type, TypeId relatedType, TypeRelation::ConversionType subtypeConversion, TypeRelation::ConversionType supertypeConversion);
+		void AddTypeRelation(Type* type, Type* relatedType, TypeRelation::ConversionType subtypeConversion, TypeRelation::ConversionType supertypeConversion);
 
-		std::optional<TypeRelation::ConversionType> GetFullSupertypeRelationTo(Type& type, Type& expectedSupertype);
-		std::optional<TypeRelation::ConversionType> GetFullSubtypeRelationTo(Type& type, Type& expectedSubtype);
-		std::optional<TypeRelation::ConversionType> GetFullTypeRelationTo(Type& type, Type& expectedType);
+		std::optional<TypeRelation::ConversionType> GetFullSupertypeRelationTo(const Type* type, const Type* expectedSupertype);
+		std::optional<TypeRelation::ConversionType> GetFullSubtypeRelationTo(const Type* type, const Type* expectedSubtype);
+		std::optional<TypeRelation::ConversionType> GetFullTypeRelationTo(const Type* type, const Type* expectedType);
 
-		bool IsTypeImplicitSubtypeOf(Type& subtype, Type& expectedSupertype);
-		bool AreTypesEquivalent(Type& a, Type& b);
+		bool IsTypeImplicitSubtypeOf(const Type* subtype, const Type* expectedSupertype);
+		bool AreTypesEquivalent(const Type* a, const Type* b);
 
 		// If the type relations is seen like a tree, then this function returns the height of the tree from this node
-		uint16_t GetHeightOfTypeRelation(Type& type);
+		uint16_t GetHeightOfTypeRelation(const Type* type);
 
 		EXPORT const auto& GetTypes() { return m_Types; }
 		EXPORT const auto& GetNextTable() { return m_UpwardTypeTable; }
@@ -126,14 +126,16 @@ namespace O
 
 	private:
 		void InsertPrimitiveTypes();
-		std::optional<Type> InsertReferenceType(Type& type);
+		const Type* InsertReferenceType(const Type* type);
+
+		Type* LookupNonConst(TypeId typeId);
 
 		TypeId GetNextFreeTypeId();
 
 	private:
 		TypeTableType m_TableType = TypeTableType::Local;
 
-		std::unordered_map<TypeId, Type> m_Types;
+		std::unordered_map<TypeId, Type*> m_Types;
 
 		// Perhaps a bad name, but refers to int, float, string etc. 
 		std::unordered_map<std::string, TypeId> m_Typenames;

@@ -69,11 +69,8 @@ namespace O
 
 		EXPORT void AnalyzeProgram();
 
-		static int c;
-
-
-		Type& GetTypeOfExpression(AST::Node* node, SymbolTypeTable& table);
-		Type& ResolveTypeNode(AST::Nodes::Type* node, SymbolTypeTable& table);
+		std::optional<Type> GetTypeOfExpression(AST::Node* node, SymbolTypeTable& table);
+		std::optional<Type> ResolveTypeNode(AST::Nodes::Type* node, SymbolTypeTable& table);
 
 		EXPORT auto& GetGlobalTypeTable() { return m_GlobalSymbolTypeTable; };
 		EXPORT auto& GetCachedTypes() { return m_ResolvedOverloadCache; };

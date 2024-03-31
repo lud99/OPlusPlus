@@ -56,7 +56,7 @@ namespace O
 	{
 		// First look in the current table
 		if (m_Typenames.count(typeName) != 0)
-			return m_Types[m_Typenames[typeName]].kind != TypeKind::Incomplete;
+			return m_Types[m_Typenames[typeName]]->kind != TypeKind::Incomplete;
 
 		// Otherwise look upward
 		if (m_UpwardTypeTable)
@@ -70,7 +70,7 @@ namespace O
 	{
 		// First look in the current table
 		if (m_Types.count(typeId) != 0)
-			return m_Types[typeId].kind != TypeKind::Incomplete;
+			return m_Types[typeId]->kind != TypeKind::Incomplete;
 
 		// Otherwise look upward
 		if (m_UpwardTypeTable)
@@ -80,24 +80,25 @@ namespace O
 		return false;
 	}
 
-	Type* TypeTable::Lookup(const std::string& typeName)
+	const Type* TypeTable::Lookup(const std::string& typeName)
 	{
 		// First look in the current table
 		if (m_Typenames.count(typeName) != 0)
-			return &m_Types[m_Typenames[typeName]]; // TODO: Unify typenames and types
+			return m_Types[m_Typenames[typeName]]; // TODO: Unify typenames and types
 
 		// Otherwise look upward
 		if (m_UpwardTypeTable)
 			return m_UpwardTypeTable->Lookup(typeName);
 
 		assert(m_TableType == TypeTableType::Global);
+		return nullptr;
 	}
 
-	Type* TypeTable::Lookup(TypeId typeId)
+	const Type* TypeTable::Lookup(TypeId typeId)
 	{
 		// First look in the current table
 		if (m_Types.count(typeId) != 0)
-			return &m_Types[typeId];
+			return m_Types[typeId];
 
 		// Otherwise look upward
 		if (m_UpwardTypeTable)
@@ -107,27 +108,27 @@ namespace O
 		return nullptr;
 	}
 
-	Type& TypeTable::LookupReference(TypeId typeId)
+	const Type* TypeTable::LookupReference(TypeId typeId)
 	{
 		const std::string& name = Lookup(typeId)->name;
-		return *Lookup("Reference<" + name + ">");
+		return Lookup("Reference<" + name + ">");
 	}
 
-	Type& TypeTable::Insert(const std::string& typeName, TypeKind type, bool insertReference)
+	const Type* TypeTable::Insert(const std::string& typeName, TypeKind type, bool insertReference)
 	{
 		assert(!HasCompleteType(typeName));
 
 		uint16_t id = GetNextFreeTypeId();
 
 		m_Typenames[typeName] = id;
-		m_Types[id] = { typeName, id, type };
+		m_Types[id] = new Type { typeName, id, type };
 
 		if (insertReference)
 			InsertReferenceType(m_Types[id]);
 
 		return m_Types[id];
 	}
-	Type& TypeTable::InsertGeneric(TypeKind type, std::vector<Type> typeArguments, bool& existed, bool insertReference)
+	const Type* TypeTable::InsertGeneric(TypeKind type, std::vector<const Type*> typeArguments, bool& existed, bool insertReference)
 	{
 		assert(!typeArguments.empty());
 		if (type == TypeKind::Array)
@@ -137,13 +138,13 @@ namespace O
 		std::string name = TypeEntryTypeToString(type) + "<";
 		for (int i = 0; i < typeArguments.size() - 1; i++)
 		{
-			name += typeArguments[i].name + ", ";
+			name += typeArguments[i]->name + ", ";
 		}
-		name += typeArguments.back().name + ">";
+		name += typeArguments.back()->name + ">";
 
 		existed = HasCompleteType(name);
 		if (existed)
-			return *Lookup(name);
+			return Lookup(name);
 
 		// Go to the global table to insert generic types
 		// This is to prevent the same type having different id's in different scopes
@@ -153,51 +154,45 @@ namespace O
 			global = global->m_UpwardTypeTable;
 		}
 
-		Type& typeEntry = global->Insert(name, type, insertReference);
+		Type* typeEntry = (Type*)global->Insert(name, type, insertReference);
 
 		// Set the type arguments
 		for (auto& argument : typeArguments)
 		{
-			typeEntry.typeArguments.push_back(argument.id);
+			typeEntry->typeArguments.push_back(argument->id);
 		}
 
 		return typeEntry;
 	}
-	Type& TypeTable::InsertGeneric(TypeKind type, std::vector<Type> typeArguments, bool insertReference)
+	const Type* TypeTable::InsertGeneric(TypeKind type, std::vector<const Type*> typeArguments, bool insertReference)
 	{
 		bool discard = false;
 		return InsertGeneric(type, typeArguments, insertReference, discard);
 	}
-	/*Type& TypeTable::InsertPrivateType(const std::string& typeName, TypeKind type, Type* redirect)
-	{
-		assert (!Has(typeName));
 
-		uint16_t id = m_Types.size();
-
-		m_Typenames[typeName] = id;
-		m_Types.push_back({ typeName, id, type, redirect });
-		m_Types[id].isPrivate = true;
-
-		return m_Types[id];
-	}*/
-	Type& TypeTable::InsertArray(Type& underlyingType, bool& existed)
+	const Type* TypeTable::InsertArray(const Type* underlyingType, bool& existed)
 	{
 		return InsertGeneric(TypeKind::Array, { underlyingType }, existed, true);
 	}
-	Type& TypeTable::InsertTuple(std::vector<Type> underlyingTypes)
+	const Type* TypeTable::InsertTuple(std::vector<const Type*> underlyingTypes)
 	{
 		return InsertGeneric(TypeKind::Tuple, underlyingTypes);
 	}
-	Type& TypeTable::InsertFunction(std::vector<Type> argumentTypes, Type returnType)
+	const Type* TypeTable::InsertFunction(std::vector<const Type*> argumentTypes, const Type* returnType)
 	{
-		std::vector<Type> typeArguments = argumentTypes;
+		std::vector<const Type*> typeArguments = argumentTypes;
 		typeArguments.push_back(returnType);
 
 		return InsertGeneric(TypeKind::Function, typeArguments);
 	}
-	Type& TypeTable::InsertFunction(std::vector<Type> argumentTypesAndReturnType)
+	const Type* TypeTable::InsertFunction(std::vector<const Type*> argumentTypesAndReturnType)
 	{
 		return InsertGeneric(TypeKind::Function, argumentTypesAndReturnType);
+	}
+
+	Type* TypeTable::LookupNonConst(TypeId typeId)
+	{
+		return (Type*)Lookup(typeId);
 	}
 
 	TypeId TypeTable::GetNextFreeTypeId()
@@ -205,30 +200,30 @@ namespace O
 		return m_NextFreeTypeId++;
 	}
 
-	void TypeTable::AddTypeRelation(Type& type, TypeId relatedType, TypeRelation::ConversionType subtypeConversion, TypeRelation::ConversionType supertypeConversion)
+	void TypeTable::AddTypeRelation(Type* type, TypeId relatedType, TypeRelation::ConversionType subtypeConversion, TypeRelation::ConversionType supertypeConversion)
 	{
 		assert(HasCompleteType(relatedType));
 
-		AddTypeRelation(type, *Lookup(relatedType), subtypeConversion, supertypeConversion);
+		AddTypeRelation(type, LookupNonConst(relatedType), subtypeConversion, supertypeConversion);
 	}
-	void TypeTable::AddTypeRelation(Type& type, Type& relatedType, TypeRelation::ConversionType subtypeConversion, TypeRelation::ConversionType supertypeConversion)
+	void TypeTable::AddTypeRelation(Type* type, Type* relatedType, TypeRelation::ConversionType subtypeConversion, TypeRelation::ConversionType supertypeConversion)
 	{
-		type.subtypes.push_back({ subtypeConversion, relatedType.id });
-		relatedType.supertypes.push_back({ supertypeConversion, type.id });
+		type->subtypes.push_back({ subtypeConversion, relatedType->id });
+		relatedType->supertypes.push_back({ supertypeConversion, type->id });
 	}
 
-	std::optional<TypeRelation::ConversionType> TypeTable::GetFullSupertypeRelationTo(Type& type, Type& expectedSupertype)
+	std::optional<TypeRelation::ConversionType> TypeTable::GetFullSupertypeRelationTo(const Type* type, const Type* expectedSupertype)
 	{
-		for (auto& typeRelation : type.supertypes)
+		for (auto& typeRelation : type->supertypes)
 		{
-			Type* supertype = Lookup(typeRelation.relatedType);
+			const Type* supertype = Lookup(typeRelation.relatedType);
 			assert(supertype);
 
-			if (supertype->id == expectedSupertype.id)
+			if (supertype->id == expectedSupertype->id)
 				return typeRelation.conversionType;
 
 			// Continue searching upwards
-			auto upwardTypeRelation = GetFullSupertypeRelationTo(*supertype, expectedSupertype);
+			auto upwardTypeRelation = GetFullSupertypeRelationTo(supertype, expectedSupertype);
 			if (upwardTypeRelation.has_value())
 			{
 				// If this relation and the above are both implicit, or explicit then dont modify it
@@ -243,18 +238,18 @@ namespace O
 		return {};
 	}
 
-	std::optional<TypeRelation::ConversionType> TypeTable::GetFullSubtypeRelationTo(Type& type, Type& expectedSubtype)
+	std::optional<TypeRelation::ConversionType> TypeTable::GetFullSubtypeRelationTo(const Type* type, const Type* expectedSubtype)
 	{
-		for (auto& typeRelation : type.subtypes)
+		for (auto& typeRelation : type->subtypes)
 		{
-			Type* subtype = Lookup(typeRelation.relatedType);
+			const Type* subtype = Lookup(typeRelation.relatedType);
 			assert(subtype);
 
-			if (subtype->id == expectedSubtype.id)
+			if (subtype->id == expectedSubtype->id)
 				return typeRelation.conversionType;
 
 			// Continue searching downwards
-			auto downwardTypeRelation = GetFullSubtypeRelationTo(*subtype, expectedSubtype);
+			auto downwardTypeRelation = GetFullSubtypeRelationTo(subtype, expectedSubtype);
 			if (downwardTypeRelation.has_value())
 			{
 				// If this relation and the above are both implicit, or explicit then dont modify it
@@ -269,7 +264,7 @@ namespace O
 		return {};
 	}
 
-	std::optional<TypeRelation::ConversionType> TypeTable::GetFullTypeRelationTo(Type& type, Type& expectedType)
+	std::optional<TypeRelation::ConversionType> TypeTable::GetFullTypeRelationTo(const Type* type, const Type* expectedType)
 	{
 		auto supertypeRelation = GetFullSupertypeRelationTo(type, expectedType);
 		auto subtypeRelation = GetFullSubtypeRelationTo(type, expectedType);
@@ -286,38 +281,38 @@ namespace O
 		return {};
 	}
 
-	bool TypeTable::IsTypeImplicitSubtypeOf(Type& subtype, Type& expectedSupertype)
+	bool TypeTable::IsTypeImplicitSubtypeOf(const Type* subtype, const Type* expectedSupertype)
 	{
-		for (auto& typeRelation : subtype.supertypes)
+		for (auto& typeRelation : subtype->supertypes)
 		{
-			Type* supertype = Lookup(typeRelation.relatedType);
+			const Type* supertype = Lookup(typeRelation.relatedType);
 			assert(supertype);
 
-			if (supertype->id == expectedSupertype.id)
+			if (supertype->id == expectedSupertype->id)
 				return typeRelation.conversionType == TypeRelation::Implicit;
 
 			// Continue searching upwards
-			if (IsTypeImplicitSubtypeOf(*supertype, expectedSupertype))
+			if (IsTypeImplicitSubtypeOf(supertype, expectedSupertype))
 				return typeRelation.conversionType == TypeRelation::Implicit;
 		}
 
 		return false;
 	}
 
-	bool TypeTable::AreTypesEquivalent(Type& a, Type& b)
+	bool TypeTable::AreTypesEquivalent(const Type* a, const Type* b)
 	{
-		return a.id == b.id;
+		return a->id == b->id;
 	}
 
-	uint16_t TypeTable::GetHeightOfTypeRelation(Type& type)
+	uint16_t TypeTable::GetHeightOfTypeRelation(const Type* type)
 	{
 		uint16_t highestRelation = 0;
-		for (TypeRelation& relation : type.subtypes)
+		for (const TypeRelation& relation : type->subtypes)
 		{
 			auto typeEntry = Lookup(relation.relatedType);
 			assert(typeEntry);
 
-			uint16_t height = GetHeightOfTypeRelation(*typeEntry) + 1;
+			uint16_t height = GetHeightOfTypeRelation(typeEntry) + 1;
 			if (height >= highestRelation)
 				highestRelation = height;
 		}
@@ -329,8 +324,8 @@ namespace O
 	{
 		for (auto& [_, entry] : m_Types)
 		{
-			std::cout << padding << "#" << entry.id << ": " << entry.name << ", "
-				<< TypeEntryTypeToString(entry.kind) << "\n";
+			std::cout << padding << "#" << entry->id << ": " << entry->name << ", "
+				<< TypeEntryTypeToString(entry->kind) << "\n";
 		}
 	}
 
@@ -341,7 +336,7 @@ namespace O
 
 		for (uint16_t i = 0; i < typeKeywords.size(); i++)
 		{
-			m_Typenames[typeKeywords[i]] = Insert(typeKeywords[i], TypeKind::Primitive, false).id;
+			m_Typenames[typeKeywords[i]] = Insert(typeKeywords[i], TypeKind::Primitive, false)->id;
 		}
 
 		// Reference types
@@ -367,15 +362,15 @@ namespace O
 		AddTypeRelation(m_Types[PrimitiveValueTypes::Integer], PrimitiveValueTypes::Bool, TypeRelation::Explicit, TypeRelation::Explicit);
 	}
 
-	std::optional<Type> TypeTable::InsertReferenceType(Type& type)
+	const Type* TypeTable::InsertReferenceType(const Type* type)
 	{
-		Type& referenceType = InsertGeneric(TypeKind::Reference, { type }, false);
+		Type* referenceType = (Type*)InsertGeneric(TypeKind::Reference, { type }, false);
 
 		// Make it an implicit subtype of type
 
 		// T -> T& (not possible)
 		// T& -> T (implicit)
-		referenceType.supertypes.push_back({ TypeRelation::Implicit, type.id });
+		referenceType->supertypes.push_back({ TypeRelation::Implicit, type->id });
 
 		return referenceType;
 	}

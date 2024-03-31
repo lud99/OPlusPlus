@@ -937,27 +937,25 @@ namespace O
 		//
 		// static properties should only be accessed on objects with scope resolution, not property access
 
+		// Resolve Reference types to the underlying type
+		if (lhsType.kind == TypeKind::Reference)
+			lhsType = *localTable->types.Lookup(lhsType.typeArguments[0]);
+
 		switch (lhsType.kind)
 		{
 		case TypeKind::Class:
-		case TypeKind::Reference:
 		{
-			//ClassSymbol* classSymbol = nullptr;
-			if (lhsType.kind == TypeKind::Reference)
-			{
-				lhsType = *localTable->types.Lookup(lhsType.typeArguments[0]);
-			}
 			ClassSymbol* classSymbol = !parentSymbol ? (ClassSymbol*)table.symbols.LookupClassByType(lhsType.id) : parentSymbol;
 
 			localTable = classSymbol->m_Table;
-			Analyze(expr->m_Rhs, *classSymbol->m_Table);
+			Analyze(expr->m_Rhs, *localTable);
 
 			// Class::Identifier
 			if (expr->m_Rhs->m_Type == NodeKind::Identifier)
 			{
 				Identifier* prop = (Identifier*)expr->m_Rhs;
 
-				Symbol* member = classSymbol->m_Table->symbols.LookupOne(prop->m_Name);
+				Symbol* member = localTable->symbols.LookupOne(prop->m_Name);
 
 				m_CachedSymbolsForNodes[node] = member;
 
@@ -966,8 +964,8 @@ namespace O
 
 				SetTableForNode(expr, localTable);
 
-				SetTableForNode(expr->m_Lhs, localTable);
-				SetTableForNode(expr->m_Rhs, classSymbol->m_Table);
+				SetTableForNode(expr->m_Lhs, localTable); // TODO: propably the wrong table used
+				SetTableForNode(expr->m_Rhs, localTable);
 
 				// The results could be multiple symbols if the identifier is a name for a function
 				// TODO: Resolve overload based on expectedType
@@ -987,6 +985,7 @@ namespace O
 		}
 		
 		default:
+			abort();
 			break;
 		}
 
@@ -1065,7 +1064,7 @@ namespace O
 			abort();
 		}
 #endif
-
+		abort();
 		return {};
 	}
 
@@ -1814,7 +1813,7 @@ namespace O
 		abort(); // remove later
 	}
 
-	Type& SemanticAnalyzer::ResolveTypeNode(AST::Nodes::Type* node, SymbolTypeTable& table)
+	std::optional<Type> SemanticAnalyzer::ResolveTypeNode(AST::Nodes::Type* node, SymbolTypeTable& table)
 	{
 		using namespace Nodes;
 		switch (node->m_Type)
@@ -1822,13 +1821,13 @@ namespace O
 		case NodeKind::BasicType:
 		{
 			BasicType* basicType = (BasicType*)node;
-			return *table.types.Lookup(basicType->m_TypeName);
+			return table.types.Lookup(basicType->m_TypeName);
 		}
 		case NodeKind::ArrayType:
 		{
 			ArrayType* arrType = (ArrayType*)node;
 
-			O::Type& type = ResolveTypeNode(arrType->m_UnderlyingType, table);
+			O::Type type = ResolveTypeNode(arrType->m_UnderlyingType, table);
 			return InsertArray(type, table.types);
 		}
 		case NodeKind::TupleType:

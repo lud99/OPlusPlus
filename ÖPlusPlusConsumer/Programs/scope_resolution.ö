@@ -22,4 +22,5 @@ class A {
 	static let MaxInt : int = 255;
 }*/
 
-A::B::C.prop;
+let a : B[];
+a::length;
