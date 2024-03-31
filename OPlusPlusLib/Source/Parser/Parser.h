@@ -90,6 +90,6 @@ namespace O::AST
 	public:
 		Operators::DefinedOperators m_DefinedOperators;
 		Operators::DefinedOperators m_DefinedTypeModifierOperators;
-		TypeTable m_TypeTable;
+		TypeTable m_TypeTable = TypeTable(TypeTableType::Global, nullptr);
 	};
 }

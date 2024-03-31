@@ -20,14 +20,14 @@ namespace O::AST
 
 		// Using the precedences from C++
 		// https://en.cppreference.com/w/cpp/language/operator_precedence
+		m_DefinedOperators.AddOperator(ScopeResolution, "::", Midfix, Binary, Token::ScopeResultion, 2, Left);
 
 		// p = 2
 		m_DefinedOperators.AddOperator(PostfixIncrement, "++", Postfix, Unary, Token::Increment, 2, Left);
 		m_DefinedOperators.AddOperator(PostfixDecrement, "--", Postfix, Unary, Token::Decrement, 2, Left);
 		m_DefinedOperators.AddOperator(Call, "()", Postfix, Unary, Token::LeftParentheses, 2, Left);
 		m_DefinedOperators.AddOperator(Subscript, "[]", Postfix, Binary, Token::LeftSquareBracket, 2, Left);
-		m_DefinedOperators.AddOperator(MemberAccess, ".", Midfix, Binary, Token::Period, 1, Right);
-		m_DefinedOperators.AddOperator(ScopeResolution, "::", Midfix, Binary, Token::ScopeResultion, 3, Left);
+		m_DefinedOperators.AddOperator(MemberAccess, ".", Midfix, Binary, Token::Period, 2, Left);
 
 		// p = 3
 		m_DefinedOperators.AddOperator(Closure, "closure", Prefix, Unary, Token::Closure, 3, Right);

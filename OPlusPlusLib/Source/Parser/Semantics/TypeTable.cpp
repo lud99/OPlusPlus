@@ -7,17 +7,21 @@ namespace O
 {
 	TypeTable::TypeTable()
 	{
-		InsertPrimitiveTypes();
-		m_TableType = TypeTableType::Global;
+		m_TableType = TypeTableType::Local;
+		m_UpwardTypeTable = nullptr;
 	}
 
 	TypeTable::TypeTable(TypeTableType tableType, TypeTable* upwardTypeTable)
 	{
-		if (tableType == TypeTableType::Global)
-			InsertPrimitiveTypes();
-
 		m_TableType = tableType;
 		m_UpwardTypeTable = upwardTypeTable;
+
+		if (tableType == TypeTableType::Global)
+		{
+			// Because the type table is used during parsing, we have to reset the next free id
+			m_NextFreeTypeId = 0;
+			InsertPrimitiveTypes();
+		}
 	}
 
 	bool TypeTable::HasType(const std::string& typeName)
@@ -103,18 +107,27 @@ namespace O
 		return nullptr;
 	}
 
-	Type& TypeTable::Insert(const std::string& typeName, TypeKind type)
+	Type& TypeTable::LookupReference(TypeId typeId)
+	{
+		const std::string& name = Lookup(typeId)->name;
+		return *Lookup("Reference<" + name + ">");
+	}
+
+	Type& TypeTable::Insert(const std::string& typeName, TypeKind type, bool insertReference)
 	{
 		assert(!HasCompleteType(typeName));
 
-		uint16_t id = GetAllTypesCount();
+		uint16_t id = GetNextFreeTypeId();
 
 		m_Typenames[typeName] = id;
 		m_Types[id] = { typeName, id, type };
 
+		if (insertReference)
+			InsertReferenceType(m_Types[id]);
+
 		return m_Types[id];
 	}
-	Type& TypeTable::InsertGeneric(TypeKind type, std::vector<Type> typeArguments, bool& existed)
+	Type& TypeTable::InsertGeneric(TypeKind type, std::vector<Type> typeArguments, bool& existed, bool insertReference)
 	{
 		assert(!typeArguments.empty());
 		if (type == TypeKind::Array)
@@ -134,13 +147,13 @@ namespace O
 
 		// Go to the global table to insert generic types
 		// This is to prevent the same type having different id's in different scopes
-		TypeTable* global = m_UpwardTypeTable;
-		while (global && global->m_UpwardTypeTable)
+		TypeTable* global = this;
+		while (global && global->m_TableType == TypeTableType::Local)
 		{
 			global = global->m_UpwardTypeTable;
 		}
 
-		Type& typeEntry = global->Insert(name, type);
+		Type& typeEntry = global->Insert(name, type, insertReference);
 
 		// Set the type arguments
 		for (auto& argument : typeArguments)
@@ -150,10 +163,10 @@ namespace O
 
 		return typeEntry;
 	}
-	Type& TypeTable::InsertGeneric(TypeKind type, std::vector<Type> typeArguments)
+	Type& TypeTable::InsertGeneric(TypeKind type, std::vector<Type> typeArguments, bool insertReference)
 	{
 		bool discard = false;
-		return InsertGeneric(type, typeArguments, discard);
+		return InsertGeneric(type, typeArguments, insertReference, discard);
 	}
 	/*Type& TypeTable::InsertPrivateType(const std::string& typeName, TypeKind type, Type* redirect)
 	{
@@ -169,7 +182,7 @@ namespace O
 	}*/
 	Type& TypeTable::InsertArray(Type& underlyingType, bool& existed)
 	{
-		return InsertGeneric(TypeKind::Array, { underlyingType }, existed);
+		return InsertGeneric(TypeKind::Array, { underlyingType }, existed, true);
 	}
 	Type& TypeTable::InsertTuple(std::vector<Type> underlyingTypes)
 	{
@@ -187,12 +200,9 @@ namespace O
 		return InsertGeneric(TypeKind::Function, argumentTypesAndReturnType);
 	}
 
-	uint16_t TypeTable::GetAllTypesCount()
+	TypeId TypeTable::GetNextFreeTypeId()
 	{
-		uint16_t count = m_Types.size();
-		if (m_UpwardTypeTable)
-			count += m_UpwardTypeTable->GetAllTypesCount();
-		return count;
+		return m_NextFreeTypeId++;
 	}
 
 	void TypeTable::AddTypeRelation(Type& type, TypeId relatedType, TypeRelation::ConversionType subtypeConversion, TypeRelation::ConversionType supertypeConversion)
@@ -331,8 +341,14 @@ namespace O
 
 		for (uint16_t i = 0; i < typeKeywords.size(); i++)
 		{
-			m_Typenames[typeKeywords[i]] = i;
-			m_Types[i] = { typeKeywords[i], i, TypeKind::Primitive };
+			m_Typenames[typeKeywords[i]] = Insert(typeKeywords[i], TypeKind::Primitive, false).id;
+		}
+
+		// Reference types
+		for (uint16_t i = 0; i < typeKeywords.size(); i++)
+		{
+			InsertReferenceType(m_Types[i]);
+			//m_Types[i] = { typeKeywords[i], i, TypeKind::Primitive };
 		}
 
 		// Insert relation for types
@@ -351,8 +367,23 @@ namespace O
 		AddTypeRelation(m_Types[PrimitiveValueTypes::Integer], PrimitiveValueTypes::Bool, TypeRelation::Explicit, TypeRelation::Explicit);
 	}
 
+	std::optional<Type> TypeTable::InsertReferenceType(Type& type)
+	{
+		Type& referenceType = InsertGeneric(TypeKind::Reference, { type }, false);
+
+		// Make it an implicit subtype of type
+
+		// T -> T& (not possible)
+		// T& -> T (implicit)
+		referenceType.supertypes.push_back({ TypeRelation::Implicit, type.id });
+
+		return referenceType;
+	}
+
 	TypeTable::~TypeTable()
 	{
 	}
+
+	TypeId TypeTable::m_NextFreeTypeId = 0;
 
 }

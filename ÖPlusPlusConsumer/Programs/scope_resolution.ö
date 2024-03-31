@@ -3,7 +3,7 @@
 class A {
 	class B {
 		class C {
-
+			let prop: int;
 		};
 	};
 
@@ -22,4 +22,4 @@ class A {
 	static let MaxInt : int = 255;
 }*/
 
-A::B::C;
+A::B::C.prop;

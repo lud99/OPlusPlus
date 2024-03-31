@@ -6,49 +6,11 @@ namespace O
 {
 	using namespace AST;
 
-	OperatorDefinitions::OperatorDefinitions()
-	{
-		GeneratePrimitiveOperators((TypeId)PrimitiveValueTypes::Integer);
-		GenerateAssignmentOperators((TypeId)PrimitiveValueTypes::Integer);
-
-		GeneratePrimitiveOperators((TypeId)PrimitiveValueTypes::Double);
-		GenerateAssignmentOperators((TypeId)PrimitiveValueTypes::Double);
 
 		// int = double
 		// int = 5.0 <=> (int, double => int)
 
-		// TODO: Add ops for booleans
-
-		/* Operators for numerical types :
-		{ PostfixIncrement, PlaceExpression }, 
-		{ PostfixDecrement, PlaceExpression }
-		{ PostfixIncrement, PlaceExpression }
-		{ PostfixDecrement, PlaceExpression }
-
-		{ UnaryPlus, ValueExpression }
-		{ UnaryMinus, ValueExpression }
-		{ LogicalNot, ValueExpression }
-
-		{ Multiplication, ValueExpression }
-		{ Division, ValueExpression }
-		{ Remainder, ValueExpression }
-
-		{ Addition, ValueExpression }
-		{ Subtraction, ValueExpression }
-
-		{ LessThan, ValueExpression }
-		{ LessThanOrEqual, ValueExpression }
-		{ GreaterThan, ValueExpression }
-		{ GreaterThanOrEqual, ValueExpression }
-
-		{ Equality, ValueExpression }
-		{ NotEqual, ValueExpression }
-
-	
-		{ DirectAssignment, PlaceExpression }
-		CompoundAssignmentSum, CompoundAssignmentDifference,
-		CompoundAssignmentProduct, CompoundAssignmentQuotinent,
-		arr : int[];
+/*		arr: int[];
 		let a = arr[0] // [] <=> (int[], int => int)
 		let b: int& = arr[0] // [] <=> (int[], int => int&)
 		let c = Animal.age; . <=> (Animal, "age" => int)
@@ -57,133 +19,150 @@ namespace O
 
 		T& implicit subtyp till T
 		*/
-		/*
-		Nullable,
-
-		// p = 2
-		Call,
-		Subscript,
-		MemberAccess,
-
-		// p = 3
-		Closure,
-		PrefixIncrement, PrefixDecrement,
-		UnaryPlus, UnaryMinus,
-		LogicalNot, BitwiseNot,
-
-		// Binary
-		// p = 5
-		Multiplication, Division, Remainder,
-
-		// p = 6
-		Addition, Subtraction,
 		
-		// p = 9
-		LessThan, LessThanOrEqual,
-		GreaterThan, GreaterThanOrEqual,
 
-		// p = 10
-		Equality, NotEqual,
-		
-		// p = 16
-		DirectAssignment,
-		CompoundAssignmentSum, CompoundAssignmentDifference,
-		CompoundAssignmentProduct, CompoundAssignmentQuotinent,
-		
-		*/
+
+	void OperatorDefinitions::Create(SymbolTypeTable& table)
+	{
+		TypeId integerRef = table.types.LookupReference((TypeId)PrimitiveValueTypes::Integer).id;
+		TypeId doubleRef = table.types.LookupReference((TypeId)PrimitiveValueTypes::Double).id;
+		TypeId boolRef = table.types.LookupReference((TypeId)PrimitiveValueTypes::Bool).id;
+		TypeId stringRef = table.types.LookupReference((TypeId)PrimitiveValueTypes::String).id;
+
+		// Integer
+		CreateArithmeticValueExprOperators((TypeId)PrimitiveValueTypes::Integer);
+		CreateArithmeticPlaceExprOperators(integerRef);
+
+		CreateBooleanValueExprOperators((TypeId)PrimitiveValueTypes::Integer);
+
+		CreateCompoundAssignmentOperators((TypeId)PrimitiveValueTypes::Integer, integerRef);
+		CreateDirectAssignmentOperator((TypeId)PrimitiveValueTypes::Integer, integerRef);
+
+		// Double
+		CreateArithmeticValueExprOperators((TypeId)PrimitiveValueTypes::Double);
+		CreateArithmeticPlaceExprOperators((TypeId)PrimitiveValueTypes::Double);
+
+		CreateBooleanValueExprOperators((TypeId)PrimitiveValueTypes::Double);
+
+		CreateCompoundAssignmentOperators((TypeId)PrimitiveValueTypes::Double, doubleRef);
+		CreateDirectAssignmentOperator((TypeId)PrimitiveValueTypes::Double, doubleRef);
+
+		// Bool
+		// TODO: Add boolean algebra arithmetic operators?
+		CreateBooleanValueExprOperators((TypeId)PrimitiveValueTypes::Bool);
+
+		CreateDirectAssignmentOperator((TypeId)PrimitiveValueTypes::Integer, boolRef);
 
 		// Strings
-		m_OperatorSignatures[Operators::Addition].push_back({ { PrimitiveValueTypes::String, PrimitiveValueTypes::String }, PrimitiveValueTypes::String });
+
+		// Strings only have concatination and comparison operators defined on them
+		// TODO: Prettier function for defining this
+		TypeId stringType = (TypeId)PrimitiveValueTypes::String;
+		m_BuiltInOperatorDefinitions[Operators::Addition].push_back({ { stringType, stringType }, stringType });
+		m_BuiltInOperatorDefinitions[Operators::CompoundAssignmentSum].push_back(
+			{ { stringRef, stringType }, (TypeId)PrimitiveValueTypes::Void });
+
+		CreateBooleanValueExprOperators((TypeId)PrimitiveValueTypes::String);
+		CreateDirectAssignmentOperator((TypeId)PrimitiveValueTypes::String, stringRef);
 
 
 	}
 
-	void OperatorDefinitions::GeneratePrimitiveOperators(TypeId type)
-	{
-		//CallableSignature binarySignature = { { type, type }, type };
-		//CallableSignature unarySignature = { { type }, type };
-
-		//using namespace Operators;
-		//struct Op
-		//{
-		//	Operators::Name name;
-		//	ExpressionType expressionType;
-		//};
-
-		//std::vector<Op> primitiveUnaryOperators = {
-		//	{ PostfixIncrement, PlaceExpression },
-		//	{ PostfixDecrement, PlaceExpression },
-		//	{ PostfixIncrement, PlaceExpression },
-		//	{ PostfixDecrement, PlaceExpression },
-
-		//	{ UnaryPlus, ValueExpression },
-		//	{ UnaryMinus, ValueExpression },
-		//	{ LogicalNot, ValueExpression },
-		//};
-
-		//std::vector<Name> primitiveUnaryOperatorsValueExpr = {
-		//	UnaryPlus, UnaryMinus,
-		//	BitwiseNot
-		//};
-
-		//std::vector<Operators::Name> primitiveBinaryOperatorsValueExpr = {
-		//	Multiplication, Division, Remainder,
-		//	Addition, Subtraction,
-		//};
-		//std::vector<Operators::Name> primitiveBinaryOperatorsPlaceExpr = {
-		//	Multiplication, Division, Remainder,
-		//	Addition, Subtraction,
-
-		//	DirectAssignment,
-		//	CompoundAssignmentSum, CompoundAssignmentDifference,
-		//	CompoundAssignmentProduct, CompoundAssignmentQuotinent,
-		//};
-
-		//std::vector<Operators::Name> primitiveUnaryBooleanOperators = {
-		//	LogicalNot
-		//};
-		//std::vector<Operators::Name> primitiveBinaryBooleanOperators = {
-		//	LessThan, LessThanOrEqual,
-		//	GreaterThan, GreaterThanOrEqual,
-		//	Equality, NotEqual,
-		//};
-
-		//// Doubles and integers has all operators defined on them
-		//for (Operators::Name op : primitiveUnaryOperators)
-		//{
-		//	m_OperatorSignatures[op].push_back({ { type }, type });
-		//}
-		//for (Operators::Name op : primitiveUnaryBooleanOperators)
-		//{
-		//	m_OperatorSignatures[op].push_back({ { type }, PrimitiveValueTypes::Bool });
-		//}
-
-		//for (Operators::Name op : primitiveBinaryOperators)
-		//{
-		//	m_OperatorSignatures[op].push_back({ { type, type }, type });
-		//}
-		//for (Operators::Name op : primitiveBinaryBooleanOperators)
-		//{
-		//	m_OperatorSignatures[op].push_back({ { type, type }, PrimitiveValueTypes::Bool });
-		//}
-	}
-
-	void OperatorDefinitions::GenerateAssignmentOperators(TypeId type)
+	void OperatorDefinitions::CreateArithmeticValueExprOperators(TypeId type)
 	{
 		using namespace Operators;
-		for (auto& [op, signature] : m_OperatorSignatures)
+
+		CallableSignature binarySignature = { { type, type }, type };
+		CallableSignature unarySignature = { { type }, type };
+
+		std::vector<Operators::Name> unaryOperators = {
+			UnaryPlus,
+			UnaryMinus,
+		};
+
+		std::vector<Operators::Name> binaryOperators = {
+			Multiplication, Division, Remainder,
+			Addition, Subtraction,
+		};
+
+		for (Operators::Name op : unaryOperators)
 		{
-			// Copy the signature from + to += if + has been defined
-			// TODO: Check for constant types, then this should not be ok.
-			if (op == Addition)
-				m_OperatorSignatures[CompoundAssignmentSum] = signature;
-			if (op == Subtraction)
-				m_OperatorSignatures[CompoundAssignmentDifference] = signature;
-			if (op == Multiplication)
-				m_OperatorSignatures[CompoundAssignmentProduct] = signature;
-			if (op == Division)
-				m_OperatorSignatures[CompoundAssignmentQuotinent] = signature;
+			m_OperatorSignatures[op].push_back(unarySignature);
 		}
+		for (Operators::Name op : binaryOperators)
+		{
+			m_OperatorSignatures[op].push_back(binarySignature);
+		}
+	}
+	void OperatorDefinitions::CreateBooleanValueExprOperators(TypeId type)
+	{
+		using namespace Operators;
+		
+		CallableSignature binarySignature = { { type, type }, PrimitiveValueTypes::Bool };
+		CallableSignature unarySignature = { { type }, PrimitiveValueTypes::Bool };
+
+		std::vector<Operators::Name> unaryOperators = {
+			LogicalNot
+		};
+		std::vector<Operators::Name> binaryOperators = {
+			LessThan, LessThanOrEqual,
+			GreaterThan, GreaterThanOrEqual,
+			Equality, NotEqual,
+		};
+
+		for (Operators::Name op : unaryOperators)
+		{
+			m_OperatorSignatures[op].push_back(unarySignature);
+		}
+		for (Operators::Name op : binaryOperators)
+		{
+			m_OperatorSignatures[op].push_back(binarySignature);
+		}
+	}
+
+	void OperatorDefinitions::CreateArithmeticPlaceExprOperators(TypeId type)
+	{
+		using namespace Operators;
+
+		CallableSignature binarySignature = { { type, type }, type };
+		CallableSignature unarySignature = { { type }, type };
+
+		std::vector<Operators::Name> unaryOperators = {
+			PostfixIncrement,
+			PostfixDecrement,
+			PostfixIncrement,
+			PostfixDecrement,
+		};
+
+		for (Operators::Name op : unaryOperators)
+		{
+			m_OperatorSignatures[op].push_back(unarySignature);
+		}
+	}
+
+	void OperatorDefinitions::CreateDirectAssignmentOperator(TypeId type, TypeId referenceType)
+	{
+		using namespace Operators;
+
+		m_OperatorSignatures[DirectAssignment].push_back(
+			{ { referenceType, type }, (TypeId)PrimitiveValueTypes::Void });
+	}
+
+	void OperatorDefinitions::CreateCompoundAssignmentOperators(TypeId type, TypeId referenceType)
+	{
+		using namespace Operators;
+
+		m_OperatorSignatures[CompoundAssignmentSum].push_back(
+			{ { referenceType, type }, (TypeId)PrimitiveValueTypes::Void });
+			
+		m_OperatorSignatures[CompoundAssignmentDifference].push_back(
+			{ { referenceType, type }, (TypeId)PrimitiveValueTypes::Void });
+
+		m_OperatorSignatures[CompoundAssignmentProduct].push_back(
+			{ { referenceType, type }, (TypeId)PrimitiveValueTypes::Void });
+
+		m_OperatorSignatures[CompoundAssignmentQuotinent].push_back(
+			{ { referenceType, type }, (TypeId)PrimitiveValueTypes::Void });
 	}
 
 	SemanticAnalyzer::SemanticAnalyzer(AST::Node* program)
@@ -193,8 +172,11 @@ namespace O
 
 	void SemanticAnalyzer::AnalyzeProgram()
 	{
-		SymbolTypeTable dummyTable;
+		//m_GlobalSymbolTypeTable = CreateSymbolTypeTable(SymbolTableType::Global, nullptr);
 
+		// Only used because Analyze takes a reference.
+		// dummyTable is never used 
+		SymbolTypeTable dummyTable = { {}, { TypeTableType::Local, nullptr } };
 		Analyze(m_Program, dummyTable);
 	}
 
@@ -300,23 +282,36 @@ namespace O
 		}
 	}
 
-	SymbolTypeTable* CreateSymbolTypeTable(SymbolTableType tableKind, SymbolTypeTable& upwardTable)
+	SymbolTypeTable* SemanticAnalyzer::CreateSymbolTypeTable(SymbolTableType tableKind, SymbolTypeTable* upwardTable)
 	{
 		if (tableKind == SymbolTableType::Global)
-			return new SymbolTypeTable { SymbolTable(SymbolTableType::Global, nullptr), TypeTable(TypeTableType::Global, nullptr) };
+		{
+			auto table = new SymbolTypeTable { SymbolTable(SymbolTableType::Global, nullptr), TypeTable(TypeTableType::Global, nullptr) };
+			//CreateOp
+			// Generate operators and reference types for primitives
+
+			//m_OperatorDefinitions.
+			m_OperatorDefinitions.Create(*table);
+
+			return table;
+		}
+
+		assert(upwardTable != nullptr);
 		
-		return new SymbolTypeTable { SymbolTable(SymbolTableType::Local, &upwardTable.symbols), TypeTable(TypeTableType::Local, &upwardTable.types) };
+		return new SymbolTypeTable { SymbolTable(SymbolTableType::Local, &upwardTable->symbols), TypeTable(TypeTableType::Local, &upwardTable->types) };
 	}
 
-	void SemanticAnalyzer::CreateTablesForScope(Nodes::Scope* node, SymbolTypeTable& table)
+	void SemanticAnalyzer::CreateTablesForScope(Nodes::Scope* node, SymbolTypeTable* upwardTable)
 	{
 		if (node->m_Type == NodeKind::Program)
 		{
-			SetTableForNode(node, CreateSymbolTypeTable(SymbolTableType::Global, table));
+			SetTableForNode(node, CreateSymbolTypeTable(SymbolTableType::Global, nullptr));
 			m_GlobalSymbolTypeTable = GetSymbolTypeTableForNode(node);
+
+			//return m_GlobalSymbolTypeTable;
 		} else
 		{
-			SetTableForNode(node, CreateSymbolTypeTable(SymbolTableType::Local, table));
+			SetTableForNode(node, CreateSymbolTypeTable(SymbolTableType::Local, upwardTable));
 		}
 	}
 
@@ -404,7 +399,7 @@ namespace O
 
 		// Initialize symbol table for the function parameters to live in
 		// They are not created in the body symbol table, as expressive functions has no scope node to attach the table to
-		node->m_ParametersTable = CreateSymbolTypeTable(SymbolTableType::Local, table);
+		node->m_ParametersTable = CreateSymbolTypeTable(SymbolTableType::Local, &table);
 
 		auto parameterTypes = CreateSymbolsForCallableDefinition(node);
 
@@ -503,7 +498,7 @@ namespace O
 
 		// Initialize symbol table for the function parameters to live in
 		// They are not created in the body symbol table, as expressive functions has no scope node to attach the table to
-		node->m_ParametersTable = CreateSymbolTypeTable(SymbolTableType::Local, classTable);
+		node->m_ParametersTable = CreateSymbolTypeTable(SymbolTableType::Local, &classTable);
 
 		auto parameterTypes = CreateSymbolsForCallableDefinition(node);
 
@@ -696,7 +691,8 @@ namespace O
 			if (!m_CachedSymbolsForNodes.count(node))
 				return nullptr;
 
-			if (expression->m_Operator.m_Name == Operators::Name::ScopeResolution)
+			if (expression->m_Operator.m_Name == Operators::Name::ScopeResolution ||
+				expression->m_Operator.m_Name == Operators::Name::MemberAccess)
 				return m_CachedSymbolsForNodes[node];
 
 			break;
@@ -786,7 +782,13 @@ namespace O
 		BinaryExpression* expr = (BinaryExpression*)node;
 
 		Analyze(expr->m_Lhs, table);
-		O::Type& lhsType = GetTypeOfExpression(expr->m_Lhs, table);
+
+		ClassSymbol* parentSymbol = (ClassSymbol*)GetSymbolForNode(expr->m_Lhs, table);
+		SymbolTypeTable* localTable = parentSymbol ? parentSymbol->m_Table : &table;
+
+		O::Type lhsType = GetTypeOfExpression(expr->m_Lhs, *localTable);
+		if (HasError())
+			return {};
 
 		switch (lhsType.kind)
 		{
@@ -794,13 +796,26 @@ namespace O
 		case O::TypeKind::Error:
 			break;
 		case O::TypeKind::Class:
+		case TypeKind::Reference:
 		{
+			//ClassSymbol* classSymbol = nullptr;
+			if (lhsType.kind == TypeKind::Reference)
+			{
+				lhsType = *localTable->types.Lookup(lhsType.typeArguments[0]);
+			}
 			// a.b
 			// TODO: How wil this work on nested classes?
 			// TODO: this code will run for class variables aswell, may want to change
 
 			// lhs
-			ClassSymbol* classSymbol = (ClassSymbol*)table.symbols.LookupOne(lhsType.name);
+
+			ClassSymbol* classSymbol = !parentSymbol ? (ClassSymbol*)table.symbols.LookupClassByType(lhsType.id) : parentSymbol;
+
+			localTable = classSymbol->m_Table;
+			Analyze(expr->m_Rhs, *classSymbol->m_Table);
+
+
+			//ClassSymbol* classSymbol = (ClassSymbol*)table.symbols.LookupOne(lhsType.name);
 
 			//expr->m_Lhs
 			
@@ -809,6 +824,10 @@ namespace O
 			// cases: 
 			// .a
 			// .f() 
+
+
+			// TODO: A::B.C::prop; doesn't work
+			// B.C::prop is interpreted as B . (C::Prop) but should be (B.C)::prop
 			if (expr->m_Rhs->m_Type == NodeKind::Identifier) 
 			{
 				Identifier* prop = (Identifier*)expr->m_Rhs;
@@ -833,7 +852,15 @@ namespace O
 				}
 				else
 				{
-					m_ResolvedOverloadCache[node] = { {}, results[0]->m_DataType };
+					O::Type referenceType = localTable->types.LookupReference(results[0]->m_DataType);
+					m_ResolvedOverloadCache[node] = { {}, referenceType.id };
+
+					m_CachedSymbolsForNodes[node] = results[0];
+
+					SetTableForNode(expr, localTable);
+
+					SetTableForNode(expr->m_Lhs, localTable);
+					SetTableForNode(expr->m_Rhs, classSymbol->m_Table);
 				}
 
 				return { classSymbol, results };
@@ -913,7 +940,13 @@ namespace O
 		switch (lhsType.kind)
 		{
 		case TypeKind::Class:
+		case TypeKind::Reference:
 		{
+			//ClassSymbol* classSymbol = nullptr;
+			if (lhsType.kind == TypeKind::Reference)
+			{
+				lhsType = *localTable->types.Lookup(lhsType.typeArguments[0]);
+			}
 			ClassSymbol* classSymbol = !parentSymbol ? (ClassSymbol*)table.symbols.LookupClassByType(lhsType.id) : parentSymbol;
 
 			localTable = classSymbol->m_Table;
@@ -928,6 +961,9 @@ namespace O
 
 				m_CachedSymbolsForNodes[node] = member;
 
+				O::Type referenceType = localTable->types.LookupReference(member->m_DataType);
+				m_ResolvedOverloadCache[node] = { {}, referenceType.id };
+
 				SetTableForNode(expr, localTable);
 
 				SetTableForNode(expr->m_Lhs, localTable);
@@ -939,6 +975,8 @@ namespace O
 				return member;
 
 			}
+
+			//if (expr->m_Rhs->m_Type == NodeKind::BinaryExpression)
 
 			break;
 		}
@@ -1255,7 +1293,7 @@ namespace O
 		case NodeKind::BlockStatement:
 		{
 			Scope* scope = (Scope*)node;
-			CreateTablesForScope(scope, table);
+			CreateTablesForScope(scope, &table);
 			
 			for (auto& line : scope->m_Lines)
 			{
@@ -1290,7 +1328,7 @@ namespace O
 			{
 				std::optional<Symbol*> symbol = AnalyzeScopeResolution(expression, table, expectedType);
 				assert(symbol.has_value());
-				m_ResolvedOverloadCache[node] = { {}, symbol.value()->m_DataType };
+				//m_ResolvedOverloadCache[node] = { {}, symbol.value()->m_DataType };
 				//SetTableForNode(node, symbol.value().)
 
 				return;
@@ -1300,7 +1338,7 @@ namespace O
 			{
 				auto resolved = AnalyzeMemberAccess(expression, table, expectedType);
 				assert(resolved.rhs.size() == 1);
-				m_ResolvedOverloadCache[node] = { {}, resolved.rhs[0]->m_DataType };
+				//m_ResolvedOverloadCache[node] = { {}, resolved.rhs[0]->m_DataType };
 
 				return;
 			}

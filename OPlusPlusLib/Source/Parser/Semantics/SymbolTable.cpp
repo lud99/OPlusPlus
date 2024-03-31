@@ -231,7 +231,9 @@ namespace O
     Symbol* SymbolTable::Insert(Symbol* symbol)
 	{
 		// Make sure the *exact* symbol hasn't been declared before (uses the overloaded comparison operators on the symbols)
-		assert(!Has(symbol));
+		
+        // TODO: Doesn't work with nested classes as 'this' is already defined
+        // assert(!Has(symbol));
         
         m_Symbols[symbol->m_Name].push_back(symbol);
 

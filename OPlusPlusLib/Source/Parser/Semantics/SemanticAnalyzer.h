@@ -39,11 +39,19 @@ namespace O
 	class OperatorDefinitions
 	{
 	public:
-		OperatorDefinitions();
+		OperatorDefinitions() {};
+		
+		void Create(SymbolTypeTable& table);
 
 	private:
-		void GeneratePrimitiveOperators(TypeId type);
-		void GenerateAssignmentOperators(TypeId type);
+		void CreateArithmeticValueExprOperators(TypeId type);
+		void CreateBooleanValueExprOperators(TypeId type);
+
+		// Also generates assignent operators
+		void CreateArithmeticPlaceExprOperators(TypeId type);
+		
+		void CreateDirectAssignmentOperator(TypeId type, TypeId referenceType);
+		void CreateCompoundAssignmentOperators(TypeId type, TypeId referenceType);
 
 	public:
 		//std::unordered_map<, std::vector<CallableSignature>> m_OperatorSignatures;
@@ -85,7 +93,9 @@ namespace O
 
 		void GetReturnTypes(AST::Node* node, std::vector<Type>& returnTypes, SymbolTypeTable& table, std::optional<O::Type> expectedType = {});
 
-		void CreateTablesForScope(Nodes::Scope* node, SymbolTypeTable& table);
+		SymbolTypeTable* CreateSymbolTypeTable(SymbolTableType tableKind, SymbolTypeTable* upwardTable);
+
+		void CreateTablesForScope(Nodes::Scope* node, SymbolTypeTable* upwardTable);
 
 		VariableSymbol* CreateSymbolForVariableDeclaration(Nodes::VariableDeclaration* node, SymbolTypeTable& table, VariableSymbolType variableType);
 		CallableSymbol* CreateSymbolForFunctionDeclaration(Nodes::FunctionDefinitionStatement* node, SymbolTypeTable& table, bool isMethod = false);

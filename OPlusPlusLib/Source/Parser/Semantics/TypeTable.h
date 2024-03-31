@@ -91,18 +91,18 @@ namespace O
 
 		Type* Lookup(const std::string& typeName);
 		Type* Lookup(TypeId typeId);
+		Type& LookupReference(TypeId typeId);
 
-		Type& Insert(const std::string& typeName, TypeKind type);
+		Type& Insert(const std::string& typeName, TypeKind type, bool insertReference = true);
 
-		Type& InsertGeneric(TypeKind type, std::vector<Type> typeArguments, bool& existed);
-		Type& InsertGeneric(TypeKind type, std::vector<Type> typeArguments);
+		Type& InsertGeneric(TypeKind type, std::vector<Type> typeArguments, bool& existed, bool insertReference = true);
+		Type& InsertGeneric(TypeKind type, std::vector<Type> typeArguments, bool insertReference = true);
+
 
 		Type& InsertArray(Type& underlyingType, bool& existed);
 		Type& InsertTuple(std::vector<Type> underlyingTypes);
 		Type& InsertFunction(std::vector<Type> argumentTypes, Type returnType);
 		Type& InsertFunction(std::vector<Type> argumentTypesAndReturnType);
-
-		uint16_t GetAllTypesCount();
 
 		void AddTypeRelation(Type& type, TypeId relatedType, TypeRelation::ConversionType subtypeConversion, TypeRelation::ConversionType supertypeConversion);
 		void AddTypeRelation(Type& type, Type& relatedType, TypeRelation::ConversionType subtypeConversion, TypeRelation::ConversionType supertypeConversion);
@@ -126,14 +126,19 @@ namespace O
 
 	private:
 		void InsertPrimitiveTypes();
+		std::optional<Type> InsertReferenceType(Type& type);
+
+		TypeId GetNextFreeTypeId();
 
 	private:
 		TypeTableType m_TableType = TypeTableType::Local;
 
-		std::unordered_map<uint16_t, Type> m_Types;
+		std::unordered_map<TypeId, Type> m_Types;
 
 		// Perhaps a bad name, but refers to int, float, string etc. 
 		std::unordered_map<std::string, TypeId> m_Typenames;
 		TypeTable* m_UpwardTypeTable = nullptr;
+
+		static TypeId m_NextFreeTypeId;
 	};
 }
