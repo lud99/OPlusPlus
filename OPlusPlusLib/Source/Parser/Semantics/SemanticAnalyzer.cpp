@@ -616,14 +616,17 @@ namespace O
 				continue;
 
 			// Check if the currently analyzed function return type is same as other functions returntype
-			if (table.types.AreTypesEquivalent(returnType->id, function->m_DataType))
+			if (!table.types.AreTypesEquivalent(returnType->id, function->m_DataType))
 				continue;
 
 			// Assume they are identical and look for contradictions
 			for (int i = 0; i < parameterTypeIds.size(); i++)
 			{
-				if (table.types.AreTypesEquivalent(parameterTypeIds[i], function->m_ParameterTypes[i]))
+				if (!table.types.AreTypesEquivalent(parameterTypeIds[i], function->m_ParameterTypes[i]))
+				{
 					isIdentical = false;
+					break;
+				}
 			}
 
 			if (isIdentical)

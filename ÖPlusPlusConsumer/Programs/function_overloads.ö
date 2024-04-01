@@ -37,7 +37,7 @@ let doStuff():double {
 	//...
 	//return makeError(2);
 
-	let a : double = a + 2.0;
+	let a : double = 2.0 + 2.0;
 
 	// enum A = ::B
 	// Animal a = { "Bosse" }.Get(); (expected type is always the variable type)
