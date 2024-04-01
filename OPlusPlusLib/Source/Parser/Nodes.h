@@ -262,25 +262,27 @@ namespace O::AST::Nodes
 	};
 	
 	struct Expression : public Node { };
+	struct OperatorExpression : public Node 
+	{
+		Operators::Operator m_Operator;
+	};
 
-	struct BinaryExpression : public Expression
+	struct BinaryExpression : public OperatorExpression
 	{
 		BinaryExpression(Node* left, Operators::Operator op, Node* right);
 
 		Node* m_Lhs;
-		Operators::Operator m_Operator;
 		Node* m_Rhs;
 
 		virtual void Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer) override;
 		std::string ToString() override;
 	};
 
-	struct UnaryExpression : public Expression
+	struct UnaryExpression : public OperatorExpression
 	{
 		UnaryExpression(Node* operand, Operators::Operator op);
 
 		Node* m_Operand;
-		Operators::Operator m_Operator;
 
 		virtual void Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer) override;
 		std::string ToString() override;

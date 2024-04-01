@@ -91,6 +91,7 @@ namespace O
 			return m_UpwardTypeTable->Lookup(typeName);
 
 		assert(m_TableType == TypeTableType::Global);
+		abort();
 		return nullptr;
 	}
 
@@ -105,7 +106,18 @@ namespace O
 			return m_UpwardTypeTable->Lookup(typeId);
 
 		assert(m_TableType == TypeTableType::Global);
+		abort();
 		return nullptr;
+	}
+
+	std::vector<const Type*> TypeTable::Lookup(std::vector<TypeId> typeIds)
+	{
+		std::vector<const Type*> types;
+		for (auto id : typeIds)
+		{
+			types.push_back(Lookup(id));
+		}
+		return  types;
 	}
 
 	const Type* TypeTable::LookupReference(TypeId typeId)
@@ -302,6 +314,11 @@ namespace O
 	bool TypeTable::AreTypesEquivalent(const Type* a, const Type* b)
 	{
 		return a->id == b->id;
+	}
+
+	bool TypeTable::AreTypesEquivalent(TypeId a, TypeId b)
+	{
+		return Lookup(a)->id == Lookup(b)->id;
 	}
 
 	uint16_t TypeTable::GetHeightOfTypeRelation(const Type* type)

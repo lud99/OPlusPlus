@@ -10,6 +10,8 @@ namespace O
 {
 	using namespace AST;
 
+	typedef std::optional<const Type*> OptType;
+
 	struct ResolvedMemberAccess
 	{
 		ClassSymbol* lhs = nullptr;
@@ -29,8 +31,8 @@ namespace O
 
 	struct DetailedCallableSignature
 	{
-		std::vector<O::Type> parameterTypes;
-		O::Type returnType;
+		std::vector<const O::Type*> parameterTypes;
+		const O::Type* returnType;
 
 		std::string name;
 		CallableSymbolType callableKind;
@@ -69,8 +71,8 @@ namespace O
 
 		EXPORT void AnalyzeProgram();
 
-		std::optional<Type> GetTypeOfExpression(AST::Node* node, SymbolTypeTable& table);
-		std::optional<Type> ResolveTypeNode(AST::Nodes::Type* node, SymbolTypeTable& table);
+		const Type* GetTypeOfExpression(AST::Node* node, SymbolTypeTable& table);
+		const Type* ResolveTypeNode(AST::Nodes::Type* node, SymbolTypeTable& table);
 
 		EXPORT auto& GetGlobalTypeTable() { return m_GlobalSymbolTypeTable; };
 		EXPORT auto& GetCachedTypes() { return m_ResolvedOverloadCache; };
@@ -81,18 +83,24 @@ namespace O
 		EXPORT ~SemanticAnalyzer();
 
 	private:
-		void Analyze(AST::Node* node, SymbolTypeTable& table, std::optional<O::Type> expectedType = {});
+		void Analyze(AST::Node* node, SymbolTypeTable& table, OptType expectedType = {});
 		void AnalyzeScope(Nodes::Scope* scope);
 
 		// Returns all matching properties on the object
-		ResolvedMemberAccess AnalyzeMemberAccess(AST::Node* node, SymbolTypeTable& table, std::optional<O::Type> expectedType = {});
-		std::optional<Symbol*> AnalyzeScopeResolution(AST::Node* node, SymbolTypeTable& table, std::optional<O::Type> expectedType = {});
+		ResolvedMemberAccess AnalyzeMemberAccess(AST::Node* node, SymbolTypeTable& table, OptType expectedType = {});
+		std::optional<Symbol*> AnalyzeScopeResolution(AST::Node* node, SymbolTypeTable& table, OptType expectedType = {});
+		void AnalyzeUnaryExpression(AST::Nodes::UnaryExpression* node, SymbolTypeTable& table, OptType expectedType = {});
+		void AnalyzeBinaryExpression(AST::Nodes::BinaryExpression* node, SymbolTypeTable& table, OptType expectedType = {});
 
-		void GetReturnTypes(AST::Node* node, std::vector<Type>& returnTypes, SymbolTypeTable& table, std::optional<O::Type> expectedType = {});
+
+		void GetReturnTypes(AST::Node* node, std::vector<const Type*>& returnTypes, SymbolTypeTable& table, OptType expectedType = {});
 
 		SymbolTypeTable* CreateSymbolTypeTable(SymbolTableType tableKind, SymbolTypeTable* upwardTable);
 
 		void CreateTablesForScope(Nodes::Scope* node, SymbolTypeTable* upwardTable);
+
+		std::optional<CallableSignature> ResolveOperatorOverload(Nodes::OperatorExpression* expression, SymbolTypeTable& table, std::vector<const Type*> arguments, OptType expectedType = {});
+
 
 		VariableSymbol* CreateSymbolForVariableDeclaration(Nodes::VariableDeclaration* node, SymbolTypeTable& table, VariableSymbolType variableType);
 		CallableSymbol* CreateSymbolForFunctionDeclaration(Nodes::FunctionDefinitionStatement* node, SymbolTypeTable& table, bool isMethod = false);
@@ -100,20 +108,23 @@ namespace O
 		VariableSymbol* CreateSymbolForClassMemberDeclaration(Nodes::VariableDeclaration* node, ClassSymbol& classSymbol);
 		CallableSymbol* CreateSymbolForMethodDeclaration(Nodes::FunctionDefinitionStatement* node, ClassSymbol& classSymbol);
 
-		std::vector<TypeId> CreateSymbolsForCallableDefinition(Nodes::FunctionDefinitionStatement* node);
-		std::optional<Type> AnalyzeCallableDefinition(Nodes::FunctionDefinitionStatement* node, SymbolTypeTable& table, std::optional<Type> declaredReturnType);
+		std::vector<TypeId> CreateSymbolsForCallableParameters(Nodes::FunctionDefinitionStatement* node);
+		OptType AnalyzeCallableDefinition(Nodes::FunctionDefinitionStatement* node, SymbolTypeTable& table, OptType declaredReturnType);
+		CallableSymbol* CreateCallableSymbol(Nodes::FunctionDefinitionStatement* node, SymbolTypeTable& table, const std::string& callableName, CallableSymbolType callableKind, std::vector<O::TypeId> parameterTypeIds, const Type* returnType);
+
+		bool IsCallableDeclarationUnique(SymbolTypeTable& table, const std::string& callableName, std::vector<O::TypeId> parameterTypeIds, const Type* returnType);
 
 		Symbol* GetSymbolForNode(AST::Node* node, SymbolTypeTable& table);
 
-		bool DoesTypesMatchThrowing(TypeTable& localTypeTable, Type& otherType, Type& expectedType);
-		bool DoesTypesMatch(TypeTable& localTypeTable, Type& otherType, Type& expectedType);
+		bool DoesTypesMatchThrowing(TypeTable& localTypeTable, const Type* otherType, const Type* expectedType);
+		bool DoesTypesMatch(TypeTable& localTypeTable, const Type* otherType, const Type* expectedType);
 
-		std::optional<CallableSignature> ResolveOverload(TypeTable& localTypeTable, std::vector<CallableSignature> overloads, DetailedCallableSignature calle, std::optional<O::Type> expectedReturnType = {});
+		std::optional<CallableSignature> ResolveOverload(TypeTable& localTypeTable, std::vector<CallableSignature> overloads, DetailedCallableSignature calle, OptType expectedReturnType = {});
 		
 		void SetTableForNode(AST::Node* node, SymbolTypeTable* table);
 
 
-		O::Type& InsertArray(O::Type& underlyingType, TypeTable& localTypeTable);
+		const Type* InsertArray(const Type* underlyingType, TypeTable& localTypeTable);
 		//O::Type& InsertTuple(std::vector<O::Type> underlyingTypes, TypeTable& localTypeTable);
 		//O::Type& InsertFunction(std::vector<O::Type> argumentTypes, O::Type returnType);
 
@@ -124,7 +135,7 @@ namespace O
 		void MakeErrorNotDefined(const std::string symbolName);
 		void MakeErrorInvalidCallableName(const std::string symbolName, SymbolType symbol);
 		void MakeErrorInvalidDeclaredType(const std::string symbolName, const std::string declaredType, const std::string expetedType);
-		void MakeErrorTypeInvalidProperty(O::Type& type, const std::string property);
+		void MakeErrorTypeInvalidProperty(const O::Type* type, const std::string property);
 		void MakeErrorTypeCallableNotDefined(const std::string typeName, DetailedCallableSignature signature);
 		void MakeErrorTypeCallableNotDefined(const std::string typeName, const std::string name);
 

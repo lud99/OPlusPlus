@@ -302,7 +302,7 @@ namespace O
         {
             for (auto symbol : symbols)
             {
-                Type* dataType = localTypeTable.Lookup(symbol->m_DataType);
+                const Type* dataType = localTypeTable.Lookup(symbol->m_DataType);
                 assert(dataType);
 
                 std::cout << padding << symbol->m_Name;
@@ -315,7 +315,7 @@ namespace O
                     {
                         TypeId parameterTypeId = callableSymbol->m_ParameterTypes[i];
 
-                        Type* type = localTypeTable.Lookup(parameterTypeId);
+                        const Type* type = localTypeTable.Lookup(parameterTypeId);
                         assert(type);
 
                         std::cout << type->name;

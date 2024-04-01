@@ -24,7 +24,7 @@ namespace O::AST::Nodes
 		if (analyzer->HasTableForNode(node))
 			table = analyzer->GetSymbolTypeTableForNode(node);
 
-		return analyzer->GetTypeOfExpression(node, *table).name;
+		return analyzer->GetTypeOfExpression(node, *table)->name;
 	}
 	std::string SymbolDataTypeToString(std::string symbolName, SymbolTypeTable* table)
 	{
@@ -506,7 +506,7 @@ namespace O::AST::Nodes
 	}*/
 	void ArrayType::Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer)
 	{
-		std::cout << padding << TypeToString() << " -> " << analyzer->ResolveTypeNode(this, *table).name << "\n";
+		std::cout << padding << TypeToString() << " -> " << analyzer->ResolveTypeNode(this, *table)->name << "\n";
 
 		m_UnderlyingType->Print(padding + "    ", table, analyzer);
 	}

@@ -22,5 +22,5 @@ class A {
 	static let MaxInt : int = 255;
 }*/
 
-let a : B[];
-a::length;
+let a : int[];
+let b : int = a + c;

@@ -24,10 +24,10 @@ namespace O
 
 	void OperatorDefinitions::Create(SymbolTypeTable& table)
 	{
-		TypeId integerRef = table.types.LookupReference((TypeId)PrimitiveValueTypes::Integer).id;
-		TypeId doubleRef = table.types.LookupReference((TypeId)PrimitiveValueTypes::Double).id;
-		TypeId boolRef = table.types.LookupReference((TypeId)PrimitiveValueTypes::Bool).id;
-		TypeId stringRef = table.types.LookupReference((TypeId)PrimitiveValueTypes::String).id;
+		TypeId integerRef = table.types.LookupReference((TypeId)PrimitiveValueTypes::Integer)->id;
+		TypeId doubleRef = table.types.LookupReference((TypeId)PrimitiveValueTypes::Double)->id;
+		TypeId boolRef = table.types.LookupReference((TypeId)PrimitiveValueTypes::Bool)->id;
+		TypeId stringRef = table.types.LookupReference((TypeId)PrimitiveValueTypes::String)->id;
 
 		// Integer
 		CreateArithmeticValueExprOperators((TypeId)PrimitiveValueTypes::Integer);
@@ -190,7 +190,7 @@ namespace O
 		}
 	}
 
-	void SemanticAnalyzer::GetReturnTypes(AST::Node* node, std::vector<Type>& returnTypes, SymbolTypeTable& table, std::optional<O::Type> expectedType)
+	void SemanticAnalyzer::GetReturnTypes(AST::Node* node, std::vector<const Type*>& returnTypes, SymbolTypeTable& table, std::optional<const Type*> expectedType)
 	{
 		using namespace Nodes;
 		if (HasError())
@@ -265,11 +265,11 @@ namespace O
 			// return; which implies returning void if no return values
 			if (!returnStatement->m_ReturnValue)
 			{
-				returnTypes.push_back(*table.types.Lookup(PrimitiveValueTypes::Void));
+				returnTypes.push_back(table.types.Lookup(PrimitiveValueTypes::Void));
 				return;
 			}
 
-			O::Type type = GetTypeOfExpression(returnStatement->m_ReturnValue, table);
+			const O::Type* type = GetTypeOfExpression(returnStatement->m_ReturnValue, table);
 			if (HasError())
 				return;
 
@@ -287,10 +287,8 @@ namespace O
 		if (tableKind == SymbolTableType::Global)
 		{
 			auto table = new SymbolTypeTable { SymbolTable(SymbolTableType::Global, nullptr), TypeTable(TypeTableType::Global, nullptr) };
-			//CreateOp
+			
 			// Generate operators and reference types for primitives
-
-			//m_OperatorDefinitions.
 			m_OperatorDefinitions.Create(*table);
 
 			return table;
@@ -315,10 +313,33 @@ namespace O
 		}
 	}
 
+	std::optional<CallableSignature> SemanticAnalyzer::ResolveOperatorOverload(Nodes::OperatorExpression* expression, SymbolTypeTable& table, std::vector<const Type*> arguments, std::optional<const Type*> expectedType)
+	{
+		DetailedCallableSignature calleSignature = {
+			arguments,
+			{},
+			expression->m_Operator.ToString(),
+			CallableSymbolType::Operator
+		};
+
+		auto operatorOpt = ResolveOverload(table.types, m_OperatorDefinitions.m_OperatorSignatures[expression->m_Operator.m_Name], calleSignature, expectedType);
+		if (!operatorOpt.has_value())
+		{
+			MakeError("Operator " + expression->m_Operator.m_Symbol + " not defined for types " + 
+				Join(arguments, " and ", [](const Type* t) { return t->name; }));
+
+			return {};
+		}
+
+		m_ResolvedOverloadCache[expression] = operatorOpt.value();
+		return operatorOpt;
+	}
+
+
 	VariableSymbol* SemanticAnalyzer::CreateSymbolForVariableDeclaration(Nodes::VariableDeclaration* node, SymbolTypeTable& table, VariableSymbolType variableKind)
 	{
 		// Case for typed variable declaration
-		std::optional<Type> variableType;
+		std::optional<const Type*> variableType;
 		if (node->m_VariableType)
 		{
 			variableType = ResolveTypeNode(node->m_VariableType, table);
@@ -335,7 +356,7 @@ namespace O
 			if (HasError())
 				return nullptr;
 
-			Type assignedValueType = GetTypeOfExpression(node->m_AssignedValue, table);
+			const Type* assignedValueType = GetTypeOfExpression(node->m_AssignedValue, table);
 			if (HasError())
 				return nullptr;
 
@@ -364,19 +385,19 @@ namespace O
 			return nullptr;
 		}
 
-		return table.symbols.InsertVariable(variableName, variableType.value().id, variableKind);
+		return table.symbols.InsertVariable(variableName, variableType.value()->id, variableKind);
 	}
 
-	std::vector<Type> SortTypeEntries(TypeTable& localTypeTable, std::vector<Type> types)
+	std::vector<const Type*> SortTypeEntries(TypeTable& localTypeTable, std::vector<const Type*> types)
 	{
-		std::sort(types.begin(), types.end(), [&](Type& t1, Type& t2) {
+		std::sort(types.begin(), types.end(), [&](const Type* t1, const Type* t2) {
 			return localTypeTable.GetHeightOfTypeRelation(t1) > localTypeTable.GetHeightOfTypeRelation(t2);
 		});
 
 		return types;
 	}
 
-	std::vector<TypeId> SemanticAnalyzer::CreateSymbolsForCallableDefinition(Nodes::FunctionDefinitionStatement* node)
+	std::vector<TypeId> SemanticAnalyzer::CreateSymbolsForCallableParameters(Nodes::FunctionDefinitionStatement* node)
 	{
 		std::vector<TypeId> parameterTypes;
 		for (Nodes::VariableDeclaration* parameter : node->m_Parameters->m_Parameters)
@@ -390,78 +411,50 @@ namespace O
 		return parameterTypes;
 	}
 
-	CallableSymbol* SemanticAnalyzer::CreateSymbolForFunctionDeclaration(Nodes::FunctionDefinitionStatement* node, SymbolTypeTable& table, bool isMethod)
+	CallableSymbol* SemanticAnalyzer::CreateCallableSymbol(AST::Nodes::FunctionDefinitionStatement* node, SymbolTypeTable& table, const std::string& callableName, CallableSymbolType callableKind, std::vector<O::TypeId> parameterTypeIds, const Type* returnType)
 	{
-		std::string functionName = node->m_Name->ToString();
-
-		auto symbols = table.symbols.Lookup(functionName);
-		bool isOverload = !symbols.empty();
-
-		// Initialize symbol table for the function parameters to live in
-		// They are not created in the body symbol table, as expressive functions has no scope node to attach the table to
-		node->m_ParametersTable = CreateSymbolTypeTable(SymbolTableType::Local, &table);
-
-		auto parameterTypes = CreateSymbolsForCallableDefinition(node);
-
-		std::optional<Type> declaredReturnType = {};
-		if (node->m_ReturnType)
-			declaredReturnType = ResolveTypeNode(node->m_ReturnType, table);
-
-		auto returnTypeOpt = AnalyzeCallableDefinition(node, *node->m_ParametersTable, declaredReturnType);
-		if (HasError())
-			return nullptr;
-		assert(returnTypeOpt.has_value());
-		Type returnType = returnTypeOpt.value();
-
-		// Check if the parameter types are different from other functions with same name
-		// If not, then alreadyDefined error
-
-		for (Symbol* symbol : symbols)
-		{
-			CallableSymbol* function = (CallableSymbol*)symbol;
-			bool isIdentical = true;
-
-			if (parameterTypes.size() != function->m_ParameterTypes.size())
-				continue;
-
-			if (returnType.id != function->m_DataType)
-				continue;
-
-			// Assume they are identical and look for contradictions
-			for (int i = 0; i < parameterTypes.size(); i++)
-			{
-				O::Type& parameterType = *node->m_ParametersTable->types.Lookup(parameterTypes[i]);
-				O::Type& otherParameterType = *node->m_ParametersTable->types.Lookup(function->m_ParameterTypes[i]);
-
-				if (parameterType.id != otherParameterType.id)
-					isIdentical = false;
-			}
-
-			if (isIdentical)
-			{
-				MakeErrorCallableAlreadyDefined(functionName, SymbolType::Function, { parameterTypes, returnType.id }, table.types);
-				return nullptr;
-			}
-		}
 
 		// 	uint16_t functionId = m_ConstantsPool.AddAndGetFunctionReferenceIndex(functionName);
 		uint16_t callableId = 0; // TODO: Implement properly
 
-		CallableSymbol callable = CallableSymbol(functionName, SymbolType::Function, returnType.id, callableId, CallableSymbolType::Normal);
-		callable.m_ParameterTypes = parameterTypes;
+		CallableSymbol callable = CallableSymbol(callableName, SymbolType::Method, returnType->id, callableId, callableKind);
+		callable.m_ParameterTypes = parameterTypeIds;
 
-		std::vector<O::Type> parameterTypesFull;
-		for (TypeId id : parameterTypes)
-		{
-			parameterTypesFull.push_back(*table.types.Lookup(id));
-		}
+		const Type* functionPointerType = table.types.InsertFunction(table.types.Lookup(parameterTypeIds), returnType);
 
-		O::Type functionPointerType = table.types.InsertFunction(parameterTypesFull, returnType);
-
-		m_ResolvedOverloadCache[node] = { parameterTypes, returnType.id };
-		m_ResolvedOverloadCache[node->m_Name] = { {}, functionPointerType.id };
+		m_ResolvedOverloadCache[node] = { parameterTypeIds, returnType->id };
+		m_ResolvedOverloadCache[node->m_Name] = { {}, functionPointerType->id };
 
 		return table.symbols.InsertCallable(callable);
+	}
+
+	CallableSymbol* SemanticAnalyzer::CreateSymbolForFunctionDeclaration(Nodes::FunctionDefinitionStatement* node, SymbolTypeTable& table, bool isMethod)
+	{
+		std::string functionName = node->m_Name->ToString();
+
+		// Initialize symbol table for the function parameters to live in
+		// They are not created in the body symbol table, as expressive functions has no scope node to attach the table to
+		node->m_ParametersTable = CreateSymbolTypeTable(SymbolTableType::Local, &table);
+		// TODO: refactor away parameters table from node
+
+		auto parameterTypeIds = CreateSymbolsForCallableParameters(node);
+
+		OptType declaredReturnType = {};
+		if (node->m_ReturnType)
+			declaredReturnType = ResolveTypeNode(node->m_ReturnType, table);
+
+		// TODO: Does not work for recursive functions because we analyze the definition before adding the function
+		auto returnTypeOpt = AnalyzeCallableDefinition(node, *node->m_ParametersTable, declaredReturnType);
+		if (HasError())
+			return nullptr;
+		assert(returnTypeOpt.has_value());
+		const Type* returnType = returnTypeOpt.value();
+
+		// Check if the parameter types are different from other functions with same name
+		if (!IsCallableDeclarationUnique(table, functionName, parameterTypeIds, returnType))
+			return nullptr;
+
+		return CreateCallableSymbol(node, table, functionName, CallableSymbolType::Normal, parameterTypeIds, returnType);
 	}
 
 	VariableSymbol* SemanticAnalyzer::CreateSymbolForClassMemberDeclaration(Nodes::VariableDeclaration* node, ClassSymbol& classSymbol)
@@ -500,32 +493,32 @@ namespace O
 		// They are not created in the body symbol table, as expressive functions has no scope node to attach the table to
 		node->m_ParametersTable = CreateSymbolTypeTable(SymbolTableType::Local, &classTable);
 
-		auto parameterTypes = CreateSymbolsForCallableDefinition(node);
+		auto parameterTypeIds = CreateSymbolsForCallableParameters(node);
 
 		// Because this is a method, the first argument should be 'this'
 		VariableSymbol* thisSymbol = (VariableSymbol*)classTable.symbols.Lookup("this")[0];
 		assert(thisSymbol);
 
 		if (methodType == CallableSymbolType::Normal)
-			parameterTypes.insert(parameterTypes.begin(), thisSymbol->m_DataType);
+			parameterTypeIds.insert(parameterTypeIds.begin(), thisSymbol->m_DataType);
 
 		// TODO: figure out if operators should have 'this' as parameter
 		assert(methodType != CallableSymbolType::Operator); 
 
-		std::optional<Type> declaredReturnTypeOpt;
+		OptType declaredReturnTypeOpt;
 		if (node->m_ReturnType)
 			declaredReturnTypeOpt = ResolveTypeNode(node->m_ReturnType, classTable);
 
 		if (methodType == CallableSymbolType::Constructor)
 		{
-			Type classType = *classTable.types.Lookup(thisSymbol->m_DataType);
+			const Type* classType = classTable.types.Lookup(thisSymbol->m_DataType);
 
 			// If a return type is specified for a constructor, it has to be the type of the class
 			if (declaredReturnTypeOpt.has_value())
 			{
-				if (declaredReturnTypeOpt.value().id != classType.id)
+				if (classTable.types.AreTypesEquivalent(declaredReturnTypeOpt.value(), classType))
 				{
-					MakeErrorInvalidDeclaredType(methodName, declaredReturnTypeOpt.value().name, classType.name);
+					MakeErrorInvalidDeclaredType(methodName, declaredReturnTypeOpt.value()->name, classType->name);
 					return nullptr;
 				}
 			} 
@@ -540,61 +533,15 @@ namespace O
 		if (HasError())
 			return nullptr;
 		assert(returnTypeOpt.has_value());
-		Type returnType = returnTypeOpt.value();
+		const Type* returnType = returnTypeOpt.value();
 
+		if (!IsCallableDeclarationUnique(classTable, methodName, parameterTypeIds, returnType))
+			return nullptr;
 
-		// Check if the parameter types are different from other functions with same name
-		// If not, then alreadyDefined error
-
-		for (Symbol* symbol : symbols)
-		{
-			CallableSymbol* function = (CallableSymbol*)symbol;
-			bool isIdentical = true;
-
-			if (parameterTypes.size() != function->m_ParameterTypes.size())
-				continue;
-
-			if (returnType.id != function->m_DataType)
-				continue;
-
-			// Assume they are identical and look for contradictions
-			for (int i = 0; i < parameterTypes.size(); i++)
-			{
-				O::Type& parameterType = *node->m_ParametersTable->types.Lookup(parameterTypes[i]);
-				O::Type& otherParameterType = *node->m_ParametersTable->types.Lookup(function->m_ParameterTypes[i]);
-
-				if (parameterType.id != otherParameterType.id)
-					isIdentical = false;
-			}
-
-			if (isIdentical)
-			{
-				MakeErrorCallableAlreadyDefined(methodName, SymbolType::Function, { parameterTypes, returnType.id }, classTable.types);
-				return nullptr;
-			}
-		}
-
-		// 	uint16_t functionId = m_ConstantsPool.AddAndGetFunctionReferenceIndex(functionName);
-		uint16_t callableId = 0; // TODO: 5Implement properly
-
-		CallableSymbol callable = CallableSymbol(methodName, SymbolType::Method, returnType.id, callableId, methodType);
-		callable.m_ParameterTypes = parameterTypes;
-
-		std::vector<O::Type> parameterTypesFull;
-		for (TypeId id : parameterTypes)
-		{
-			parameterTypesFull.push_back(*classSymbol.m_Table->types.Lookup(id));
-		}
-
-		O::Type functionPointerType = classSymbol.m_Table->types.InsertFunction(parameterTypesFull, returnType);
-
-		m_ResolvedOverloadCache[node] = { parameterTypes, returnType.id };
-		m_ResolvedOverloadCache[node->m_Name] = { {}, functionPointerType.id };
-
-		return classTable.symbols.InsertCallable(callable);
+		return CreateCallableSymbol(node, classTable, methodName, methodType, parameterTypeIds, returnType);
 	}
 
-	std::optional<Type> SemanticAnalyzer::AnalyzeCallableDefinition(Nodes::FunctionDefinitionStatement* node, SymbolTypeTable& table, std::optional<Type> declaredReturnType)
+	OptType SemanticAnalyzer::AnalyzeCallableDefinition(Nodes::FunctionDefinitionStatement* node, SymbolTypeTable& table, OptType declaredReturnType)
 	{
 		using namespace Nodes;
 		std::string functionName = node->m_Name->ToString();
@@ -608,13 +555,13 @@ namespace O
 
 		Scope* body = (Scope*)node->m_Body;
 
-		std::vector<O::Type> returnValueTypes;
+		std::vector<const O::Type*> returnValueTypes;
 		GetReturnTypes(body, returnValueTypes, table, declaredReturnType);
 
-		assert(table.types.GetHeightOfTypeRelation(*table.types.Lookup(PrimitiveValueTypes::Double)) == 2);
+		/*assert(table.types.GetHeightOfTypeRelation(*table.types.Lookup(PrimitiveValueTypes::Double)) == 2);
 		assert(table.types.GetHeightOfTypeRelation(*table.types.Lookup(PrimitiveValueTypes::Bool)) == 0);
 		assert(table.types.GetHeightOfTypeRelation(*table.types.Lookup(PrimitiveValueTypes::Integer)) == 1);
-		assert(table.types.GetHeightOfTypeRelation(*table.types.Lookup(PrimitiveValueTypes::Void)) == 0);
+		assert(table.types.GetHeightOfTypeRelation(*table.types.Lookup(PrimitiveValueTypes::Void)) == 0);*/
 
 		// Check if all of the types are implicitly compatible with the 'most general' type of the return types
 		// (or if there is one one specified)
@@ -625,12 +572,12 @@ namespace O
 		auto sortedReturnTypes = SortTypeEntries(table.types, returnValueTypes);
 		
 		// No specified returnvalue, so try to infer it
-		O::Type returnType;
+		const O::Type* returnType = nullptr;
 		if (!declaredReturnType.has_value())
 		{
 			// If no return statements and no annoted type, so the return type has to be void
 			if (sortedReturnTypes.empty())
-				returnType = *table.types.Lookup(PrimitiveValueTypes::Void);
+				returnType = table.types.Lookup(PrimitiveValueTypes::Void);
 			else
 				returnType = sortedReturnTypes[0];
 		}
@@ -639,9 +586,9 @@ namespace O
 			returnType = declaredReturnType.value();
 		}
 
-		std::vector<O::Type> compatible;
+		std::vector<const O::Type*> compatible;
 		for (auto& type : sortedReturnTypes) {
-			if (type.id == returnType.id)
+			if (table.types.AreTypesEquivalent(type->id, returnType->id))
 				continue;
 
 			if (DoesTypesMatchThrowing(table.types, type, returnType))
@@ -655,6 +602,38 @@ namespace O
 		}
 
 		return returnType;
+	}
+
+	bool SemanticAnalyzer::IsCallableDeclarationUnique(SymbolTypeTable& table, const std::string& callableName, std::vector<O::TypeId> parameterTypeIds, const Type* returnType)
+	{
+		auto symbols = table.symbols.Lookup(callableName);
+		for (Symbol* symbol : symbols)
+		{
+			CallableSymbol* function = (CallableSymbol*)symbol;
+			bool isIdentical = true;
+
+			if (parameterTypeIds.size() != function->m_ParameterTypes.size())
+				continue;
+
+			// Check if the currently analyzed function return type is same as other functions returntype
+			if (table.types.AreTypesEquivalent(returnType->id, function->m_DataType))
+				continue;
+
+			// Assume they are identical and look for contradictions
+			for (int i = 0; i < parameterTypeIds.size(); i++)
+			{
+				if (table.types.AreTypesEquivalent(parameterTypeIds[i], function->m_ParameterTypes[i]))
+					isIdentical = false;
+			}
+
+			if (isIdentical)
+			{
+				MakeErrorCallableAlreadyDefined(callableName, SymbolType::Function, { parameterTypeIds, returnType->id }, table.types);
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	Symbol* SemanticAnalyzer::GetSymbolForNode(AST::Node* node, SymbolTypeTable& table)
@@ -761,7 +740,7 @@ namespace O
 		return m_TableForNode.count(node) == 1;
 	}
 
-	ResolvedMemberAccess SemanticAnalyzer::AnalyzeMemberAccess(AST::Node* node, SymbolTypeTable& table, std::optional<O::Type> expectedType)
+	ResolvedMemberAccess SemanticAnalyzer::AnalyzeMemberAccess(AST::Node* node, SymbolTypeTable& table, OptType expectedType)
 	{
 		// f(1).a
 		// a.b
@@ -786,11 +765,11 @@ namespace O
 		ClassSymbol* parentSymbol = (ClassSymbol*)GetSymbolForNode(expr->m_Lhs, table);
 		SymbolTypeTable* localTable = parentSymbol ? parentSymbol->m_Table : &table;
 
-		O::Type lhsType = GetTypeOfExpression(expr->m_Lhs, *localTable);
+		const O::Type* lhsType = GetTypeOfExpression(expr->m_Lhs, *localTable);
 		if (HasError())
 			return {};
 
-		switch (lhsType.kind)
+		switch (lhsType->kind)
 		{
 		case O::TypeKind::Incomplete:
 		case O::TypeKind::Error:
@@ -799,9 +778,9 @@ namespace O
 		case TypeKind::Reference:
 		{
 			//ClassSymbol* classSymbol = nullptr;
-			if (lhsType.kind == TypeKind::Reference)
+			if (lhsType->kind == TypeKind::Reference)
 			{
-				lhsType = *localTable->types.Lookup(lhsType.typeArguments[0]);
+				lhsType = localTable->types.Lookup(lhsType->typeArguments[0]);
 			}
 			// a.b
 			// TODO: How wil this work on nested classes?
@@ -809,7 +788,7 @@ namespace O
 
 			// lhs
 
-			ClassSymbol* classSymbol = !parentSymbol ? (ClassSymbol*)table.symbols.LookupClassByType(lhsType.id) : parentSymbol;
+			ClassSymbol* classSymbol = !parentSymbol ? (ClassSymbol*)table.symbols.LookupClassByType(lhsType->id) : parentSymbol;
 
 			localTable = classSymbol->m_Table;
 			Analyze(expr->m_Rhs, *classSymbol->m_Table);
@@ -834,7 +813,7 @@ namespace O
 				auto results = classSymbol->m_Table->symbols.Lookup(prop->m_Name);
 				if (results.empty()) 
 				{
-					MakeError("Member '" + prop->m_Name + "' doesn't exist on class " + lhsType.name);
+					MakeError("Member '" + prop->m_Name + "' doesn't exist on class " + lhsType->name);
 					return {};
 				}
 
@@ -852,8 +831,8 @@ namespace O
 				}
 				else
 				{
-					O::Type referenceType = localTable->types.LookupReference(results[0]->m_DataType);
-					m_ResolvedOverloadCache[node] = { {}, referenceType.id };
+					const O::Type* referenceType = localTable->types.LookupReference(results[0]->m_DataType);
+					m_ResolvedOverloadCache[node] = { {}, referenceType->id };
 
 					m_CachedSymbolsForNodes[node] = results[0];
 
@@ -911,7 +890,7 @@ namespace O
 
 	bool IdentifierIsTypename(Nodes::Identifier* node, TypeTable& types) { return types.HasType(node->m_Name); }
 
-	std::optional<Symbol*> SemanticAnalyzer::AnalyzeScopeResolution(AST::Node* node, SymbolTypeTable& table, std::optional<O::Type> expectedType)
+	std::optional<Symbol*> SemanticAnalyzer::AnalyzeScopeResolution(AST::Node* node, SymbolTypeTable& table, OptType expectedType)
 	{
 		using namespace Nodes;
 
@@ -923,7 +902,7 @@ namespace O
 		ClassSymbol* parentSymbol = (ClassSymbol*)GetSymbolForNode(expr->m_Lhs, table);
 		SymbolTypeTable* localTable = parentSymbol ? parentSymbol->m_Table : &table;
 
-		O::Type lhsType = GetTypeOfExpression(expr->m_Lhs, *localTable);
+		const O::Type* lhsType = GetTypeOfExpression(expr->m_Lhs, *localTable);
 		if (HasError())
 			return {};
 
@@ -938,14 +917,14 @@ namespace O
 		// static properties should only be accessed on objects with scope resolution, not property access
 
 		// Resolve Reference types to the underlying type
-		if (lhsType.kind == TypeKind::Reference)
-			lhsType = *localTable->types.Lookup(lhsType.typeArguments[0]);
+		if (lhsType->kind == TypeKind::Reference)
+			lhsType = localTable->types.Lookup(lhsType->typeArguments[0]);
 
-		switch (lhsType.kind)
+		switch (lhsType->kind)
 		{
 		case TypeKind::Class:
 		{
-			ClassSymbol* classSymbol = !parentSymbol ? (ClassSymbol*)table.symbols.LookupClassByType(lhsType.id) : parentSymbol;
+			ClassSymbol* classSymbol = !parentSymbol ? (ClassSymbol*)table.symbols.LookupClassByType(lhsType->id) : parentSymbol;
 
 			localTable = classSymbol->m_Table;
 			Analyze(expr->m_Rhs, *localTable);
@@ -959,8 +938,8 @@ namespace O
 
 				m_CachedSymbolsForNodes[node] = member;
 
-				O::Type referenceType = localTable->types.LookupReference(member->m_DataType);
-				m_ResolvedOverloadCache[node] = { {}, referenceType.id };
+				TypeId referenceTypeId = localTable->types.LookupReference(member->m_DataType)->id;
+				m_ResolvedOverloadCache[node] = { {}, referenceTypeId };
 
 				SetTableForNode(expr, localTable);
 
@@ -1068,10 +1047,53 @@ namespace O
 		return {};
 	}
 
-	bool SemanticAnalyzer::DoesTypesMatchThrowing(TypeTable& localTypeTable, Type& otherType, Type& expectedType)
+	void SemanticAnalyzer::AnalyzeBinaryExpression(AST::Nodes::BinaryExpression* expression, SymbolTypeTable& table, std::optional<const Type*> expectedType)
+	{
+		if (expression->m_Operator.m_Name == Operators::Name::ScopeResolution)
+		{
+			AnalyzeScopeResolution(expression, table, expectedType);
+			return;
+		}
+		if (expression->m_Operator.m_Name == Operators::Name::MemberAccess)
+		{
+			AnalyzeMemberAccess(expression, table, expectedType);
+			//assert(resolved.rhs.size() == 1);
+			return;
+		}
+
+		Analyze(expression->m_Lhs, table, expectedType);
+		if (HasError())
+			return;
+
+		Analyze(expression->m_Rhs, table, expectedType);
+		if (HasError())
+			return;
+
+		std::vector<const Type*> arguments = {
+			GetTypeOfExpression(expression->m_Lhs, table),
+			GetTypeOfExpression(expression->m_Rhs, table)
+		};
+
+		ResolveOperatorOverload(expression, table, arguments, expectedType);
+	}
+
+	void SemanticAnalyzer::AnalyzeUnaryExpression(AST::Nodes::UnaryExpression* expression, SymbolTypeTable& table, std::optional<const Type*> expectedType)
+	{
+		Analyze(expression->m_Operand, table, expectedType);
+		if (HasError())
+			return;
+
+		std::vector<const Type*> arguments = {
+			GetTypeOfExpression(expression->m_Operand, table)
+		};
+
+		ResolveOperatorOverload(expression, table, arguments, expectedType);
+	}
+
+	bool SemanticAnalyzer::DoesTypesMatchThrowing(TypeTable& localTypeTable, const Type* otherType, const Type* expectedType)
 	{
 		// 1. Case when types are the same
-		if (expectedType.id == otherType.id)
+		if (localTypeTable.AreTypesEquivalent(otherType->id, expectedType->id))
 			return true;
 
 
@@ -1081,7 +1103,7 @@ namespace O
 		auto typeRelation = localTypeTable.GetFullTypeRelationTo(otherType, expectedType);
 		if (!typeRelation.has_value())
 		{
-			MakeError("Incompatible types. '" + otherType.name + "' cannot be converted to '" + expectedType.name + "' as they have no relation");
+			MakeError("Incompatible types. '" + otherType->name + "' cannot be converted to '" + expectedType->name + "' as they have no relation");
 			return false;
 		}
 
@@ -1092,7 +1114,7 @@ namespace O
 		}
 		else 
 		{
-			MakeError("Incompatible types. '" + otherType.name + "' cannot be converted to '" + expectedType.name + "' implicitly");
+			MakeError("Incompatible types. '" + otherType->name + "' cannot be converted to '" + expectedType->name + "' implicitly");
 			return false;
 		}
 		
@@ -1100,10 +1122,10 @@ namespace O
 		return false;
 	}
 
-	bool SemanticAnalyzer::DoesTypesMatch(TypeTable& localTypeTable, Type& otherType, Type& expectedType)
+	bool SemanticAnalyzer::DoesTypesMatch(TypeTable& localTypeTable, const Type* otherType, const Type* expectedType)
 	{
 		// 1. Case when types are the same
-		if (expectedType.id == otherType.id)
+		if (localTypeTable.AreTypesEquivalent(otherType->id, expectedType->id))
 			return true;
 
 
@@ -1118,7 +1140,7 @@ namespace O
 		return typeRelation.value() == TypeRelation::Implicit;
 	}
 
-	std::optional<CallableSignature> SemanticAnalyzer::ResolveOverload(TypeTable& localTypeTable, std::vector<CallableSignature> overloads, DetailedCallableSignature calle, std::optional<O::Type> expectedReturnType)
+	std::optional<CallableSignature> SemanticAnalyzer::ResolveOverload(TypeTable& localTypeTable, std::vector<CallableSignature> overloads, DetailedCallableSignature calle, std::optional<const O::Type*> expectedReturnType)
 	{
 		struct SignatureWithSteps
 		{
@@ -1138,8 +1160,8 @@ namespace O
 			// Check if each argument type is compatible with corresponding parameter type
 			for (int i = 0; i < signature.parameterTypes.size(); i++)
 			{
-				O::Type& parameter = *localTypeTable.Lookup(signature.parameterTypes[i]);
-				O::Type& argument = calle.parameterTypes[i];
+				const O::Type* parameter = localTypeTable.Lookup(signature.parameterTypes[i]);
+				const O::Type* argument = calle.parameterTypes[i];
 
 				if (!DoesTypesMatch(localTypeTable, argument, parameter))
 				{
@@ -1156,8 +1178,8 @@ namespace O
 				int totalSteps = 0;
 				for (int i = 0; i < signature.parameterTypes.size(); i++)
 				{
-					O::Type& parameter = *localTypeTable.Lookup(signature.parameterTypes[i]);
-					O::Type& argument = calle.parameterTypes[i];
+					const O::Type* parameter = localTypeTable.Lookup(signature.parameterTypes[i]);
+					const O::Type* argument = calle.parameterTypes[i];
 
 					totalSteps += localTypeTable.GetHeightOfTypeRelation(parameter) - localTypeTable.GetHeightOfTypeRelation(argument);
 				}
@@ -1194,8 +1216,8 @@ namespace O
 		if (stepsToSignatures.size() == 1)
 			return stepsToSignatures[0].signature;
 		
-		std::string calleArgumentTypesString = Join(calle.parameterTypes, std::string(", "), [](O::Type& t) { return t.name; });
-		std::string calleSignatureString = "(" + calleArgumentTypesString + " => " + calle.returnType.name + ")";
+		std::string calleArgumentTypesString = Join(calle.parameterTypes, std::string(", "), [](const O::Type* t) { return t->name; });
+		std::string calleSignatureString = "(" + calleArgumentTypesString + " => " + calle.returnType->name + ")";
 
 
 		// multiple matches, but could not determine which to use
@@ -1215,7 +1237,7 @@ namespace O
 		std::vector<SignatureWithSteps> potentialMatchesReturnType;
 		for (auto& match : closestMatches)
 		{
-			O::Type& returnType = *localTypeTable.Lookup(match.signature.returnType);
+			const O::Type* returnType = localTypeTable.Lookup(match.signature.returnType);
 			if (localTypeTable.IsTypeImplicitSubtypeOf(returnType, expectedReturnType.value()))
 			{
 				int steps = localTypeTable.GetHeightOfTypeRelation(expectedReturnType.value()) - localTypeTable.GetHeightOfTypeRelation(returnType);
@@ -1228,7 +1250,7 @@ namespace O
 		{
 			// TODO: hint system for printing potential functions
 			MakeError_Void("Found multiple matching overloads for " + calle.name + " based on argument types, but " +  
-				"none of them matched with the expected return type " + expectedReturnType.value().name, Token());
+				"none of them matched with the expected return type " + expectedReturnType.value()->name, Token());
 
 			for (auto& match : closestMatches) {
 				MakeError_Void("Potential match based only on arguments", Token(), CompileTimeError::Info);
@@ -1257,15 +1279,15 @@ namespace O
 		m_TableForNode[node] = table;
 	}
 
-	O::Type& SemanticAnalyzer::InsertArray(O::Type& underlyingType, TypeTable& localTypeTable)
+	const O::Type* SemanticAnalyzer::InsertArray(const O::Type* underlyingType, TypeTable& localTypeTable)
 	{
 		bool typeExisted = false;
-		O::Type& type = localTypeTable.InsertArray(underlyingType, typeExisted);
+		const O::Type* type = localTypeTable.InsertArray(underlyingType, typeExisted);
 
 		if (!typeExisted)
 		{
 			m_OperatorDefinitions.m_OperatorSignatures[Operators::Subscript]
-				.push_back({ { type.id, (TypeId)PrimitiveValueTypes::Integer }, underlyingType.id });
+				.push_back({ { type->id, (TypeId)PrimitiveValueTypes::Integer }, underlyingType->id });
 		}
 		
 		return type;
@@ -1278,7 +1300,7 @@ namespace O
 	//}
 
 	// Create symbol tables for each scope
-	void SemanticAnalyzer::Analyze(AST::Node* node, SymbolTypeTable& table, std::optional<O::Type> expectedType)
+	void SemanticAnalyzer::Analyze(AST::Node* node, SymbolTypeTable& table, std::optional<const Type*> expectedType)
 	{
 		using namespace Nodes;
 		if (HasError())
@@ -1322,81 +1344,12 @@ namespace O
 
 		case NodeKind::BinaryExpression:
 		{
-			BinaryExpression* expression = (BinaryExpression*)node;
-			if (expression->m_Operator.m_Name == Operators::Name::ScopeResolution)
-			{
-				std::optional<Symbol*> symbol = AnalyzeScopeResolution(expression, table, expectedType);
-				assert(symbol.has_value());
-				//m_ResolvedOverloadCache[node] = { {}, symbol.value()->m_DataType };
-				//SetTableForNode(node, symbol.value().)
-
-				return;
-			}
-
-			if (expression->m_Operator.m_Name == Operators::Name::MemberAccess)
-			{
-				auto resolved = AnalyzeMemberAccess(expression, table, expectedType);
-				assert(resolved.rhs.size() == 1);
-				//m_ResolvedOverloadCache[node] = { {}, resolved.rhs[0]->m_DataType };
-
-				return;
-			}
-
-			Analyze(expression->m_Lhs, table, expectedType);
-			if (HasError())
-				return;
-
-
-			Analyze(expression->m_Rhs, table, expectedType);
-			if (HasError())
-				return;
-
-			O::Type& lhs = GetTypeOfExpression(expression->m_Lhs, table);
-			O::Type& rhs = GetTypeOfExpression(expression->m_Rhs, table);
-
-			DetailedCallableSignature calleSignature = {
-				{ lhs, rhs },
-				{},
-				expression->m_Operator.ToString(),
-				CallableSymbolType::Operator
-			};
-
-			auto operatorOpt = ResolveOverload(table.types, m_OperatorDefinitions.m_OperatorSignatures[expression->m_Operator.m_Name], calleSignature, expectedType);
-			if (!operatorOpt.has_value())
-			{
-				MakeError("Operator " + expression->m_Operator.m_Symbol + " not defined for types " + lhs.name + " and " + rhs.name);
-				return;
-			}
-
-			m_ResolvedOverloadCache[node] = operatorOpt.value();
-
+			AnalyzeBinaryExpression((BinaryExpression*)node, table, expectedType);
 			break;
 		}
 		case NodeKind::UnaryExpression:
 		{
-			UnaryExpression* expression = (UnaryExpression*)node;
-			Analyze(expression->m_Operand, table, expectedType);
-			if (HasError())
-				return;
-
-			O::Type& operand = GetTypeOfExpression(expression->m_Operand, table);
-
-			DetailedCallableSignature calleSignature = {
-				{ operand },
-				{},
-				expression->m_Operator.ToString(),
-				CallableSymbolType::Operator
-			};
-
-			auto operatorOpt = ResolveOverload(table.types, m_OperatorDefinitions.m_OperatorSignatures[expression->m_Operator.m_Name], calleSignature, expectedType);
-			if (!operatorOpt.has_value())
-			{
-				MakeError("Operator " + expression->m_Operator.m_Symbol + " not defined for " + operand.name);
-				return;
-			}
-
-			m_ResolvedOverloadCache[node] = operatorOpt.value();
-
+			AnalyzeUnaryExpression((UnaryExpression*)node, table, expectedType);
 			break;
 		}
 		case NodeKind::CallExpression:
@@ -1454,10 +1407,10 @@ namespace O
 			}
 			else
 			{
-				O::Type& calledOnType = *table.types.Lookup(calleeSymbol->m_DataType);
+				const O::Type* calledOnType = table.types.Lookup(calleeSymbol->m_DataType);
 
 				if (matchingFunctions.empty())
-					return MakeErrorTypeCallableNotDefined(calledOnType.name, "!!TODO!!");
+					return MakeErrorTypeCallableNotDefined(calledOnType->name, "!!TODO!!");
 
 				callee = matchingFunctions[0]->m_Name;
 			}
@@ -1495,7 +1448,7 @@ namespace O
 
 			// Add the class instance the object is access on (in the case of method invokation)
 			if (isCallingMethod)
-				calleSignature.parameterTypes.push_back(*table.types.Lookup(calleeSymbol->m_DataType));
+				calleSignature.parameterTypes.push_back(table.types.Lookup(calleeSymbol->m_DataType));
 
 			for (O::AST::Node* argument : call->m_Arguments) 
 			{
@@ -1508,8 +1461,8 @@ namespace O
 				if (isCallingMethod)
 				{
 					// TODO: Better error
-					O::Type& calledOnType = *table.types.Lookup(calleeSymbol->m_DataType);
-					return MakeError("No matching function '" + callee + "' found on " + calledOnType.name);
+					const O::Type* calledOnType = table.types.Lookup(calleeSymbol->m_DataType);
+					return MakeError("No matching function '" + callee + "' found on " + calledOnType->name);
 					//return MakeErrorTypeCallableNotDefined(calledOnType.name, callee);
 				}
 
@@ -1520,9 +1473,9 @@ namespace O
 
 			if (isCallingMethod)
 			{
-				O::Type returnType = *table.types.Lookup(matchingCallableOpt.value().returnType);
+				const O::Type* returnType = table.types.Lookup(matchingCallableOpt.value().returnType);
 
-				m_ResolvedOverloadCache[call->m_Callee] = { {}, table.types.InsertFunction(calleSignature.parameterTypes, returnType).id };
+				m_ResolvedOverloadCache[call->m_Callee] = { {}, table.types.InsertFunction(calleSignature.parameterTypes, returnType)->id };
 			}
 
 			break;
@@ -1535,19 +1488,19 @@ namespace O
 				Analyze(element, table, expectedType);
 			}
 
-			std::vector<O::Type> elementTypes;
+			std::vector<const O::Type*> elementTypes;
 			std::vector<TypeId> elementTypeIds;
 			for (AST::Node* element : tuple->m_Elements)
 			{
-				auto& type = GetTypeOfExpression(element, table);
+				const O::Type* type = GetTypeOfExpression(element, table);
 				if (HasError()) return;
 
 				elementTypes.push_back(type);
-				elementTypeIds.push_back(type.id);
+				elementTypeIds.push_back(type->id);
 			}
 
 			// Cache the type of the tuple
-			m_ResolvedOverloadCache[node] = { elementTypeIds, table.types.InsertTuple(elementTypes).id };
+			m_ResolvedOverloadCache[node] = { elementTypeIds, table.types.InsertTuple(elementTypes)->id };
 
 			break;
 		}
@@ -1559,7 +1512,7 @@ namespace O
 			if (HasError())
 				return;
 			
-			std::optional<O::Type> returnType = {};
+			OptType returnType = {};
 			if (functionNode->m_ReturnType)
 				returnType = ResolveTypeNode(functionNode->m_ReturnType, table);
 
@@ -1572,6 +1525,7 @@ namespace O
 		}
 
 		case NodeKind::ExpressionFunctionDefinition:
+			abort();
 			break;
 		case NodeKind::IfStatement:
 		{
@@ -1607,12 +1561,19 @@ namespace O
 			break;
 		}
 		case NodeKind::LoopStatement:
+			abort();
+
 			break;
 		case NodeKind::Closure:
+			abort();
+
 			break;
 		case NodeKind::Continue:
+			abort();
+
 			break;
 		case NodeKind::Break:
+			abort();
 			break;
 		case NodeKind::Return:
 		{
@@ -1635,14 +1596,14 @@ namespace O
 			if (table.types.HasCompleteType(name))
 				return MakeErrorAlreadyDefined(name, SymbolType::Class);
 
-			O::Type classType = table.types.Insert(name, TypeKind::Class);
+			const O::Type* classType = table.types.Insert(name, TypeKind::Class);
 
-			classNode->m_ClassSymbol = table.symbols.InsertClass(name, classType.id, &table.symbols, &table.types);
+			classNode->m_ClassSymbol = table.symbols.InsertClass(name, classType->id, &table.symbols, &table.types);
 			auto& classSymbol = *classNode->m_ClassSymbol;
 			
 			// Add the 'this' symbol 
 			// TODO: wont work for nested classes (Solution is to remove it maybe in some good way)
-			classSymbol.m_Table->symbols.InsertVariable("this", classType.id, VariableSymbolType::Local);
+			classSymbol.m_Table->symbols.InsertVariable("this", classType->id, VariableSymbolType::Local);
 			
 			// TODO: The order should match the order they are declared in probably
 			for (auto declaration : classNode->m_NestedClassDeclarations) {
@@ -1687,26 +1648,26 @@ namespace O
 					return;
 				}
 
-				m_ResolvedOverloadCache[node] = { {}, expectedType.value().id };
+				m_ResolvedOverloadCache[node] = { {}, expectedType.value()->id };
 				return;
 			}
 
 			// Ensure all elements are of the same type (identical)
-			O::Type firstType = GetTypeOfExpression(arr->m_Elements[0], table);
+			const O::Type* firstType = GetTypeOfExpression(arr->m_Elements[0], table);
 			for (int i = 1; i < arr->m_Elements.size(); i++)
 			{
-				O::Type& type = GetTypeOfExpression(arr->m_Elements[i], table);
+				const O::Type* type = GetTypeOfExpression(arr->m_Elements[i], table);
 
 				// TODO: This should run for literal types only, reference types that are subtypes should be ok
 				if (!table.types.AreTypesEquivalent(firstType, type))
 				{
-					MakeError("Array cannot contain elements of different types (" + firstType.name + " and " + type.name + ")");
+					MakeError("Array cannot contain elements of different types (" + firstType->name + " and " + type->name + ")");
 					return;
 				}
 			}
 
 			// Cache the type of the tuple
-			m_ResolvedOverloadCache[node] = { {}, InsertArray(firstType, table.types).id };
+			m_ResolvedOverloadCache[node] = { {}, InsertArray(firstType, table.types)->id };
 			return;
 		}
 		default:
@@ -1714,7 +1675,7 @@ namespace O
 		}
 	}
 
-	Type& SemanticAnalyzer::GetTypeOfExpression(AST::Node* node, SymbolTypeTable& table)
+	const Type* SemanticAnalyzer::GetTypeOfExpression(AST::Node* node, SymbolTypeTable& table)
 	{
 		using namespace Nodes;
 		switch (node->m_Type)
@@ -1725,7 +1686,7 @@ namespace O
 			if (!table.symbols.Has(identifier->m_Name))
 			{
 				MakeErrorNotDefined(identifier->m_Name);
-				return *table.types.Lookup(PrimitiveValueTypes::Void);
+				return table.types.Lookup(PrimitiveValueTypes::Void);
 			}
 
 			// TODO: support retriving type of overloaded functions. Should be infered from the context (i think)
@@ -1735,41 +1696,41 @@ namespace O
 			{
 				//table.types.InsertFunction()
 
-				return *table.types.Lookup(m_ResolvedOverloadCache[node].returnType);
+				return table.types.Lookup(m_ResolvedOverloadCache[node].returnType);
 			}
 
-			return *table.types.Lookup(symbols[0]->m_DataType);
+			return table.types.Lookup(symbols[0]->m_DataType);
 		}
 
 			// Perform typechecking and create the variable symbol
 		case NodeKind::VariableDeclaration:
-			return *table.types.Lookup(PrimitiveValueTypes::Void);
+			return table.types.Lookup(PrimitiveValueTypes::Void);
 
 		case NodeKind::BinaryExpression:
 		{
 			BinaryExpression* expr = (BinaryExpression*)node;
 			assert(m_ResolvedOverloadCache.count(node) == 1);
 
-			return *table.types.Lookup(m_ResolvedOverloadCache[node].returnType);
+			return table.types.Lookup(m_ResolvedOverloadCache[node].returnType);
 		}
 		case NodeKind::UnaryExpression:
 		{
 			assert(m_ResolvedOverloadCache.count(node) == 1);
 
-			return *table.types.Lookup(m_ResolvedOverloadCache[node].returnType);
+			return table.types.Lookup(m_ResolvedOverloadCache[node].returnType);
 		}
 		case NodeKind::CallExpression:
 		{
 			// TODO: The function overload is onyl cached when it is called,it should be upon generaton aswell
 			CallExpression* call = (CallExpression*)node;
 
-			return *table.types.Lookup(m_ResolvedOverloadCache[node].returnType);
+			return table.types.Lookup(m_ResolvedOverloadCache[node].returnType);
 		}
 		case NodeKind::TupleExpression:
 		{
 			TupleExpression* tuple = (TupleExpression*)node;
 
-			return *table.types.Lookup(m_ResolvedOverloadCache[node].returnType);
+			return table.types.Lookup(m_ResolvedOverloadCache[node].returnType);
 		}
 		case NodeKind::FunctionDefinition:
 			break;
@@ -1794,17 +1755,17 @@ namespace O
 		case NodeKind::ClassDeclaration:
 			break;
 		case NodeKind::IntLiteral:
-			return *table.types.Lookup(PrimitiveValueTypes::Integer);
+			return table.types.Lookup(PrimitiveValueTypes::Integer);
 		case NodeKind::FloatLiteral:
 			abort();
 		case NodeKind::DoubleLiteral:
-			return *table.types.Lookup(PrimitiveValueTypes::Double);
+			return table.types.Lookup(PrimitiveValueTypes::Double);
 		case NodeKind::BoolLiteral:
-			return *table.types.Lookup(PrimitiveValueTypes::Bool);
+			return table.types.Lookup(PrimitiveValueTypes::Bool);
 		case NodeKind::StringLiteral:
-			return *table.types.Lookup(PrimitiveValueTypes::String);
+			return table.types.Lookup(PrimitiveValueTypes::String);
 		case NodeKind::ArrayLiteral:
-			return *table.types.Lookup(m_ResolvedOverloadCache[node].returnType);
+			return table.types.Lookup(m_ResolvedOverloadCache[node].returnType);
 
 		default:
 			break;
@@ -1813,7 +1774,8 @@ namespace O
 		abort(); // remove later
 	}
 
-	std::optional<Type> SemanticAnalyzer::ResolveTypeNode(AST::Nodes::Type* node, SymbolTypeTable& table)
+	// TODO: Add error checking after everything
+	const Type* SemanticAnalyzer::ResolveTypeNode(AST::Nodes::Type* node, SymbolTypeTable& table)
 	{
 		using namespace Nodes;
 		switch (node->m_Type)
@@ -1821,23 +1783,34 @@ namespace O
 		case NodeKind::BasicType:
 		{
 			BasicType* basicType = (BasicType*)node;
+			if (!table.types.HasCompleteType(basicType->m_TypeName))
+			{
+				MakeError_Void("Type " + basicType->m_TypeName + " has not been declared in this scope", Token());
+				return nullptr;
+			}
+
 			return table.types.Lookup(basicType->m_TypeName);
 		}
 		case NodeKind::ArrayType:
 		{
 			ArrayType* arrType = (ArrayType*)node;
 
-			O::Type type = ResolveTypeNode(arrType->m_UnderlyingType, table);
+			const O::Type* type = ResolveTypeNode(arrType->m_UnderlyingType, table);
+			if (HasError())
+				return nullptr;
+			
 			return InsertArray(type, table.types);
 		}
 		case NodeKind::TupleType:
 		{
 			TupleType* tupleType = (TupleType*)node;
 
-			std::vector<O::Type> elementTypes;
+			std::vector<const O::Type*> elementTypes;
 			for (Nodes::Type* element : tupleType->m_Elements)
 			{
 				elementTypes.push_back(ResolveTypeNode(element, table));
+				if (HasError())
+					return nullptr;
 			}
 
 			return table.types.InsertTuple(elementTypes);
@@ -1846,20 +1819,23 @@ namespace O
 		{
 			FunctionType* functionType = (FunctionType*)node;
 
-			std::vector<O::Type> parameterTypes;
+			std::vector<const O::Type*> parameterTypes;
 			for (Nodes::Type* parameter : functionType->m_Parameters)
 			{
 				parameterTypes.push_back(ResolveTypeNode(parameter, table));
+				if (HasError())
+					return nullptr;
 			}
-			O::Type returnType = ResolveTypeNode(functionType->m_ReturnType, table);
+			const O::Type* returnType = ResolveTypeNode(functionType->m_ReturnType, table);
+			if (HasError())
+				return nullptr;
 
 			return table.types.InsertFunction(parameterTypes, returnType);
 		}
 		}
 
 		abort();
-		O::Type t;
-		return t;
+		return nullptr;
 	}
 
 	void SemanticAnalyzer::MakeError(const std::string& message,  CompileTimeError::Severity severity)
@@ -1905,9 +1881,9 @@ namespace O
 		MakeError(message);
 	}
 
-	void SemanticAnalyzer::MakeErrorTypeInvalidProperty(O::Type& type, const std::string property)
+	void SemanticAnalyzer::MakeErrorTypeInvalidProperty(const O::Type* type, const std::string property)
 	{
-		MakeError("Type " + type.name + " doesn't have a property '" + property + "'");
+		MakeError("Type " + type->name + " doesn't have a property '" + property + "'");
 	}
 
 	void SemanticAnalyzer::MakeErrorTypeCallableNotDefined(const std::string typeName, DetailedCallableSignature signature)

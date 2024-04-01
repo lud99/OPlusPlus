@@ -533,9 +533,7 @@ namespace O::AST
 
 	Type* TypenameParselet::Parse(Parser& parser, Token token)
 	{
-		O::Type* type = parser.m_TypeTable.Lookup(token.m_Value);
-
-		if (!type)
+		if (!parser.m_TypeTable.HasType(token.m_Value))
 			return (Type*)parser.MakeError("Expected typename");
 
 		//if (type->type == TypeKind::Incomplete)

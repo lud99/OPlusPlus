@@ -91,6 +91,7 @@ namespace O
 
 		const Type* Lookup(const std::string& typeName);
 		const Type* Lookup(TypeId typeId);
+		std::vector<const Type*> Lookup(std::vector<TypeId> typeIds);
 		const Type* LookupReference(TypeId typeId);
 
 		const Type* Insert(const std::string& typeName, TypeKind type, bool insertReference = true);
@@ -113,6 +114,7 @@ namespace O
 
 		bool IsTypeImplicitSubtypeOf(const Type* subtype, const Type* expectedSupertype);
 		bool AreTypesEquivalent(const Type* a, const Type* b);
+		bool AreTypesEquivalent(TypeId a, TypeId b);
 
 		// If the type relations is seen like a tree, then this function returns the height of the tree from this node
 		uint16_t GetHeightOfTypeRelation(const Type* type);
