@@ -558,6 +558,13 @@ namespace O
 		std::vector<const O::Type*> returnValueTypes;
 		GetReturnTypes(body, returnValueTypes, table, declaredReturnType);
 
+		// If no return statements but a declared return type
+		if (returnValueTypes.empty() && declaredReturnType.has_value() && declaredReturnType.value()->id != PrimitiveValueTypes::Void)
+		{
+			MakeError("Function " + functionName + " has a declared return type, but missing a return statement");
+			return {};
+		}
+
 		/*assert(table.types.GetHeightOfTypeRelation(*table.types.Lookup(PrimitiveValueTypes::Double)) == 2);
 		assert(table.types.GetHeightOfTypeRelation(*table.types.Lookup(PrimitiveValueTypes::Bool)) == 0);
 		assert(table.types.GetHeightOfTypeRelation(*table.types.Lookup(PrimitiveValueTypes::Integer)) == 1);

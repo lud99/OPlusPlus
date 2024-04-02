@@ -1,0 +1,28 @@
+
+// OK
+let doStuff1() {
+	let a : double = 2.0 + 2.0;
+}
+let doStuff2():void {
+	let a : double = 2.0 + 2.0;
+}
+
+let doStuff4() {
+	let a : double = 2.0 + 2.0;
+
+	return 5;
+
+	return "5";
+}
+
+// error
+let doStuff3(): double{
+	let a : double = 2.0 + 2.0;
+
+	return "5";
+}
+
+// Error: missing return statement
+let doStuff() : double {
+	let a : double = 2.0 + 2.0;
+}
