@@ -10,7 +10,7 @@ int main(const char* args)
 
 	setlocale(LC_ALL, "");
 
-	std::ifstream file("Programs/function_returns.ö");
+	std::ifstream file("Programs/seleniumlike.ö");
 	if (!file.good())
 	{
 		std::cout << "Could not open file :(\n";
@@ -41,23 +41,29 @@ int main(const char* args)
 		parser.PrintErrors(lexer.GetTokens());
 		return 0;
 	}
-
-	//if (tree)
-		//tree->Print();
-
+	assert(tree);
 
 	SemanticAnalyzer anal(tree);
 	anal.AnalyzeProgram();
 
 	if (anal.HasError())
 	{
+		std::cout << "Generated AST\n\n";
+		tree->Print("", nullptr, nullptr);
+
+		std::cout << "\n\n";
+
 		anal.PrintErrors(lexer.GetTokens());
 	}
-	else
+	//else
 	{
 		if (tree)
+		{
+			std::cout << "Generated AST after semantic analysis with type information\n\n";
 			tree->Print("", anal.GetGlobalTypeTable(), &anal);
+		}
 	}
+
 	std::cout << "\n\n";
 
 }

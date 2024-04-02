@@ -184,7 +184,7 @@ namespace O
 	{
 		for (auto& line : scope->m_Lines)
 		{
-			Analyze(line, *GetSymbolTypeTableForNode(scope));
+			Analyze(line, GetSymbolTypeTableForNode(scope));
 			//if (HasError())
 				//return;
 		}
@@ -208,7 +208,7 @@ namespace O
 			{
 				assert(line);
 
-				GetReturnTypes(line, returnTypes, *GetSymbolTypeTableForNode(scope), expectedType);
+				GetReturnTypes(line, returnTypes, GetSymbolTypeTableForNode(scope), expectedType);
 
 			}
 
@@ -220,7 +220,7 @@ namespace O
 			BlockStatement* body = statement->m_Body;
 			if (!body) return;
 
-			GetReturnTypes(node, returnTypes, *GetSymbolTypeTableForNode(body), expectedType);
+			GetReturnTypes(node, returnTypes, GetSymbolTypeTableForNode(body), expectedType);
 
 			return;
 		}
@@ -230,7 +230,7 @@ namespace O
 			BlockStatement* body = statement->m_Body;
 			if (!body) return;
 
-			GetReturnTypes(node, returnTypes, *GetSymbolTypeTableForNode(body), expectedType);
+			GetReturnTypes(node, returnTypes, GetSymbolTypeTableForNode(body), expectedType);
 
 			return;
 		}
@@ -241,13 +241,13 @@ namespace O
 			BlockStatement* body = statement->m_Body;
 			if (!body) return;
 
-			GetReturnTypes(node, returnTypes, *GetSymbolTypeTableForNode(body), expectedType);
+			GetReturnTypes(node, returnTypes, GetSymbolTypeTableForNode(body), expectedType);
 
 			// Else body
 			BlockStatement* elseBody = statement->m_ElseArm;
 			if (!elseBody) return;
 			
-			GetReturnTypes(node, returnTypes, *GetSymbolTypeTableForNode(elseBody), expectedType);
+			GetReturnTypes(node, returnTypes, GetSymbolTypeTableForNode(elseBody), expectedType);
 
 			return;
 		}
@@ -299,18 +299,14 @@ namespace O
 		return new SymbolTypeTable { SymbolTable(SymbolTableType::Local, &upwardTable->symbols), TypeTable(TypeTableType::Local, &upwardTable->types) };
 	}
 
-	void SemanticAnalyzer::CreateTablesForScope(Nodes::Scope* node, SymbolTypeTable* upwardTable)
+	SymbolTypeTable& SemanticAnalyzer::CreateTableForNode(AST::Node* node, SymbolTypeTable* upwardTable)
 	{
 		if (node->m_Type == NodeKind::Program)
-		{
-			SetTableForNode(node, CreateSymbolTypeTable(SymbolTableType::Global, nullptr));
-			m_GlobalSymbolTypeTable = GetSymbolTypeTableForNode(node);
-
-			//return m_GlobalSymbolTypeTable;
-		} else
-		{
+			m_GlobalSymbolTypeTable = SetTableForNode(node, CreateSymbolTypeTable(SymbolTableType::Global, nullptr));
+		else
 			SetTableForNode(node, CreateSymbolTypeTable(SymbolTableType::Local, upwardTable));
-		}
+
+		return GetSymbolTypeTableForNode(node);
 	}
 
 	std::optional<CallableSignature> SemanticAnalyzer::ResolveOperatorOverload(Nodes::OperatorExpression* expression, SymbolTypeTable& table, std::vector<const Type*> arguments, std::optional<const Type*> expectedType)
@@ -399,10 +395,11 @@ namespace O
 
 	std::vector<TypeId> SemanticAnalyzer::CreateSymbolsForCallableParameters(Nodes::FunctionDefinitionStatement* node)
 	{
+		auto& table = GetSymbolTypeTableForNode(node);
 		std::vector<TypeId> parameterTypes;
 		for (Nodes::VariableDeclaration* parameter : node->m_Parameters->m_Parameters)
 		{
-			auto symbol = CreateSymbolForVariableDeclaration(parameter, *node->m_ParametersTable, VariableSymbolType::Local);
+			auto symbol = CreateSymbolForVariableDeclaration(parameter, table, VariableSymbolType::Local);
 			if (HasError())
 				return {};
 
@@ -433,9 +430,7 @@ namespace O
 		std::string functionName = node->m_Name->ToString();
 
 		// Initialize symbol table for the function parameters to live in
-		// They are not created in the body symbol table, as expressive functions has no scope node to attach the table to
-		node->m_ParametersTable = CreateSymbolTypeTable(SymbolTableType::Local, &table);
-		// TODO: refactor away parameters table from node
+		auto& parametersTable = CreateTableForNode(node, &table);
 
 		auto parameterTypeIds = CreateSymbolsForCallableParameters(node);
 
@@ -444,9 +439,12 @@ namespace O
 			declaredReturnType = ResolveTypeNode(node->m_ReturnType, table);
 
 		// TODO: Does not work for recursive functions because we analyze the definition before adding the function
-		auto returnTypeOpt = AnalyzeCallableDefinition(node, *node->m_ParametersTable, declaredReturnType);
-		if (HasError())
-			return nullptr;
+		auto returnTypeOpt = AnalyzeCallableDefinition(node, parametersTable, declaredReturnType);
+		
+		// TODO: Continue compiling even if body failed
+		//if (HasError())
+			//return nullptr;
+		
 		assert(returnTypeOpt.has_value());
 		const Type* returnType = returnTypeOpt.value();
 
@@ -490,8 +488,7 @@ namespace O
 		}
 
 		// Initialize symbol table for the function parameters to live in
-		// They are not created in the body symbol table, as expressive functions has no scope node to attach the table to
-		node->m_ParametersTable = CreateSymbolTypeTable(SymbolTableType::Local, &classTable);
+		auto& parametersTable = CreateTableForNode(node, &classTable);
 
 		auto parameterTypeIds = CreateSymbolsForCallableParameters(node);
 
@@ -529,7 +526,7 @@ namespace O
 			}
 		}
 
-		auto returnTypeOpt = AnalyzeCallableDefinition(node, *node->m_ParametersTable, declaredReturnTypeOpt);
+		auto returnTypeOpt = AnalyzeCallableDefinition(node, parametersTable, declaredReturnTypeOpt);
 		if (HasError())
 			return nullptr;
 		assert(returnTypeOpt.has_value());
@@ -562,7 +559,7 @@ namespace O
 		if (returnValueTypes.empty() && declaredReturnType.has_value() && declaredReturnType.value()->id != PrimitiveValueTypes::Void)
 		{
 			MakeError("Function " + functionName + " has a declared return type, but missing a return statement");
-			return {};
+			return declaredReturnType;
 		}
 
 		/*assert(table.types.GetHeightOfTypeRelation(*table.types.Lookup(PrimitiveValueTypes::Double)) == 2);
@@ -602,11 +599,10 @@ namespace O
 				compatible.push_back(type);
 		}
 
+		// In the case of an error with mismatched return values and return type, still return the 
+		// declared return type to create the symbol
 		if (HasError())
-		{
 			MakeError("Could not compile function '" + functionName + "'");
-			return {};
-		}
 
 		return returnType;
 	}
@@ -739,10 +735,10 @@ namespace O
 		return nullptr;
 	}
 
-	SymbolTypeTable* SemanticAnalyzer::GetSymbolTypeTableForNode(AST::Node* node)
+	SymbolTypeTable& SemanticAnalyzer::GetSymbolTypeTableForNode(AST::Node* node)
 	{
 		assert(HasTableForNode(node));
-		return m_TableForNode[node];
+		return *m_TableForNode[node];
 	}
 
 	bool SemanticAnalyzer::HasTableForNode(AST::Node* node)
@@ -1280,13 +1276,14 @@ namespace O
 		return potentialMatchesReturnType[0].signature;
 	}
 
-	void SemanticAnalyzer::SetTableForNode(AST::Node* node, SymbolTypeTable* table)
+	SymbolTypeTable* SemanticAnalyzer::SetTableForNode(AST::Node* node, SymbolTypeTable* table)
 	{
 		
 		if (m_TableForNode.count(node) != 0)
 			assert(m_TableForNode[node] != table);
 
 		m_TableForNode[node] = table;
+		return table;
 	}
 
 	const O::Type* SemanticAnalyzer::InsertArray(const O::Type* underlyingType, TypeTable& localTypeTable)
@@ -1324,11 +1321,11 @@ namespace O
 		case NodeKind::BlockStatement:
 		{
 			Scope* scope = (Scope*)node;
-			CreateTablesForScope(scope, &table);
+			SymbolTypeTable& localTable = CreateTableForNode(node, &table);
 			
 			for (auto& line : scope->m_Lines)
 			{
-				Analyze(line, *GetSymbolTypeTableForNode(scope), expectedType);
+				Analyze(line, localTable, expectedType);
 			}
 
 			break;
@@ -1529,7 +1526,8 @@ namespace O
 			// Analyze the body
 			// TODO: Ensure a return exists
 			// TODO: Typecheck returned type and function return type
-			Analyze(functionNode->m_Body, *functionNode->m_ParametersTable, returnType);
+			auto& parametersTable = GetSymbolTypeTableForNode(node);
+			Analyze(functionNode->m_Body, parametersTable, returnType);
 
 			return;
 		}
@@ -1696,7 +1694,7 @@ namespace O
 			if (!table.symbols.Has(identifier->m_Name))
 			{
 				MakeErrorNotDefined(identifier->m_Name);
-				return table.types.Lookup(PrimitiveValueTypes::Void);
+				return nullptr;
 			}
 
 			// TODO: support retriving type of overloaded functions. Should be infered from the context (i think)
@@ -1712,20 +1710,16 @@ namespace O
 			return table.types.Lookup(symbols[0]->m_DataType);
 		}
 
-			// Perform typechecking and create the variable symbol
-		case NodeKind::VariableDeclaration:
-			return table.types.Lookup(PrimitiveValueTypes::Void);
-
 		case NodeKind::BinaryExpression:
 		{
 			BinaryExpression* expr = (BinaryExpression*)node;
-			assert(m_ResolvedOverloadCache.count(node) == 1);
+			if (m_ResolvedOverloadCache.count(node) == 0) return nullptr;
 
 			return table.types.Lookup(m_ResolvedOverloadCache[node].returnType);
 		}
 		case NodeKind::UnaryExpression:
 		{
-			assert(m_ResolvedOverloadCache.count(node) == 1);
+			if (m_ResolvedOverloadCache.count(node) == 0) return nullptr;
 
 			return table.types.Lookup(m_ResolvedOverloadCache[node].returnType);
 		}
@@ -1734,11 +1728,15 @@ namespace O
 			// TODO: The function overload is onyl cached when it is called,it should be upon generaton aswell
 			CallExpression* call = (CallExpression*)node;
 
+			if (m_ResolvedOverloadCache.count(node) == 0) return nullptr;
+
 			return table.types.Lookup(m_ResolvedOverloadCache[node].returnType);
 		}
 		case NodeKind::TupleExpression:
 		{
 			TupleExpression* tuple = (TupleExpression*)node;
+
+			if (m_ResolvedOverloadCache.count(node) == 0) return nullptr;
 
 			return table.types.Lookup(m_ResolvedOverloadCache[node].returnType);
 		}
@@ -1775,7 +1773,11 @@ namespace O
 		case NodeKind::StringLiteral:
 			return table.types.Lookup(PrimitiveValueTypes::String);
 		case NodeKind::ArrayLiteral:
+		{
+			if (m_ResolvedOverloadCache.count(node) == 0) return nullptr;
+
 			return table.types.Lookup(m_ResolvedOverloadCache[node].returnType);
+		}
 
 		default:
 			break;

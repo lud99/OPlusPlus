@@ -76,7 +76,7 @@ namespace O
 
 		EXPORT auto& GetGlobalTypeTable() { return m_GlobalSymbolTypeTable; };
 		EXPORT auto& GetCachedTypes() { return m_ResolvedOverloadCache; };
-		SymbolTypeTable* GetSymbolTypeTableForNode(AST::Node* node);
+		SymbolTypeTable& GetSymbolTypeTableForNode(AST::Node* node);
 		bool HasTableForNode(AST::Node* node);
 
 
@@ -96,8 +96,8 @@ namespace O
 		void GetReturnTypes(AST::Node* node, std::vector<const Type*>& returnTypes, SymbolTypeTable& table, OptType expectedType = {});
 
 		SymbolTypeTable* CreateSymbolTypeTable(SymbolTableType tableKind, SymbolTypeTable* upwardTable);
-
-		void CreateTablesForScope(Nodes::Scope* node, SymbolTypeTable* upwardTable);
+		SymbolTypeTable* SetTableForNode(AST::Node* node, SymbolTypeTable* table);
+		SymbolTypeTable& CreateTableForNode(AST::Node* node, SymbolTypeTable* upwardTable);
 
 		std::optional<CallableSignature> ResolveOperatorOverload(Nodes::OperatorExpression* expression, SymbolTypeTable& table, std::vector<const Type*> arguments, OptType expectedType = {});
 
@@ -121,8 +121,6 @@ namespace O
 
 		std::optional<CallableSignature> ResolveOverload(TypeTable& localTypeTable, std::vector<CallableSignature> overloads, DetailedCallableSignature calle, OptType expectedReturnType = {});
 		
-		void SetTableForNode(AST::Node* node, SymbolTypeTable* table);
-
 
 		const Type* InsertArray(const Type* underlyingType, TypeTable& localTypeTable);
 		//O::Type& InsertTuple(std::vector<O::Type> underlyingTypes, TypeTable& localTypeTable);

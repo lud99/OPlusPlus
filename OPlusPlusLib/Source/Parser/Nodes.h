@@ -6,6 +6,7 @@
 
 #include "../macro.h"
 #include "Operators.h"
+
 #include "Semantics/SymbolTypeTable.h"
 
 
@@ -251,8 +252,6 @@ namespace O::AST::Nodes
 		Identifier* m_Name;
 		FunctionParameters* m_Parameters;
 
-		SymbolTypeTable* m_ParametersTable;
-
 		Node* m_Body = nullptr;
 
 		bool IsPrototype() { return m_Body == nullptr; }
@@ -333,7 +332,6 @@ namespace O::AST::Nodes
 		std::vector<ClassDeclarationStatement*> m_NestedClassDeclarations;
 
 		ClassSymbol* m_ClassSymbol = nullptr;
-		//SymbolTable m_MemberSymbolTable;
 
 		virtual void Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer) override;
 	};
