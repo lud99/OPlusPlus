@@ -10,7 +10,7 @@ int main(const char* args)
 
 	setlocale(LC_ALL, "");
 
-	std::ifstream file("Programs/seleniumlike.ö");
+	std::ifstream file("Programs/function_recursion.ö");
 	if (!file.good())
 	{
 		std::cout << "Could not open file :(\n";
@@ -49,7 +49,7 @@ int main(const char* args)
 	if (anal.HasError())
 	{
 		std::cout << "Generated AST\n\n";
-		tree->Print("", nullptr, nullptr);
+		//tree->Print("", nullptr, nullptr);
 
 		std::cout << "\n\n";
 

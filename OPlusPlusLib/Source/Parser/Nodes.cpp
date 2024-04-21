@@ -28,11 +28,11 @@ namespace O::AST::Nodes
 		if (!type)
 			return "<unknown type>";
 
-		return type->name;
+		return type->GetName(&table->types);
 	}
 	std::string SymbolDataTypeToString(std::string symbolName, SymbolTypeTable* table)
 	{
-		return table->types.Lookup(table->symbols.LookupOne(symbolName)->m_DataType)->name;
+		return table->types.Lookup(table->symbols.LookupOne(symbolName)->m_DataType)->GetName(&table->types);
 	}
 
 	std::string GetT(Node* node, SymbolTypeTable* table, SemanticAnalyzer* analyzer)
@@ -48,14 +48,14 @@ namespace O::AST::Nodes
 	{
 		return "(" + Join(signature.parameterTypes, ", ",
 			[&](TypeId& id) {
-				return table.types.Lookup(id)->name;
+				return table.types.Lookup(id)->GetName(&table.types);
 			}) + ")";
 	}
 
 	std::string MaybeLookupName(SymbolTypeTable* table, TypeId typeId)
 	{
 		if (!table) return "<unknown type>";
-		return table->types.Lookup(typeId)->name;
+		return table->types.Lookup(typeId)->GetName(&table->types);
 	}
 
 	Identifier::Identifier(const std::string& name)
@@ -552,7 +552,7 @@ namespace O::AST::Nodes
 	}*/
 	void ArrayType::Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer)
 	{
-		std::cout << padding << TypeToString() << " -> " << analyzer->ResolveTypeNode(this, *table)->name << "\n";
+		std::cout << padding << TypeToString() << GetT(this, table, analyzer);
 
 		m_UnderlyingType->Print(padding + "    ", table, analyzer);
 	}

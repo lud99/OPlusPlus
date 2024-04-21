@@ -72,7 +72,7 @@ namespace O
 		EXPORT void AnalyzeProgram();
 
 		const Type* GetTypeOfExpression(AST::Node* node, SymbolTypeTable& table);
-		const Type* ResolveTypeNode(AST::Nodes::Type* node, SymbolTypeTable& table);
+		OptType ResolveTypeNode(AST::Nodes::Type* node, SymbolTypeTable& table);
 
 		EXPORT auto& GetGlobalTypeTable() { return m_GlobalSymbolTypeTable; };
 		EXPORT auto& GetCachedTypes() { return m_ResolvedOverloadCache; };
@@ -109,10 +109,13 @@ namespace O
 		CallableSymbol* CreateSymbolForMethodDeclaration(Nodes::FunctionDefinitionStatement* node, ClassSymbol& classSymbol);
 
 		std::vector<TypeId> CreateSymbolsForCallableParameters(Nodes::FunctionDefinitionStatement* node);
-		OptType AnalyzeCallableDefinition(Nodes::FunctionDefinitionStatement* node, SymbolTypeTable& table, OptType declaredReturnType);
+		
+		CallableSymbol* CreateAndDetermineReturnTypeForCallableDeclaration(Nodes::FunctionDefinitionStatement* node, SymbolTypeTable& table);
+		OptType IsValidReturnTypesInCallableDefinition(Nodes::FunctionDefinitionStatement* node, OptType declaredReturnType = {}, bool throwing = false);
+
 		CallableSymbol* CreateCallableSymbol(Nodes::FunctionDefinitionStatement* node, SymbolTypeTable& table, const std::string& callableName, CallableSymbolType callableKind, std::vector<O::TypeId> parameterTypeIds, const Type* returnType);
 
-		bool IsCallableDeclarationUnique(SymbolTypeTable& table, const std::string& callableName, std::vector<O::TypeId> parameterTypeIds, const Type* returnType);
+		bool IsCallableDeclarationSymbolUnique(SymbolTypeTable& table, CallableSymbol* declaredFunction);
 
 		Symbol* GetSymbolForNode(AST::Node* node, SymbolTypeTable& table);
 
@@ -133,7 +136,7 @@ namespace O
 		void MakeErrorNotDefined(const std::string symbolName);
 		void MakeErrorInvalidCallableName(const std::string symbolName, SymbolType symbol);
 		void MakeErrorInvalidDeclaredType(const std::string symbolName, const std::string declaredType, const std::string expetedType);
-		void MakeErrorTypeInvalidProperty(const O::Type* type, const std::string property);
+		void MakeErrorTypeInvalidProperty(const std::string typeName, const std::string property);
 		void MakeErrorTypeCallableNotDefined(const std::string typeName, DetailedCallableSignature signature);
 		void MakeErrorTypeCallableNotDefined(const std::string typeName, const std::string name);
 

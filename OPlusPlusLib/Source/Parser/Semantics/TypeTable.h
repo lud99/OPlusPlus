@@ -28,7 +28,7 @@ namespace O
 		Class,
 		Function,
 		Method,
-		Primitive,
+		Primitive, // All the others except primitive are template types
 		Array,
 		Tuple,
 		Nullable,
@@ -53,11 +53,14 @@ namespace O
 		TypeId relatedType;
 	};
 
+	class TypeTable;
 	class Type;
 	class Type
 	{
 	public:
-		std::string name;
+		Type() {};
+		Type(const std::string& typeName, TypeId id, TypeKind kind, std::vector<TypeId> typeArguments = {});
+
 		TypeId id;
 
 		TypeKind kind = TypeKind::Primitive;
@@ -67,6 +70,13 @@ namespace O
 		std::vector<TypeRelation> supertypes;
 		std::vector<TypeRelation> subtypes;
 		// TODO: Add types at the same level
+
+	private:
+		std::string typeName; // Name for primitives and declared classes
+
+	public:
+		std::string GetName(TypeTable* table) const;
+		std::string GetName(const TypeTable* table) const;
 	};
 
 
@@ -99,11 +109,16 @@ namespace O
 		const Type* InsertGeneric(TypeKind type, std::vector<const Type*> typeArguments, bool& existed, bool insertReference = true);
 		const Type* InsertGeneric(TypeKind type, std::vector<const Type*> typeArguments, bool insertReference = true);
 
+		const Type* InsertIncomplete();
+
+		// TODO: refactor to use assignment overload in the class instead?
+		const Type* Replace(const Type* type, const Type* newType);
 
 		const Type* InsertArray(const Type* underlyingType, bool& existed);
 		const Type* InsertTuple(std::vector<const Type*> underlyingTypes);
 		const Type* InsertFunction(std::vector<const Type*> argumentTypes, const Type* returnType);
 		const Type* InsertFunction(std::vector<const Type*> argumentTypesAndReturnType);
+
 
 		void AddTypeRelation(Type* type, TypeId relatedType, TypeRelation::ConversionType subtypeConversion, TypeRelation::ConversionType supertypeConversion);
 		void AddTypeRelation(Type* type, Type* relatedType, TypeRelation::ConversionType subtypeConversion, TypeRelation::ConversionType supertypeConversion);

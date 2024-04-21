@@ -59,7 +59,11 @@ namespace O
     public:
         std::string m_Name;
         SymbolType m_SymbolType;
-        TypeId m_DataType;
+
+        union {
+            TypeId m_DataType;
+            TypeId m_ReturnType;
+        };
 
         virtual bool operator==(const Symbol& other);
 
@@ -121,6 +125,7 @@ namespace O
         SymbolTypeTable* m_Table;
     };
 
+    // TODO: When copying the symbol table, implement a copy function to avoid destroying shared Symbols on destruction
 	class SymbolTable;
 	class SymbolTable
 	{
@@ -160,6 +165,8 @@ namespace O
 
         EXPORT void Print(TypeTable& localTypeTable, std::string padding);
 
+        static uint16_t GetNextCallableId();
+
         ~SymbolTable();
 
     private:
@@ -177,5 +184,7 @@ namespace O
 
 		std::unordered_map<SymbolName, std::vector<Symbol*>> m_Symbols;
 		SymbolTable* m_UpwardSymbolTable = nullptr;
+
+        static uint16_t m_NextCallableId;
 	};
 }

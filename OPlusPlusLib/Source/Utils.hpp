@@ -100,6 +100,48 @@ static std::string Join(std::vector<T>& elements, std::string delimiter, Func to
 	return result.str();
 };
 
+template <typename T, typename Func>
+static std::string Join(const std::vector<T>& elements, std::string delimiter, Func toString) {
+	std::stringstream result;
+	for (int i = 0; i < (int)elements.size() - 1; i++) {
+		result << toString(elements[i]) << delimiter;
+	}
+	if (!elements.empty())
+		result << toString(elements.back());
+
+	return result.str();
+};
+
+template <typename T, typename Func>
+static int MatchFirst(std::vector<T>& elements, Func predicate) {
+	for (size_t i = 0; i < elements.size(); i++)
+	{
+		if (predicate(elements[i]))
+			return i;
+	}
+	return -1;
+};
+
+template <typename T, typename Func>
+static bool And(std::vector<T>& elements, Func predicate) {
+	for (auto& elem : elements)
+	{
+		if (!predicate(elem))
+			return false;
+	}
+	return true;
+};
+
+template <typename T, typename Func>
+static bool Or(std::vector<T>& elements, Func predicate) {
+	for (auto& elem : elements)
+	{
+		if (predicate(elem))
+			return true;
+	}
+	return false;
+};
+
 static std::vector<std::string> split(const std::string& txt, char ch)
 {
 	std::vector<std::string> strs;

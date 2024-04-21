@@ -21,7 +21,7 @@ namespace O
 
     std::string Symbol::ToString(TypeTable& types)
     {
-        return m_Name + ", " + SymbolTypeToString(m_SymbolType) + ", " + types.Lookup(m_DataType)->name;
+        return m_Name + ", " + SymbolTypeToString(m_SymbolType) + ", " + types.Lookup(m_DataType)->GetName(&types);
     }
 
     bool Symbol::operator==(const Symbol &other)
@@ -296,6 +296,8 @@ namespace O
 		return largestIndex;
 	}
 
+    uint16_t SymbolTable::GetNextCallableId() { return m_NextCallableId++; }
+
     void SymbolTable::Print(TypeTable& localTypeTable, std::string padding)
     {
         for (auto& [name, symbols] : m_Symbols)
@@ -318,14 +320,14 @@ namespace O
                         const Type* type = localTypeTable.Lookup(parameterTypeId);
                         assert(type);
 
-                        std::cout << type->name;
+                        std::cout << type->GetName(&localTypeTable);
                         if (i < callableSymbol->m_ParameterTypes.size() - 1)
                             std::cout << ", ";
                     }
                     std::cout << ")";
                 }
 
-                std::cout << ": " << dataType->name;
+                std::cout << ": " << dataType->GetName(&localTypeTable);
 
                 std::cout << ", " << SymbolTypeToString(symbol->m_SymbolType) << "\n";
             }
@@ -334,10 +336,13 @@ namespace O
 
     SymbolTable::~SymbolTable()
 	{
+        std::cout << "DELETE SYmbolTable!!\n";
         for (auto& [name, symbols] : m_Symbols)
         {
             for (auto symbol : symbols)
                 delete symbol;
         }
 	}
+
+    uint16_t SymbolTable::m_NextCallableId = 0;
 }

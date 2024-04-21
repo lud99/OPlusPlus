@@ -1,5 +1,7 @@
 #include "SemanticAnalyzer.h"
 
+#include <set>
+
 #include "../../Utils.hpp"
 
 namespace O
@@ -220,7 +222,7 @@ namespace O
 			BlockStatement* body = statement->m_Body;
 			if (!body) return;
 
-			GetReturnTypes(node, returnTypes, GetSymbolTypeTableForNode(body), expectedType);
+			GetReturnTypes(body, returnTypes, GetSymbolTypeTableForNode(body), expectedType);
 
 			return;
 		}
@@ -230,7 +232,7 @@ namespace O
 			BlockStatement* body = statement->m_Body;
 			if (!body) return;
 
-			GetReturnTypes(node, returnTypes, GetSymbolTypeTableForNode(body), expectedType);
+			GetReturnTypes(body, returnTypes, GetSymbolTypeTableForNode(body), expectedType);
 
 			return;
 		}
@@ -241,13 +243,13 @@ namespace O
 			BlockStatement* body = statement->m_Body;
 			if (!body) return;
 
-			GetReturnTypes(node, returnTypes, GetSymbolTypeTableForNode(body), expectedType);
+			GetReturnTypes(body, returnTypes, GetSymbolTypeTableForNode(body), expectedType);
 
 			// Else body
 			BlockStatement* elseBody = statement->m_ElseArm;
 			if (!elseBody) return;
 			
-			GetReturnTypes(node, returnTypes, GetSymbolTypeTableForNode(elseBody), expectedType);
+			GetReturnTypes(elseBody, returnTypes, GetSymbolTypeTableForNode(elseBody), expectedType);
 
 			return;
 		}
@@ -262,10 +264,18 @@ namespace O
 		{
 			ReturnStatement* returnStatement = (ReturnStatement*)node;
 
+			// TODO: wont work for typedefs when they are added, need to use the check equivalence function
+			// when checking if its already in the list
+
 			// return; which implies returning void if no return values
 			if (!returnStatement->m_ReturnValue)
 			{
-				returnTypes.push_back(table.types.Lookup(PrimitiveValueTypes::Void));
+				const O::Type* voidType = table.types.Lookup(PrimitiveValueTypes::Void);
+
+				// Only add type if it isn't already added
+				if (std::find(returnTypes.begin(), returnTypes.end(), voidType) == returnTypes.end())
+					returnTypes.push_back(voidType);
+
 				return;
 			}
 
@@ -273,7 +283,10 @@ namespace O
 			if (HasError())
 				return;
 
-			returnTypes.push_back(type);
+			// Only add type if it isn't already added
+			if (std::find(returnTypes.begin(), returnTypes.end(), type) == returnTypes.end())
+				returnTypes.push_back(type);
+
 			return;
 		}
 			
@@ -318,11 +331,34 @@ namespace O
 			CallableSymbolType::Operator
 		};
 
+		// If one of the operands is incomplete, then assume the overload exists and create a new type
+		// TODO: eg: x + A, but + is not defined on A, then we can throw an error instead of a new 
+		if (Or(arguments, [](const Type* t) { return t->kind == TypeKind::Incomplete; }))
+		{
+			// Dont think both operands can be incomplete at the same time
+			assert(!And(arguments, [](const Type* t) { return t->kind == TypeKind::Incomplete; }));
+
+			// The new unknown type
+			const Type* x_i = table.types.InsertIncomplete();
+			
+			std::vector<TypeId> reducedArgs;
+			for (auto& arg : arguments)
+			{
+				reducedArgs.push_back(arg->id);
+			}
+
+			m_ResolvedOverloadCache[expression] = { reducedArgs, x_i->id };
+			return m_ResolvedOverloadCache[expression];
+		}
+		
+
 		auto operatorOpt = ResolveOverload(table.types, m_OperatorDefinitions.m_OperatorSignatures[expression->m_Operator.m_Name], calleSignature, expectedType);
 		if (!operatorOpt.has_value())
 		{
 			MakeError("Operator " + expression->m_Operator.m_Symbol + " not defined for types " + 
-				Join(arguments, " and ", [](const Type* t) { return t->name; }));
+				Join(arguments, " and ", [table](const Type* t) { return t->GetName(&table.types); }));
+
+			m_ResolvedOverloadCache.erase(expression);
 
 			return {};
 		}
@@ -412,7 +448,7 @@ namespace O
 	{
 
 		// 	uint16_t functionId = m_ConstantsPool.AddAndGetFunctionReferenceIndex(functionName);
-		uint16_t callableId = 0; // TODO: Implement properly
+		uint16_t callableId = SymbolTable::GetNextCallableId();
 
 		CallableSymbol callable = CallableSymbol(callableName, SymbolType::Method, returnType->id, callableId, callableKind);
 		callable.m_ParameterTypes = parameterTypeIds;
@@ -425,34 +461,216 @@ namespace O
 		return table.symbols.InsertCallable(callable);
 	}
 
+	CallableSymbol* SemanticAnalyzer::CreateAndDetermineReturnTypeForCallableDeclaration(Nodes::FunctionDefinitionStatement* node, SymbolTypeTable& table)
+	{
+
+		// -- Algorithm for resolving return type of recursive function --
+		// 1. Assign the return type of f to be X of incomplete kind
+		// 2. analyze f and create new types for expressions involving f (X_i)
+		// 3. ...
+
+		std::string functionName = node->m_Name->ToString();
+		auto& parametersTable = GetSymbolTypeTableForNode(node);
+
+		std::vector<TypeId> parameterTypeIds;
+		for (auto& [name, symbols] : parametersTable.symbols.GetSymbols())
+		{
+			Symbol* parameter = symbols[0];
+			parameterTypeIds.push_back(parameter->m_DataType);
+		}
+
+		// Get the declared type if it exists
+		OptType declaredReturnType = node->m_ReturnType ? ResolveTypeNode(node->m_ReturnType, table) : std::nullopt;
+		//if (!declaredReturnType.has_value())
+			//return {};
+
+		// Either create a new unknown type or use the declared
+		const Type* returnType = !node->m_ReturnType ? table.types.InsertIncomplete() : declaredReturnType.value();
+		const Type X = *returnType;
+
+		// Create the symbol for the callable so recursion works
+		CallableSymbol* symbol = CreateCallableSymbol(node, table, functionName, CallableSymbolType::Normal, parameterTypeIds, returnType);
+
+		Analyze(node->m_Body, parametersTable);
+		if (HasError())
+			return {};
+
+		if (declaredReturnType.has_value())
+		{
+			IsValidReturnTypesInCallableDefinition(node, declaredReturnType, true);
+			if (HasError())
+				return nullptr;
+
+			return symbol;
+		}
+
+
+		// Now the expressions involving f has a value
+		// Replace x with the possible return values
+		std::vector<const Type*> possibleReturnTypes;
+		GetReturnTypes(node->m_Body, possibleReturnTypes, parametersTable /* TODO: add expected type argument? */);
+
+		// If no return statements, then the function has to return void
+		if (possibleReturnTypes.empty())
+		{
+			// If there is a declared type, then it has to not return void (nothing)
+			if (!declaredReturnType.has_value())
+			{
+				// We can early return if body is empty, but there could still be recursion 
+				// involving the returntype that might not be valid if x = void
+				possibleReturnTypes.push_back(parametersTable.types.Lookup(PrimitiveValueTypes::Void));
+			}
+		}
+		
+
+		auto errors = GetErrors();
+
+		// Try again with each of the possibilities
+		std::vector<const Type*> validPossibilities;
+		for (const Type* possibility : possibleReturnTypes)
+		{
+			if (possibility->kind == TypeKind::Incomplete)
+				continue;
+
+			
+
+			parametersTable.types.Replace(returnType, possibility);
+
+			// Propogate the new x
+			SetErrors(errors); // Reset errors
+
+			Analyze(node->m_Body, parametersTable);
+
+			// If an error occured, then X != this possibility
+			// But.. if there is only one possible return type, then that has to be the type
+			// even though the body itself might not compile
+			// (except when there is a declared type)
+
+			if (HasError() && possibleReturnTypes.size() != 1 && !declaredReturnType.has_value())
+				continue;
+			
+			OptType possibleReturnType = IsValidReturnTypesInCallableDefinition(node, declaredReturnType);
+
+			if (possibleReturnType.has_value())
+			{
+				// X and the possible return value have to be equal, otherwise there in a contradiction
+				// because f return of type int if there are return statements returning doubles
+				// 
+				// edit: or atleast the returned types has to be an implicit subtype of the possible return type
+				if (parametersTable.types.IsTypeImplicitSubtypeOf(possibility, possibleReturnType.value()))
+					validPossibilities.push_back(possibleReturnType.value());
+				//if (parametersTable.types.AreTypesEquivalent(possibleReturnType.value(), possibility))
+			}
+		}
+		SetErrors(errors); // Reset errors
+
+		if (validPossibilities.size() == 1)
+		{
+			// Replace X with the correct type and analyze again
+			// This is so none of the invalid possibilities has affected the types
+			parametersTable.types.Replace(returnType, validPossibilities[0]);
+			symbol->m_DataType = validPossibilities[0]->id;
+
+			Analyze(node->m_Body, parametersTable);
+			return symbol;
+		}
+
+		// Otherwise bring back the incomplete type 'X'
+		parametersTable.types.Replace(returnType, &X);
+		Analyze(node->m_Body, parametersTable);
+
+		if (validPossibilities.empty())
+		{
+			MakeError("Could not infer a valid return type for " + functionName);
+			return nullptr;
+		}
+		if (validPossibilities.size() > 1)
+		{
+			MakeError("Could not infer a valid return type for " + functionName + ", multiple choices !! better error !!");
+			return nullptr;
+		}
+	}
+
+	OptType SemanticAnalyzer::IsValidReturnTypesInCallableDefinition(Nodes::FunctionDefinitionStatement* node, OptType declaredReturnType, bool throwing)
+	{
+		std::string functionName = node->m_Name->ToString();
+
+		auto& localTable = GetSymbolTypeTableForNode(node);
+		
+		std::vector<const O::Type*> returnValueTypes;
+		GetReturnTypes(node->m_Body, returnValueTypes, localTable, declaredReturnType);
+
+		// If no return statements but a declared return type
+		if (returnValueTypes.empty() && declaredReturnType.has_value() && throwing)
+		{
+			auto type = declaredReturnType.value();
+			if (!localTable.types.AreTypesEquivalent(type->id, PrimitiveValueTypes::Void))
+			{
+				MakeError(functionName + " with return type " + type->GetName(&localTable.types) + " has to return a value");
+				return {};
+			}
+		}
+
+		// Check if all of the types are implicitly compatible with the 'most general' type of the return types
+		// (or if there is one one specified)
+		// This is to find a sort of 'greatest common denominator' between them that accomodates all return values
+		auto sortedReturnTypes = SortTypeEntries(localTable.types, returnValueTypes);
+
+		// No specified returnvalue, so try to infer it
+		const O::Type* returnType = nullptr;
+		if (!declaredReturnType.has_value())
+		{
+			// If no return statements and no annoted type, so the return type has to be void
+			if (sortedReturnTypes.empty())
+				returnType = localTable.types.Lookup(PrimitiveValueTypes::Void);
+			else
+				returnType = sortedReturnTypes[0]; // Otherwise it is the 'most general' type of the returns
+		}
+		else
+		{
+			returnType = declaredReturnType.value();
+		}
+
+		std::vector<const O::Type*> compatible;
+		for (auto& type : sortedReturnTypes)
+		{
+			if (throwing)
+			{
+				if (!DoesTypesMatchThrowing(localTable.types, type, returnType))
+					return {};
+			}
+			else
+			{
+				if (!DoesTypesMatch(localTable.types, type, returnType))
+					return {};
+			}
+		}
+
+		return returnType;
+	}
+
+
 	CallableSymbol* SemanticAnalyzer::CreateSymbolForFunctionDeclaration(Nodes::FunctionDefinitionStatement* node, SymbolTypeTable& table, bool isMethod)
 	{
 		std::string functionName = node->m_Name->ToString();
 
 		// Initialize symbol table for the function parameters to live in
 		auto& parametersTable = CreateTableForNode(node, &table);
-
 		auto parameterTypeIds = CreateSymbolsForCallableParameters(node);
 
-		OptType declaredReturnType = {};
-		if (node->m_ReturnType)
-			declaredReturnType = ResolveTypeNode(node->m_ReturnType, table);
 
-		// TODO: Does not work for recursive functions because we analyze the definition before adding the function
-		auto returnTypeOpt = AnalyzeCallableDefinition(node, parametersTable, declaredReturnType);
-		
+		CallableSymbol* symbol = CreateAndDetermineReturnTypeForCallableDeclaration(node, table);
+
 		// TODO: Continue compiling even if body failed
-		//if (HasError())
-			//return nullptr;
+		if (HasError())
+			return nullptr;
 		
-		assert(returnTypeOpt.has_value());
-		const Type* returnType = returnTypeOpt.value();
+		assert(symbol);
 
-		// Check if the parameter types are different from other functions with same name
-		if (!IsCallableDeclarationUnique(table, functionName, parameterTypeIds, returnType))
+		if (!IsCallableDeclarationSymbolUnique(table, symbol))
 			return nullptr;
 
-		return CreateCallableSymbol(node, table, functionName, CallableSymbolType::Normal, parameterTypeIds, returnType);
+		return symbol;
 	}
 
 	VariableSymbol* SemanticAnalyzer::CreateSymbolForClassMemberDeclaration(Nodes::VariableDeclaration* node, ClassSymbol& classSymbol)
@@ -515,7 +733,9 @@ namespace O
 			{
 				if (classTable.types.AreTypesEquivalent(declaredReturnTypeOpt.value(), classType))
 				{
-					MakeErrorInvalidDeclaredType(methodName, declaredReturnTypeOpt.value()->name, classType->name);
+					MakeErrorInvalidDeclaredType(methodName, 
+						declaredReturnTypeOpt.value()->GetName(&classTable.types), 
+						classType->GetName(&classTable.types));
 					return nullptr;
 				}
 			} 
@@ -526,106 +746,46 @@ namespace O
 			}
 		}
 
-		auto returnTypeOpt = AnalyzeCallableDefinition(node, parametersTable, declaredReturnTypeOpt);
+		CallableSymbol* method = CreateAndDetermineReturnTypeForCallableDeclaration(node, classTable);
 		if (HasError())
 			return nullptr;
-		assert(returnTypeOpt.has_value());
-		const Type* returnType = returnTypeOpt.value();
+		assert(method);
 
-		if (!IsCallableDeclarationUnique(classTable, methodName, parameterTypeIds, returnType))
+		if (!IsCallableDeclarationSymbolUnique(classTable, method))
 			return nullptr;
 
-		return CreateCallableSymbol(node, classTable, methodName, methodType, parameterTypeIds, returnType);
+		return method;
 	}
 
-	OptType SemanticAnalyzer::AnalyzeCallableDefinition(Nodes::FunctionDefinitionStatement* node, SymbolTypeTable& table, OptType declaredReturnType)
+	bool SemanticAnalyzer::IsCallableDeclarationSymbolUnique(SymbolTypeTable& table, CallableSymbol* declaredFunction)
 	{
-		using namespace Nodes;
-		std::string functionName = node->m_Name->ToString();
-
-		// Analayze body to look for errors
-		Analyze(node->m_Body, table, declaredReturnType);
-
-		// Analyze the body and look for the return statements
-		// TODO: Does not work for expressive functions
-		assert(node->m_Body->m_Type == NodeKind::BlockStatement);
-
-		Scope* body = (Scope*)node->m_Body;
-
-		std::vector<const O::Type*> returnValueTypes;
-		GetReturnTypes(body, returnValueTypes, table, declaredReturnType);
-
-		// If no return statements but a declared return type
-		if (returnValueTypes.empty() && declaredReturnType.has_value() && declaredReturnType.value()->id != PrimitiveValueTypes::Void)
-		{
-			MakeError("Function " + functionName + " has a declared return type, but missing a return statement");
-			return declaredReturnType;
-		}
-
-		/*assert(table.types.GetHeightOfTypeRelation(*table.types.Lookup(PrimitiveValueTypes::Double)) == 2);
-		assert(table.types.GetHeightOfTypeRelation(*table.types.Lookup(PrimitiveValueTypes::Bool)) == 0);
-		assert(table.types.GetHeightOfTypeRelation(*table.types.Lookup(PrimitiveValueTypes::Integer)) == 1);
-		assert(table.types.GetHeightOfTypeRelation(*table.types.Lookup(PrimitiveValueTypes::Void)) == 0);*/
-
-		// Check if all of the types are implicitly compatible with the 'most general' type of the return types
-		// (or if there is one one specified)
-		// This is to find a sort of 'greatest common denominator' between them that accomodates all return values
-
-		//Type returnType;
-
-		auto sortedReturnTypes = SortTypeEntries(table.types, returnValueTypes);
+		// This function is ran after the symbol has been created and checked against other sybmols
+		// TODO: If duplicate, what happens?
 		
-		// No specified returnvalue, so try to infer it
-		const O::Type* returnType = nullptr;
-		if (!declaredReturnType.has_value())
-		{
-			// If no return statements and no annoted type, so the return type has to be void
-			if (sortedReturnTypes.empty())
-				returnType = table.types.Lookup(PrimitiveValueTypes::Void);
-			else
-				returnType = sortedReturnTypes[0];
-		}
-		else 
-		{
-			returnType = declaredReturnType.value();
-		}
-
-		std::vector<const O::Type*> compatible;
-		for (auto& type : sortedReturnTypes) {
-			if (table.types.AreTypesEquivalent(type->id, returnType->id))
-				continue;
-
-			if (DoesTypesMatchThrowing(table.types, type, returnType))
-				compatible.push_back(type);
-		}
-
-		// In the case of an error with mismatched return values and return type, still return the 
-		// declared return type to create the symbol
-		if (HasError())
-			MakeError("Could not compile function '" + functionName + "'");
-
-		return returnType;
-	}
-
-	bool SemanticAnalyzer::IsCallableDeclarationUnique(SymbolTypeTable& table, const std::string& callableName, std::vector<O::TypeId> parameterTypeIds, const Type* returnType)
-	{
-		auto symbols = table.symbols.Lookup(callableName);
+		auto symbols = table.symbols.Lookup(declaredFunction->m_Name);
 		for (Symbol* symbol : symbols)
 		{
-			CallableSymbol* function = (CallableSymbol*)symbol;
+			CallableSymbol* otherFunction = (CallableSymbol*)symbol;
+
+			// Dont compare to itself
+			if (otherFunction->m_Id == declaredFunction->m_Id)
+				continue;
+				
 			bool isIdentical = true;
 
-			if (parameterTypeIds.size() != function->m_ParameterTypes.size())
+			if (declaredFunction->m_ParameterTypes.size() != otherFunction->m_ParameterTypes.size())
 				continue;
 
-			// Check if the currently analyzed function return type is same as other functions returntype
-			if (!table.types.AreTypesEquivalent(returnType->id, function->m_DataType))
+			// Check if the currently analyzed otherFunction return type is same as other functions returntype
+			if (!table.types.AreTypesEquivalent(declaredFunction->m_ReturnType, otherFunction->m_ReturnType))
 				continue;
 
 			// Assume they are identical and look for contradictions
-			for (int i = 0; i < parameterTypeIds.size(); i++)
+			auto& parameterTypes = declaredFunction->m_ParameterTypes;
+			for (int i = 0; i < parameterTypes.size(); i++)
 			{
-				if (!table.types.AreTypesEquivalent(parameterTypeIds[i], function->m_ParameterTypes[i]))
+				if (!table.types.AreTypesEquivalent(parameterTypes[i],
+					otherFunction->m_ParameterTypes[i]))
 				{
 					isIdentical = false;
 					break;
@@ -634,7 +794,8 @@ namespace O
 
 			if (isIdentical)
 			{
-				MakeErrorCallableAlreadyDefined(callableName, SymbolType::Function, { parameterTypeIds, returnType->id }, table.types);
+				MakeErrorCallableAlreadyDefined(declaredFunction->m_Name, SymbolType::Function, 
+					{ parameterTypes, declaredFunction->m_ReturnType}, table.types);
 				return false;
 			}
 		}
@@ -775,6 +936,8 @@ namespace O
 		if (HasError())
 			return {};
 
+
+
 		switch (lhsType->kind)
 		{
 		case O::TypeKind::Incomplete:
@@ -819,7 +982,7 @@ namespace O
 				auto results = classSymbol->m_Table->symbols.Lookup(prop->m_Name);
 				if (results.empty()) 
 				{
-					MakeError("Member '" + prop->m_Name + "' doesn't exist on class " + lhsType->name);
+					MakeError("Member '" + prop->m_Name + "' doesn't exist on class " + lhsType->GetName(&localTable->types));
 					return {};
 				}
 
@@ -859,7 +1022,7 @@ namespace O
 		case O::TypeKind::Function:
 		case O::TypeKind::Method:
 		{
-			MakeErrorTypeInvalidProperty(lhsType, expr->m_Rhs->ToString());
+			MakeErrorTypeInvalidProperty(lhsType->GetName(&localTable->types), expr->m_Rhs->ToString());
 			return {};
 		}
 		case O::TypeKind::Array:
@@ -874,8 +1037,8 @@ namespace O
 					{ new VariableSymbol("length", SymbolType::Variable, (TypeId)PrimitiveValueTypes::Integer) } };
 			}
 
-			MakeErrorTypeInvalidProperty(lhsType, expr->m_Rhs->ToString());
-			
+			MakeErrorTypeInvalidProperty(lhsType->GetName(&localTable->types), expr->m_Rhs->ToString());
+
 			break;
 		}
 		case O::TypeKind::Primitive:
@@ -883,7 +1046,7 @@ namespace O
 		case O::TypeKind::Nullable:
 		{
 			// TODO: Add methods to primitives
-			MakeErrorTypeInvalidProperty(lhsType, expr->m_Rhs->ToString());
+			MakeErrorTypeInvalidProperty(lhsType->GetName(&localTable->types), expr->m_Rhs->ToString());
 			return {};
 		}
 		case O::TypeKind::Typedef:
@@ -1107,9 +1270,12 @@ namespace O
 
 		// 3. type relations
 		auto typeRelation = localTypeTable.GetFullTypeRelationTo(otherType, expectedType);
+		std::string otherTypeName = otherType->GetName(&localTypeTable);
+		std::string expectedTypeName = expectedType->GetName(&localTypeTable);
+
 		if (!typeRelation.has_value())
 		{
-			MakeError("Incompatible types. '" + otherType->name + "' cannot be converted to '" + expectedType->name + "' as they have no relation");
+			MakeError("Incompatible types. '" + otherTypeName + "' cannot be converted to '" + expectedTypeName + "' as they have no relation");
 			return false;
 		}
 
@@ -1118,9 +1284,9 @@ namespace O
 		{
 			return true;
 		}
-		else 
+		else
 		{
-			MakeError("Incompatible types. '" + otherType->name + "' cannot be converted to '" + expectedType->name + "' implicitly");
+			MakeError("Incompatible types. '" + otherTypeName + "' cannot be converted to '" + expectedTypeName + "' implicitly");
 			return false;
 		}
 		
@@ -1222,8 +1388,10 @@ namespace O
 		if (stepsToSignatures.size() == 1)
 			return stepsToSignatures[0].signature;
 		
-		std::string calleArgumentTypesString = Join(calle.parameterTypes, std::string(", "), [](const O::Type* t) { return t->name; });
-		std::string calleSignatureString = "(" + calleArgumentTypesString + " => " + calle.returnType->name + ")";
+		std::string calleArgumentTypesString = Join(calle.parameterTypes, std::string(", "), 
+			[localTypeTable](const O::Type* t) { return t->GetName(&localTypeTable); });
+
+		std::string calleSignatureString = "(" + calleArgumentTypesString + " => " + calle.returnType->GetName(&localTypeTable) + ")";
 
 
 		// multiple matches, but could not determine which to use
@@ -1256,7 +1424,8 @@ namespace O
 		{
 			// TODO: hint system for printing potential functions
 			MakeError_Void("Found multiple matching overloads for " + calle.name + " based on argument types, but " +  
-				"none of them matched with the expected return type " + expectedReturnType.value()->name, Token());
+				"none of them matched with the expected return type " + 
+				expectedReturnType.value()->GetName(&localTypeTable), Token());
 
 			for (auto& match : closestMatches) {
 				MakeError_Void("Potential match based only on arguments", Token(), CompileTimeError::Info);
@@ -1278,9 +1447,12 @@ namespace O
 
 	SymbolTypeTable* SemanticAnalyzer::SetTableForNode(AST::Node* node, SymbolTypeTable* table)
 	{
-		
+		// If replacing the table with another one
 		if (m_TableForNode.count(node) != 0)
-			assert(m_TableForNode[node] != table);
+		{
+			std::cout << "REPLACE TABLE\n";
+			delete m_TableForNode[node];
+		}
 
 		m_TableForNode[node] = table;
 		return table;
@@ -1417,7 +1589,7 @@ namespace O
 				const O::Type* calledOnType = table.types.Lookup(calleeSymbol->m_DataType);
 
 				if (matchingFunctions.empty())
-					return MakeErrorTypeCallableNotDefined(calledOnType->name, "!!TODO!!");
+					return MakeErrorTypeCallableNotDefined(calledOnType->GetName(&table.types), "!!TODO!!");
 
 				callee = matchingFunctions[0]->m_Name;
 			}
@@ -1469,7 +1641,7 @@ namespace O
 				{
 					// TODO: Better error
 					const O::Type* calledOnType = table.types.Lookup(calleeSymbol->m_DataType);
-					return MakeError("No matching function '" + callee + "' found on " + calledOnType->name);
+					return MakeError("No matching function '" + callee + "' found on " + calledOnType->GetName(&table.types));
 					//return MakeErrorTypeCallableNotDefined(calledOnType.name, callee);
 				}
 
@@ -1519,15 +1691,15 @@ namespace O
 			if (HasError())
 				return;
 			
-			OptType returnType = {};
-			if (functionNode->m_ReturnType)
-				returnType = ResolveTypeNode(functionNode->m_ReturnType, table);
+			//OptType returnType = {};
+			//if (functionNode->m_ReturnType)
+			//	returnType = ResolveTypeNode(functionNode->m_ReturnType, table);
 
-			// Analyze the body
-			// TODO: Ensure a return exists
-			// TODO: Typecheck returned type and function return type
-			auto& parametersTable = GetSymbolTypeTableForNode(node);
-			Analyze(functionNode->m_Body, parametersTable, returnType);
+			//// Analyze the body
+			//// TODO: Ensure a return exists
+			//// TODO: Typecheck returned type and function return type
+			//auto& parametersTable = GetSymbolTypeTableForNode(node);
+			//Analyze(functionNode->m_Body, parametersTable, returnType);
 
 			return;
 		}
@@ -1669,7 +1841,8 @@ namespace O
 				// TODO: This should run for literal types only, reference types that are subtypes should be ok
 				if (!table.types.AreTypesEquivalent(firstType, type))
 				{
-					MakeError("Array cannot contain elements of different types (" + firstType->name + " and " + type->name + ")");
+					MakeError("Array cannot contain elements of different types (" + 
+						firstType->GetName(&table.types) + " and " + type->GetName(&table.types) + ")");
 					return;
 				}
 			}
@@ -1787,7 +1960,7 @@ namespace O
 	}
 
 	// TODO: Add error checking after everything
-	const Type* SemanticAnalyzer::ResolveTypeNode(AST::Nodes::Type* node, SymbolTypeTable& table)
+	OptType SemanticAnalyzer::ResolveTypeNode(AST::Nodes::Type* node, SymbolTypeTable& table)
 	{
 		using namespace Nodes;
 		switch (node->m_Type)
@@ -1798,7 +1971,7 @@ namespace O
 			if (!table.types.HasCompleteType(basicType->m_TypeName))
 			{
 				MakeError_Void("Type " + basicType->m_TypeName + " has not been declared in this scope", Token());
-				return nullptr;
+				return {};
 			}
 
 			return table.types.Lookup(basicType->m_TypeName);
@@ -1807,11 +1980,11 @@ namespace O
 		{
 			ArrayType* arrType = (ArrayType*)node;
 
-			const O::Type* type = ResolveTypeNode(arrType->m_UnderlyingType, table);
+			auto optType = ResolveTypeNode(arrType->m_UnderlyingType, table);
 			if (HasError())
-				return nullptr;
+				return {};
 			
-			return InsertArray(type, table.types);
+			return InsertArray(optType.value(), table.types);
 		}
 		case NodeKind::TupleType:
 		{
@@ -1820,9 +1993,11 @@ namespace O
 			std::vector<const O::Type*> elementTypes;
 			for (Nodes::Type* element : tupleType->m_Elements)
 			{
-				elementTypes.push_back(ResolveTypeNode(element, table));
+				auto typeOpt = ResolveTypeNode(element, table);
 				if (HasError())
-					return nullptr;
+					return {};
+
+				elementTypes.push_back(typeOpt.value());
 			}
 
 			return table.types.InsertTuple(elementTypes);
@@ -1834,20 +2009,23 @@ namespace O
 			std::vector<const O::Type*> parameterTypes;
 			for (Nodes::Type* parameter : functionType->m_Parameters)
 			{
-				parameterTypes.push_back(ResolveTypeNode(parameter, table));
+				auto typeOpt = ResolveTypeNode(parameter, table);
 				if (HasError())
-					return nullptr;
-			}
-			const O::Type* returnType = ResolveTypeNode(functionType->m_ReturnType, table);
-			if (HasError())
-				return nullptr;
+					return {};
 
-			return table.types.InsertFunction(parameterTypes, returnType);
+				parameterTypes.push_back(typeOpt.value());
+			}
+
+			OptType returnType = ResolveTypeNode(functionType->m_ReturnType, table);
+			if (HasError())
+				return {};
+
+			return table.types.InsertFunction(parameterTypes, returnType.value());
 		}
 		}
 
 		abort();
-		return nullptr;
+		return {};
 	}
 
 	void SemanticAnalyzer::MakeError(const std::string& message,  CompileTimeError::Severity severity)
@@ -1866,10 +2044,10 @@ namespace O
 		std::string signatureStr = "(";
 		for (int i = 0; i < signature.parameterTypes.size() - 1; i++)
 		{
-			signatureStr += types.Lookup(signature.parameterTypes[i])->name + ", ";
+			signatureStr += types.Lookup(signature.parameterTypes[i])->GetName(&types) + ", ";
 		}
 
-		signatureStr += types.Lookup(signature.parameterTypes.back())->name + " => " + types.Lookup(signature.returnType)->name + ")";
+		signatureStr += types.Lookup(signature.parameterTypes.back())->GetName(&types) + " => " + types.Lookup(signature.returnType)->GetName(&types) + ")";
 
 		std::string message = SymbolTypeToString(symbolType) + " " + symbolName + " " + signatureStr + " is already defined";
 		MakeError(message);
@@ -1893,9 +2071,9 @@ namespace O
 		MakeError(message);
 	}
 
-	void SemanticAnalyzer::MakeErrorTypeInvalidProperty(const O::Type* type, const std::string property)
+	void SemanticAnalyzer::MakeErrorTypeInvalidProperty(const std::string typeName, const std::string property)
 	{
-		MakeError("Type " + type->name + " doesn't have a property '" + property + "'");
+		MakeError("Type " + typeName + " doesn't have a property '" + property + "'");
 	}
 
 	void SemanticAnalyzer::MakeErrorTypeCallableNotDefined(const std::string typeName, DetailedCallableSignature signature)

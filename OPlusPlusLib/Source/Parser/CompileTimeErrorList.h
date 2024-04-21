@@ -31,6 +31,7 @@ namespace O
 		void MakeError_Void(const std::string& message, O::Lexer::Token errorToken, CompileTimeError::Severity severity = CompileTimeError::Error);
 
 		EXPORT bool HasError() { return !m_Errors.empty(); }
+		EXPORT void SetErrors(std::vector<CompileTimeError>& errors) { m_Errors = errors; }
 		EXPORT auto& GetErrors() { return m_Errors; };
 
 		EXPORT void PrintErrors(O::Lexer::Tokens tokens);

@@ -1,10 +1,34 @@
 #include "TypeTable.h"
 
+#include "../../Utils.hpp"
+
 #include <assert.h>
 #include <iostream>
 
 namespace O
 {
+	Type::Type(const std::string& _typeName, TypeId _id, TypeKind _kind, std::vector<TypeId> _typeArguments)
+		: typeName(_typeName), id(_id), kind(_kind), typeArguments(_typeArguments)
+	{
+	}
+
+	std::string Type::GetName(const TypeTable* table) const
+	{
+		return GetName((TypeTable*)table);
+	}
+	std::string Type::GetName(TypeTable* table) const
+	{
+		// TODO: Cache the result if bad performance. 
+		// I imagine it will be slow for very nested generic types
+		if (kind == TypeKind::Primitive)
+			return typeName;
+
+		return TypeEntryTypeToString(kind) + "<" +
+			Join(typeArguments, std::string(", "), [table](TypeId id) { 
+				return table->Lookup(id)->GetName(table); }) 
+			+ ">";
+	}
+
 	TypeTable::TypeTable()
 	{
 		m_TableType = TypeTableType::Local;
@@ -122,7 +146,7 @@ namespace O
 
 	const Type* TypeTable::LookupReference(TypeId typeId)
 	{
-		const std::string& name = Lookup(typeId)->name;
+		const std::string& name = Lookup(typeId)->GetName(this);
 		return Lookup("Reference<" + name + ">");
 	}
 
@@ -133,7 +157,7 @@ namespace O
 		uint16_t id = GetNextFreeTypeId();
 
 		m_Typenames[typeName] = id;
-		m_Types[id] = new Type { typeName, id, type };
+		m_Types[id] = new Type(typeName, id, type);
 
 		if (insertReference)
 			InsertReferenceType(m_Types[id]);
@@ -147,12 +171,14 @@ namespace O
 			assert(typeArguments.size() == 1);
 		// TODO: Validate the rest of generic types
 
-		std::string name = TypeEntryTypeToString(type) + "<";
-		for (int i = 0; i < typeArguments.size() - 1; i++)
+		Type newType;
+		newType.kind = type;
+		for (auto& arg : typeArguments)
 		{
-			name += typeArguments[i]->name + ", ";
+			newType.typeArguments.push_back(arg->id);
 		}
-		name += typeArguments.back()->name + ">";
+
+		std::string name = newType.GetName(this);
 
 		existed = HasCompleteType(name);
 		if (existed)
@@ -180,6 +206,20 @@ namespace O
 	{
 		bool discard = false;
 		return InsertGeneric(type, typeArguments, insertReference, discard);
+	}
+
+	const Type* TypeTable::InsertIncomplete()
+	{
+		std::string name = "X" + std::to_string(m_NextFreeTypeId);
+		return Insert(name, TypeKind::Incomplete);
+	}
+
+	const Type* TypeTable::Replace(const Type* type, const Type* newType)
+	{
+		Type* t = (Type*)type;
+		*t = *newType;
+		
+		return t;
 	}
 
 	const Type* TypeTable::InsertArray(const Type* underlyingType, bool& existed)
@@ -341,7 +381,7 @@ namespace O
 	{
 		for (auto& [_, entry] : m_Types)
 		{
-			std::cout << padding << "#" << entry->id << ": " << entry->name << ", "
+			std::cout << padding << "#" << entry->id << ": " << entry->GetName(this) << ", "
 				<< TypeEntryTypeToString(entry->kind) << "\n";
 		}
 	}
@@ -394,6 +434,7 @@ namespace O
 
 	TypeTable::~TypeTable()
 	{
+		std::cout << "TYPETABLE DESTRUCTOR\n";
 	}
 
 	TypeId TypeTable::m_NextFreeTypeId = 0;
