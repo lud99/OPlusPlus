@@ -127,7 +127,9 @@ namespace O
 		std::optional<TypeRelation::ConversionType> GetFullSubtypeRelationTo(const Type* type, const Type* expectedSubtype);
 		std::optional<TypeRelation::ConversionType> GetFullTypeRelationTo(const Type* type, const Type* expectedType);
 
+		// Also checks if the types are equal
 		bool IsTypeImplicitSubtypeOf(const Type* subtype, const Type* expectedSupertype);
+
 		bool AreTypesEquivalent(const Type* a, const Type* b);
 		bool AreTypesEquivalent(TypeId a, TypeId b);
 

@@ -246,13 +246,16 @@ namespace O::AST::Nodes
 
 	struct FunctionDefinitionStatement : public Node
 	{
-		FunctionDefinitionStatement(Type* returnType, Identifier* name, FunctionParameters* parameters, Node* body);
+		FunctionDefinitionStatement(Type* returnType, Identifier* name, FunctionParameters* parameters, Node* body, bool isExpressive = false);
 
 		Type* m_ReturnType;
 		Identifier* m_Name;
 		FunctionParameters* m_Parameters;
 
 		Node* m_Body = nullptr;
+
+		// A function is 'expressiv' if it has an expression as a body
+		bool m_IsExpressive = false;
 
 		bool IsPrototype() { return m_Body == nullptr; }
 		bool IsExpressionFunction() { return m_Body->m_Type != NodeKind::BlockStatement; }

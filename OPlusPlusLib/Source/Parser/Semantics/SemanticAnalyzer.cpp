@@ -259,6 +259,22 @@ namespace O
 			break;
 		case NodeKind::Closure:
 			break;
+
+		case NodeKind::FunctionDefinition:
+		{
+			FunctionDefinitionStatement* function = (FunctionDefinitionStatement*)node;
+
+			if (function->m_IsExpressive)
+			{
+				returnTypes.push_back(GetTypeOfExpression(function->m_Body, table));
+			}
+			else
+			{
+				GetReturnTypes(function->m_Body, returnTypes, table, expectedType);
+			}
+
+			break;
+		}
 		
 		case NodeKind::Return:
 		{
@@ -506,8 +522,8 @@ namespace O
 
 		// Now the expressions involving f has a value
 		// Replace x with the possible return values
-		std::vector<const Type*> possibleReturnTypes;
-		GetReturnTypes(node->m_Body, possibleReturnTypes, parametersTable /* TODO: add expected type argument? */);
+		std::vector<const Type*> possibleReturnTypes;	
+		GetReturnTypes(node, possibleReturnTypes, parametersTable /* TODO: add expected type argument? */);
 
 		// If no return statements, then the function has to return void
 		if (possibleReturnTypes.empty())
@@ -597,7 +613,7 @@ namespace O
 		auto& localTable = GetSymbolTypeTableForNode(node);
 		
 		std::vector<const O::Type*> returnValueTypes;
-		GetReturnTypes(node->m_Body, returnValueTypes, localTable, declaredReturnType);
+		GetReturnTypes(node, returnValueTypes, localTable, declaredReturnType);
 
 		// If no return statements but a declared return type
 		if (returnValueTypes.empty() && declaredReturnType.has_value() && throwing)

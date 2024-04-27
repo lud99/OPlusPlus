@@ -395,7 +395,7 @@ namespace O::AST
 				//return parser.MakeError("Expected ';' after lamba expression");
 			//if (parser.HasError()) return nullptr;
 
-			return new FunctionDefinitionStatement(returnType, name, parameters, expression);
+			return new FunctionDefinitionStatement(returnType, name, parameters, expression, true);
 		}
 
 		// Otherwise parse body

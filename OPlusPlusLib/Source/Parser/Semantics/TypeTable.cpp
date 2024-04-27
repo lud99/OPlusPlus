@@ -335,6 +335,9 @@ namespace O
 
 	bool TypeTable::IsTypeImplicitSubtypeOf(const Type* subtype, const Type* expectedSupertype)
 	{
+		if (AreTypesEquivalent(subtype, expectedSupertype))
+			return true;
+
 		for (auto& typeRelation : subtype->supertypes)
 		{
 			const Type* supertype = Lookup(typeRelation.relatedType);

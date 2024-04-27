@@ -23,6 +23,8 @@ namespace O::AST::Nodes
 	{
 		if (analyzer->HasTableForNode(node))
 			table = &analyzer->GetSymbolTypeTableForNode(node);
+		
+		assert(table);
 
 		const O::Type* type = analyzer->GetTypeOfExpression(node, *table);
 		if (!type)
@@ -327,13 +329,14 @@ namespace O::AST::Nodes
 			m_ReturnValue->Print(padding + "    ", table, analyzer);
 	}
 
-	FunctionDefinitionStatement::FunctionDefinitionStatement(Type* returnType, Identifier* name, FunctionParameters* parameters, Node* body)
+	FunctionDefinitionStatement::FunctionDefinitionStatement(Type* returnType, Identifier* name, FunctionParameters* parameters, Node* body, bool isExpressive)
 	{
 		m_Type = NodeKind::FunctionDefinition;
 		m_ReturnType = returnType;
 		m_Name = name;
 		m_Parameters = parameters;
 		m_Body = body;
+		m_IsExpressive = isExpressive;
 	}
 
 	void FunctionDefinitionStatement::Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer)
@@ -383,7 +386,7 @@ namespace O::AST::Nodes
 		if (m_Name) m_Name->Print(newPadding, table, analyzer);
 
 		std::cout << padding + "    (body) \n";
-		if (m_Body) m_Body->Print(newPadding, nullptr, analyzer);
+		if (m_Body) m_Body->Print(newPadding, m_IsExpressive ? table : nullptr, analyzer);
 	}
 
 	ClosureExpression::ClosureExpression(BlockStatement* body)
