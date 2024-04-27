@@ -115,7 +115,7 @@ namespace O
 
 		CallableSymbol* CreateCallableSymbol(Nodes::FunctionDefinitionStatement* node, SymbolTypeTable& table, const std::string& callableName, CallableSymbolType callableKind, std::vector<O::TypeId> parameterTypeIds, const Type* returnType);
 
-		bool IsCallableDeclarationSymbolUnique(SymbolTypeTable& table, CallableSymbol* declaredFunction);
+		bool IsCallableDeclarationSymbolUnique(SymbolTypeTable& table, CallableSymbol* declaredFunction, bool compareReturnTypes = true);
 
 		Symbol* GetSymbolForNode(AST::Node* node, SymbolTypeTable& table);
 

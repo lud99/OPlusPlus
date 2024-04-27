@@ -490,7 +490,6 @@ namespace O
 
 		// Create the symbol for the callable so recursion works
 		CallableSymbol* symbol = CreateCallableSymbol(node, table, functionName, CallableSymbolType::Normal, parameterTypeIds, returnType);
-
 		Analyze(node->m_Body, parametersTable);
 		if (HasError())
 			return {};
@@ -757,7 +756,7 @@ namespace O
 		return method;
 	}
 
-	bool SemanticAnalyzer::IsCallableDeclarationSymbolUnique(SymbolTypeTable& table, CallableSymbol* declaredFunction)
+	bool SemanticAnalyzer::IsCallableDeclarationSymbolUnique(SymbolTypeTable& table, CallableSymbol* declaredFunction, bool compareReturnTypes)
 	{
 		// This function is ran after the symbol has been created and checked against other sybmols
 		// TODO: If duplicate, what happens?
@@ -777,7 +776,7 @@ namespace O
 				continue;
 
 			// Check if the currently analyzed otherFunction return type is same as other functions returntype
-			if (!table.types.AreTypesEquivalent(declaredFunction->m_ReturnType, otherFunction->m_ReturnType))
+			if (compareReturnTypes && !table.types.AreTypesEquivalent(declaredFunction->m_ReturnType, otherFunction->m_ReturnType))
 				continue;
 
 			// Assume they are identical and look for contradictions
@@ -1391,15 +1390,38 @@ namespace O
 		std::string calleArgumentTypesString = Join(calle.parameterTypes, std::string(", "), 
 			[localTypeTable](const O::Type* t) { return t->GetName(&localTypeTable); });
 
-		std::string calleSignatureString = "(" + calleArgumentTypesString + " => " + calle.returnType->GetName(&localTypeTable) + ")";
-
-
 		// multiple matches, but could not determine which to use
 		if (!expectedReturnType.has_value())
 		{
-			MakeError_Void("Found multiple matching overloaded functions for  " + calle.name + " , but could not determine which one to use. Argument types are " + calleArgumentTypesString, Token());
+			std::string error = "Found multiple matching overloaded functions for  " + calle.name + " , but could not determine which one to use. Argument types: " + calleArgumentTypesString + "\nDid you mean:\n";
+
+			for (auto& e : stepsToSignatures)
+			{
+				
+				std::vector<const Type*> parameterTypes;
+				for (TypeId id : e.signature.parameterTypes)
+				{
+					parameterTypes.push_back(localTypeTable.Lookup(id));
+				}
+				const Type* returnType = localTypeTable.Lookup(e.signature.returnType);
+
+
+				std::string candidateArgumentTypesString = Join(parameterTypes, std::string(", "),
+					[localTypeTable](const Type* t) { return t->GetName(&localTypeTable); });
+				std::string signatureString = calle.name + " (" + calleArgumentTypesString + "): " + returnType->GetName(&localTypeTable);
+
+				error += "\n" + signatureString;
+
+				//e.signature.
+			}
+
+			MakeError_Void(error, Token());
+
 			return {};
 		}
+
+		std::string calleSignatureString = "(" + calleArgumentTypesString + " => " + calle.returnType->GetName(&localTypeTable) + ")";
+
 
 		// Should return type overloading only match if the return type and expected type are equivalent, or if they are compatible?
 		// Compatible: Might make it confusing which overload is choosen, and cases where f: int and f: double would both be matches
@@ -1645,7 +1667,10 @@ namespace O
 					//return MakeErrorTypeCallableNotDefined(calledOnType.name, callee);
 				}
 
-				return MakeErrorNotDefined(callee);
+				if (!HasError())
+					return MakeErrorNotDefined(callee);
+
+				return;
 			}
 
 			m_ResolvedOverloadCache[node] = matchingCallableOpt.value();

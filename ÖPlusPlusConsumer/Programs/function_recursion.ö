@@ -5,3 +5,10 @@ let factorial (n: double) {
 
 	return n * factorial(n - 1);
 }
+let factorial (n: double) {
+	if (n <= 1) {
+		return 1;
+	}
+
+	return n * factorial(n - 1);
+}
