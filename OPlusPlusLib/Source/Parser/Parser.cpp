@@ -177,7 +177,7 @@ namespace O::AST
 
 		// Empty statement
 		if (MatchToken(Token::Semicolon))
-			return new Node();
+			return Insert(new Node(), token);
 
 		bool shouldParseAsExpression = m_StatementParselets.count(token.m_Type) == 0;
 
@@ -377,7 +377,7 @@ namespace O::AST
 
 		std::string variableName = token.m_Value;
 
-		return new Identifier(variableName);
+		return Insert(new Identifier(variableName), token);
 	}
 
 	std::vector<Node*> Parser::ParseTupleLikeExpression(Token token)
@@ -415,7 +415,7 @@ namespace O::AST
 			for (auto& tokenType : endTokens)
 			{
 				if (MatchToken(tokenType))
-					return new VariableDeclaration(name, type, nullptr);
+					return Insert(new VariableDeclaration(name, type, nullptr), token);
 			}
 		}
 		else
@@ -423,7 +423,7 @@ namespace O::AST
 			for (auto& tokenType : endTokens)
 			{
 				if (MatchTokenNoConsume(tokenType))
-					return new VariableDeclaration(name, type, nullptr);
+					return Insert(new VariableDeclaration(name, type, nullptr), token);
 			}
 		}
 
@@ -454,7 +454,7 @@ namespace O::AST
 			}
 		}
 
-		return new VariableDeclaration(name, type, assignedValue);
+		return Insert(new VariableDeclaration(name, type, assignedValue), token);
 	}
 
 	FunctionParameters* Parser::ParseFunctionParameters(Token token)
@@ -477,7 +477,7 @@ namespace O::AST
 			ConsumeToken(Token::RightParentheses);
 		}
 
-		return new FunctionParameters(parameters);
+		return Insert(new FunctionParameters(parameters), token);
 	}
 
 	float Parser::TemporaryEvaluator(Node* node)

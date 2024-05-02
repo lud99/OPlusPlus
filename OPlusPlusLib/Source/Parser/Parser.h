@@ -52,6 +52,12 @@ namespace O::AST
 		Node* MakeError(const std::string& message, Token errorToken, CompileTimeError::Severity severity = CompileTimeError::Error);
 		Node* MakeError(const std::string& message, CompileTimeError::Severity severity = CompileTimeError::Error);
 
+		template <typename T>
+		T* Insert(T* node, TokenRange range);
+		template <typename T>
+		T* Insert(T* node, Node* startNode); // Automatic end
+		template <typename T>
+		T* Insert(T* node, Token startToken); // Automatic end
 
 		// Lexer functions
 		Token ConsumeToken();
@@ -72,6 +78,8 @@ namespace O::AST
 		bool TokenIsTypename(Token token) { return m_TypeTable.HasType(token.m_Value); }
 		bool TokenIsIdentifier(Token token) { return !TokenIsTypename(token) && token.m_Type == Token::Identifier; }
 
+		auto& GetTokens() { return m_Tokens; };
+
 	private:
 		Tokens m_Tokens;
 		std::deque<Token> m_TokenStream;
@@ -91,5 +99,31 @@ namespace O::AST
 		Operators::DefinedOperators m_DefinedOperators;
 		Operators::DefinedOperators m_DefinedTypeModifierOperators;
 		TypeTable m_TypeTable = TypeTable(TypeTableType::Global, nullptr);
+
+		std::unordered_map<Node*, TokenRange> m_NodesToTokesMappings;
 	};
+
+	template<typename T>
+	inline T* Parser::Insert(T* node, TokenRange range)
+	{
+		if (!node) return node;
+
+		assert(m_NodesToTokesMappings.count(node) == 0);
+
+		m_NodesToTokesMappings[node] = range;
+		return node;
+	}
+	template<typename T>
+	inline T* Parser::Insert(T* node, Node* startNode)
+	{
+		assert(m_NodesToTokesMappings.count(node) == 0);
+		assert(m_NodesToTokesMappings.count(startNode) == 1);
+
+		return Insert(node, { m_NodesToTokesMappings[startNode].m_Start, m_LastConsumedToken.m_StartPosition });
+	}
+	template<typename T>
+	inline T* Parser::Insert(T* node, Token startToken)
+	{
+		return Insert(node, { startToken.m_StartPosition, m_LastConsumedToken.m_StartPosition });
+	}
 }

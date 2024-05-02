@@ -10,7 +10,7 @@ int main(const char* args)
 
 	setlocale(LC_ALL, "");
 
-	std::ifstream file("Programs/function_recursion.ö");
+	std::ifstream file("Programs/better_errors.ö");
 	if (!file.good())
 	{
 		std::cout << "Could not open file :(\n";
@@ -33,8 +33,15 @@ int main(const char* args)
 
 	std::cout << O::Lexer::Lexer::ReconstructSourcecode(lexer.GetTokens()) << "\n\n";
 
+
+	auto& t = lexer.GetTokens();
+
 	O::AST::Parser parser(lexer.GetTokens());
 	AST::Node* tree = parser.ParseProgram();
+
+	if (tree)
+		tree->Print("", nullptr, nullptr);
+
 
 	if (parser.HasError())
 	{
@@ -43,13 +50,13 @@ int main(const char* args)
 	}
 	assert(tree);
 
-	SemanticAnalyzer anal(tree);
+	SemanticAnalyzer anal(tree, parser);
 	anal.AnalyzeProgram();
 
 	if (anal.HasError())
 	{
 		std::cout << "Generated AST\n\n";
-		//tree->Print("", nullptr, nullptr);
+		tree->Print("", nullptr, nullptr);
 
 		std::cout << "\n\n";
 

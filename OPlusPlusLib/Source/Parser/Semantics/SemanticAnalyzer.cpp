@@ -2,6 +2,7 @@
 
 #include <set>
 
+#include "../Lexer.h"
 #include "../../Utils.hpp"
 
 namespace O
@@ -167,9 +168,11 @@ namespace O
 			{ { referenceType, type }, (TypeId)PrimitiveValueTypes::Void });
 	}
 
-	SemanticAnalyzer::SemanticAnalyzer(AST::Node* program)
+	SemanticAnalyzer::SemanticAnalyzer(AST::Node* program, Parser& parser)
 	{
 		m_Program = program;
+		m_NodesToTokesMappings = parser.m_NodesToTokesMappings;
+		m_SourceCode = O::Lexer::Lexer::ReconstructSourcecode(parser.GetTokens());
 	}
 
 	void SemanticAnalyzer::AnalyzeProgram()
@@ -180,6 +183,18 @@ namespace O
 		// dummyTable is never used 
 		SymbolTypeTable dummyTable = { {}, { TypeTableType::Local, nullptr } };
 		Analyze(m_Program, dummyTable);
+	}
+
+	const std::string& SemanticAnalyzer::GetSourceCode()
+	{
+		return m_SourceCode;
+	}
+
+	TokenRange SemanticAnalyzer::GetTokenRangeForNode(AST::Node* node)
+	{
+		assert(m_NodesToTokesMappings.count(node) == 1);
+
+		return m_NodesToTokesMappings[node];
 	}
 
 	void SemanticAnalyzer::AnalyzeScope(Nodes::Scope* scope)
@@ -1547,7 +1562,7 @@ namespace O
 			Identifier* identifier = (Identifier*)node;
 			
 			if (!table.symbols.Has(identifier->m_Name))
-				return MakeErrorNotDefined(identifier->m_Name);
+				return MakeErrorNotDefined(identifier->m_Name, node);
 
 			break;
 		}
@@ -1620,7 +1635,7 @@ namespace O
 				callee = call->m_Callee->ToString();
 				matchingFunctions = table.symbols.Lookup(callee);
 				if (matchingFunctions.empty())
-					return MakeErrorNotDefined(callee);
+					return MakeErrorNotDefined(callee, node);
 			}
 			else
 			{
@@ -1684,7 +1699,7 @@ namespace O
 				}
 
 				if (!HasError())
-					return MakeErrorNotDefined(callee);
+					return MakeErrorNotDefined(callee, node);
 
 				return;
 			}
@@ -1907,7 +1922,7 @@ namespace O
 			Identifier* identifier = (Identifier*)node;
 			if (!table.symbols.Has(identifier->m_Name))
 			{
-				MakeErrorNotDefined(identifier->m_Name);
+				MakeErrorNotDefined(identifier->m_Name, node);
 				return nullptr;
 			}
 
@@ -2094,10 +2109,12 @@ namespace O
 		MakeError(message);
 	}
 
-	void SemanticAnalyzer::MakeErrorNotDefined(const std::string symbolName)
+	void SemanticAnalyzer::MakeErrorNotDefined(const std::string symbolName, O::AST::Node* node)
 	{
 		std::string message = "Symbol " + symbolName + " has not been defined";
-		MakeError(message);
+
+		MakeError_Void(message, GetTokenRangeForNode(node));
+
 	}
 
 	void SemanticAnalyzer::MakeErrorInvalidCallableName(const std::string symbolName, SymbolType symbolType)

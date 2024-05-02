@@ -37,6 +37,18 @@ namespace O::AST::Nodes
 		return table->types.Lookup(table->symbols.LookupOne(symbolName)->m_DataType)->GetName(&table->types);
 	}
 
+	std::string GetSourceCodeForNode(Node* node, SemanticAnalyzer* analyzer)
+	{
+		if (!analyzer) return "";
+
+		auto range = analyzer->GetTokenRangeForNode(node);
+
+		auto& src = analyzer->GetSourceCode();
+		
+		int length = range.m_End.index - range.m_Start.index + 1;
+		return "[" + analyzer->GetSourceCode().substr(range.m_Start.index, length) + "]\n";
+	}
+
 	std::string GetT(Node* node, SymbolTypeTable* table, SemanticAnalyzer* analyzer)
 	{
 		if (analyzer)
@@ -68,6 +80,7 @@ namespace O::AST::Nodes
 
 	void Identifier::Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer)
 	{
+		std::cout << padding << GetSourceCodeForNode(this, analyzer);
 		std::cout << padding << TypeToString() << ": " << ToString() << GetT(this, table, analyzer);
 	}
 
@@ -104,6 +117,7 @@ namespace O::AST::Nodes
 
 	void VariableDeclaration::Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer)
 	{
+		std::cout << padding << GetSourceCodeForNode(this, analyzer);
 		std::cout << padding << TypeToString() << "\n";
 		m_VariableName->Print(padding + "    ", table, analyzer);
 
@@ -130,6 +144,7 @@ namespace O::AST::Nodes
 
 	void BinaryExpression::Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer)
 	{
+		std::cout << padding << GetSourceCodeForNode(this, analyzer);
 		std::cout << padding << TypeToString() << " (" << ToString() << ")" << GetT(this, table, analyzer);
 
 		m_Lhs->Print(padding + "    ", table, analyzer);
@@ -150,6 +165,7 @@ namespace O::AST::Nodes
 
 	void UnaryExpression::Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer)
 	{
+		std::cout << padding << GetSourceCodeForNode(this, analyzer);
 		std::cout << padding << TypeToString() << "(" << ToString() << ")" + GetT(this, table, analyzer);
 
 		m_Operand->Print(padding + "    ", table, analyzer);
@@ -572,6 +588,7 @@ namespace O::AST::Nodes
 
 	void Literal::Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer)
 	{
+		std::cout << padding << GetSourceCodeForNode(this, analyzer);
 		std::cout << padding << TypeToString() << ": " << ToString() << GetT(this, table, analyzer);
 	}
 }

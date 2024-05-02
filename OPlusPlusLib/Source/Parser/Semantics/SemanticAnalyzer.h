@@ -67,9 +67,12 @@ namespace O
 	class SemanticAnalyzer : public CompileTimeErrorList
 	{
 	public:
-		EXPORT SemanticAnalyzer(AST::Node* program);
+		EXPORT SemanticAnalyzer(AST::Node* program, Parser& parser);
 
 		EXPORT void AnalyzeProgram();
+
+		const std::string& GetSourceCode();
+		TokenRange GetTokenRangeForNode(AST::Node* node);
 
 		const Type* GetTypeOfExpression(AST::Node* node, SymbolTypeTable& table);
 		OptType ResolveTypeNode(AST::Nodes::Type* node, SymbolTypeTable& table);
@@ -133,7 +136,7 @@ namespace O
 
 		void MakeErrorAlreadyDefined(const std::string symbolName, SymbolType symbolType);
 		void MakeErrorCallableAlreadyDefined(const std::string symbolName, SymbolType symbolType, CallableSignature signature, TypeTable& types);
-		void MakeErrorNotDefined(const std::string symbolName);
+		void MakeErrorNotDefined(const std::string symbolName, O::AST::Node* node);
 		void MakeErrorInvalidCallableName(const std::string symbolName, SymbolType symbol);
 		void MakeErrorInvalidDeclaredType(const std::string symbolName, const std::string declaredType, const std::string expetedType);
 		void MakeErrorTypeInvalidProperty(const std::string typeName, const std::string property);
@@ -151,6 +154,10 @@ namespace O
 		std::unordered_map<AST::Node*, ExpressionType> m_CachedExpressionTypes;
 		std::unordered_map<AST::Node*, Symbol*> m_CachedSymbolsForNodes;
 		std::unordered_map<AST::Node*, SymbolTypeTable*> m_TableForNode;
+
+		std::unordered_map<AST::Node*, TokenRange> m_NodesToTokesMappings;
+
+		std::string m_SourceCode = "";
 
 		SymbolTypeTable* m_GlobalSymbolTypeTable;
 	};

@@ -71,6 +71,9 @@ namespace O::AST
 		EXPORT Node() {};
 
 		NodeKind m_Type = NodeKind::EmptyStatement;
+
+		int m_TokenStart = -1; // Inclusive
+		int m_TokenEnd = -1; // Exclusive
 		
 		EXPORT virtual std::string TypeToString();
 		EXPORT virtual void Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer);

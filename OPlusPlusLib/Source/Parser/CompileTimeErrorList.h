@@ -21,7 +21,11 @@ namespace O
 		Severity severity;
 		std::string message;
 
+		// Should be a union but C++ wont let me :(
 		O::Lexer::Token errorToken;
+		O::Lexer::TokenRange errorRange;
+
+		bool isSingle = true;
 	};
 
 	struct Node;
@@ -29,6 +33,8 @@ namespace O
 	{
 	public:
 		void MakeError_Void(const std::string& message, O::Lexer::Token errorToken, CompileTimeError::Severity severity = CompileTimeError::Error);
+		void MakeError_Void(const std::string& message, O::Lexer::TokenRange errorRange, CompileTimeError::Severity severity = CompileTimeError::Error);
+
 
 		EXPORT bool HasError() { return !m_Errors.empty(); }
 		EXPORT void SetErrors(std::vector<CompileTimeError>& errors) { m_Errors = errors; }

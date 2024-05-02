@@ -1,0 +1,1 @@
+let lambda = (a) =>  { return a + 5; } ;

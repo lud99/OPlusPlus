@@ -16,6 +16,17 @@ void CompileTimeErrorList::MakeError_Void(const std::string& message, Lexer::Tok
 	m_Errors.push_back(error);
 }
 
+void CompileTimeErrorList::MakeError_Void(const std::string& message, O::Lexer::TokenRange errorRange, CompileTimeError::Severity severity)
+{
+	CompileTimeError error;
+	error.message = message;
+	error.severity = severity;
+	error.errorRange = errorRange;
+	error.isSingle = false;
+
+	m_Errors.push_back(error);
+}
+
 void CompileTimeErrorList::PrintErrors(Lexer::Tokens tokens)
 {
 	std::string source = O::Lexer::Lexer::ReconstructSourcecode(tokens);
@@ -23,7 +34,10 @@ void CompileTimeErrorList::PrintErrors(Lexer::Tokens tokens)
 
 	for (auto& error : m_Errors)
 	{
-		auto startPosition = error.errorToken.m_StartPosition;
+		auto startPosition = error.isSingle ?
+			error.errorToken.m_StartPosition
+			:
+			error.errorRange.m_Start;
 
 		std::string severity = std::string(magic_enum::enum_name(error.severity));
 		std::cout << severity << ": " << error.message << "\n\n";
@@ -42,7 +56,15 @@ void CompileTimeErrorList::PrintErrors(Lexer::Tokens tokens)
 		std::cout << " " << startPosition.line + 1 << " | " << lineOfError << "\n";
 		std::cout << leftPadding;
 
-		int errorMarkerLength = std::max(error.errorToken.ToFormattedValueString().length(), size_t(1));
+		int errorMarkerLength = error.isSingle ?
+			std::max(error.errorToken.ToFormattedValueString().length(), size_t(1))
+			:
+			0;
+		if (!error.isSingle)
+		{
+			int len = error.errorRange.m_End.index - error.errorRange.m_Start.index + 1;
+			errorMarkerLength = std::max(len, 1);
+		}
 
 		std::cout << Replicate(startPosition.column, " ");
 		std::cout << Replicate(errorMarkerLength, "^");

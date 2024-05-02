@@ -15,6 +15,12 @@ namespace O::Lexer
 		int index = 0;
 	};
 
+	struct TokenRange 
+	{
+		TokenPosition m_Start;
+		TokenPosition m_End;
+	};
+
 	struct Token
 	{
 		enum Types {

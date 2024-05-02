@@ -20,19 +20,14 @@ namespace O::AST
 {
 	using namespace Nodes;
 
-	Node* ParseFunctionDefinition(Parser& parser, Token token, Type* returnType, Identifier* name);
-	//TupleExpression* ParseTuple(Parser& parser, Token token);
-
-
 	// Identifers and literals
-
 	Node* IdentifierParselet::Parse(Parser& parser, Token token)
 	{
 		// Check if the identifier is a typename
 		if (parser.m_TypeTable.HasCompleteType(token.m_Value))
-			return new BasicType(token.m_Value);
+			return parser.Insert(new BasicType(token.m_Value), token);
 		else
-			return new Identifier(token.m_Value);
+			return parser.Insert(new Identifier(token.m_Value), token);
 	}
 	Node* LiteralParselet::Parse(Parser& parser, Token token)
 	{
@@ -41,15 +36,15 @@ namespace O::AST
 			return parser.MakeError("Cannot have two literals next to each other", nextToken);
 
 		if (token.m_Type == Token::IntLiteral)
-			return new IntLiteral(std::stoi(token.m_Value));
+			return parser.Insert(new IntLiteral(std::stoi(token.m_Value)), token);
 		if (token.m_Type == Token::DoubleLiteral)
-			return new DoubleLiteral(StringToDouble(token.m_Value));
+			return parser.Insert(new DoubleLiteral(StringToDouble(token.m_Value)), token);
 		if (token.m_Type == Token::FloatLiteral)
 			abort();
 		if (token.m_Type == Token::BoolLiteral)
-			return new BoolLiteral(token.m_Value == "true" ? true : false);
+			return parser.Insert(new BoolLiteral(token.m_Value == "true" ? true : false), token);
 		if (token.m_Type == Token::StringLiteral)
-			return new StringLiteral(token.m_Value);
+			return parser.Insert(new StringLiteral(token.m_Value), token);
 
 		abort();
 		return nullptr;
@@ -104,7 +99,7 @@ namespace O::AST
 						return parser.MakeError("Expected '=>' after lamda parameters, block scopes are not supported in lambda");
 
 					// Otherwise a normal tuple
-					return new TupleExpression(parser.ParseTupleLikeExpression(token));
+					return parser.Insert(new TupleExpression(parser.ParseTupleLikeExpression(token)), token);
 				}
 
 				// No tuple :(
@@ -148,7 +143,7 @@ namespace O::AST
 		if (!operand)
 			return parser.MakeError("Expected expression next to " + op.ToString(), token);
 
-		return new UnaryExpression(operand, op);
+		return parser.Insert(new UnaryExpression(operand, op), token);
 	}
 
 	Node* PostfixOperatorParselet::Parse(Parser& parser, Node* left, Token token)
@@ -157,7 +152,7 @@ namespace O::AST
 		assert(opOp.has_value());
 		auto& op = opOp.value();
 
-		return new UnaryExpression(left, op);
+		return parser.Insert(new UnaryExpression(left, op), left);
 	}
 
 	Node* BinaryOperatorParselet::Parse(Parser& parser, Node* left, Token token)
@@ -182,7 +177,7 @@ namespace O::AST
 		if (!right)
 			return parser.MakeError("Expected expression on right side of " + op.ToString(), nextToken);
 
-		return new BinaryExpression(left, op, right);
+		return parser.Insert(new BinaryExpression(left, op, right), left);
 	}
 
 	Node* CallParselet::Parse(Parser& parser, Node* left, Token token)
@@ -191,7 +186,7 @@ namespace O::AST
 
 		if (parser.HasError()) return nullptr;
 
-		return new CallExpression(left, arguments);
+		return parser.Insert(new CallExpression(left, arguments), left);
 	}
 
 	bool IsValidElseBody(Node* body)
@@ -219,14 +214,14 @@ namespace O::AST
 			return parser.MakeError("Expected left curly bracket after " + token.TypeToString() + " statement");
 
 		if (token.m_Type == Token::While)
-			return (Node*) new WhileStatement(condition, (BlockStatement*)body);
+			return (Node*)parser.Insert(new WhileStatement(condition, (BlockStatement*)body), token);
 
 		assert(token.m_Type == Token::If);
 
 		// If no else
 		Token elseToken = parser.PeekToken(0);
 		if (!parser.MatchToken(Token::Else))
-			return (Node*) new IfStatement(condition, (BlockStatement*)body, nullptr);
+			return (Node*)parser.Insert(new IfStatement(condition, (BlockStatement*)body, nullptr), token);
 
 		// Try to parse for else
 		Node* elseArm = parser.Parse();
@@ -235,12 +230,12 @@ namespace O::AST
 		if (!IsValidElseBody(elseArm))
 			return parser.MakeError("Unexpected token after 'else' in if statement", elseToken);
 
-		return (Node*) new IfStatement(condition, (BlockStatement*)body, (BlockStatement*)elseArm);
+		return (Node*)parser.Insert(new IfStatement(condition, (BlockStatement*)body, (BlockStatement*)elseArm), token);
 	}
 
 	Node* BlockStatementParselet::Parse(Parser& parser, Token token)
 	{
-		BlockStatement* blockNode = new BlockStatement();
+		BlockStatement* blockNode = parser.Insert(new BlockStatement(), token);
 
 		while (true)
 		{
@@ -302,7 +297,7 @@ namespace O::AST
 		if (!body || body->m_Type != NodeKind::BlockStatement)
 			return parser.MakeError("Expected left curly bracket after " + token.TypeToString() + " statement", afterParantheses);
 
-		return (Node*) new ForStatement(initialization, condition, advancement, (BlockStatement*)body);
+		return (Node*)parser.Insert(new ForStatement(initialization, condition, advancement, (BlockStatement*)body), token);
 	}
 
 	Node* SingleKeywordParselet::Parse(Parser& parser, Token token)
@@ -318,7 +313,7 @@ namespace O::AST
 		else
 			abort();
 
-		return (Node*) new SingleKeywordStatement(type);
+		return (Node*)parser.Insert(new SingleKeywordStatement(type), token);
 	}
 	Node* ReturnParselet::Parse(Parser& parser, Token token)
 	{
@@ -326,7 +321,7 @@ namespace O::AST
 		parser.ConsumeToken(Token::Semicolon);
 		if (parser.HasError()) return nullptr;
 
-		return (Node*) new ReturnStatement(returnValue);
+		return (Node*)parser.Insert(new ReturnStatement(returnValue), token);
 	}
 
 	Node* ParseFunctionDefinition(Parser& parser, Token token)
@@ -345,7 +340,7 @@ namespace O::AST
 
 			assert(type->m_Type == NodeKind::BasicType);
 
-			name = new Identifier(((BasicType*)type)->m_TypeName);
+			name = parser.Insert(new Identifier(((BasicType*)type)->m_TypeName), token);
 		}
 		else 
 		{
@@ -395,7 +390,7 @@ namespace O::AST
 				//return parser.MakeError("Expected ';' after lamba expression");
 			//if (parser.HasError()) return nullptr;
 
-			return new FunctionDefinitionStatement(returnType, name, parameters, expression, true);
+			return parser.Insert(new FunctionDefinitionStatement(returnType, name, parameters, expression, true), token);
 		}
 
 		// Otherwise parse body
@@ -404,7 +399,7 @@ namespace O::AST
 		if (!body || body->m_Type != NodeKind::BlockStatement)
 			return parser.MakeError("Expected block statement or '=>' after function definition", nextToken);
 
-		return new FunctionDefinitionStatement(returnType, name, parameters, body);
+		return parser.Insert(new FunctionDefinitionStatement(returnType, name, parameters, body), token);
 	}
 
 	Node* LetStatementParselet::Parse(Parser& parser, Token token)
@@ -428,7 +423,7 @@ namespace O::AST
 		if (!body || body->m_Type != NodeKind::BlockStatement)
 			return parser.MakeError("Expected block statement for closure", token);
 
-		return new ClosureExpression((BlockStatement*)body);
+		return parser.Insert(new ClosureExpression((BlockStatement*)body), token);
 	}
 
 	Node* LoopParselet::Parse(Parser& parser, Token token)
@@ -438,7 +433,7 @@ namespace O::AST
 			return parser.MakeError("Expected block statement after 'loop'", token);
 		if (parser.HasError()) return nullptr;
 
-		return new LoopStatement((BlockStatement*)body);
+		return parser.Insert(new LoopStatement((BlockStatement*)body), token);
 	}
 
 	Node* BreakParselet::Parse(Parser& parser, Token token)
@@ -447,7 +442,7 @@ namespace O::AST
 		parser.ConsumeToken(Token::Semicolon);
 		if (parser.HasError()) return nullptr;
 
-		return (Node*) new BreakStatement(breakValue);
+		return (Node*)parser.Insert(new BreakStatement(breakValue), token);
 	}
 
 	Node* ClassDefinitionParselet::Parse(Parser& parser, Token token)
@@ -465,7 +460,7 @@ namespace O::AST
 		Token nextToken = parser.ConsumeToken();
 		if (parser.HasError()) return nullptr;
 
-		Identifier* name = new Identifier(className);
+		Identifier* name = parser.Insert(new Identifier(className), token);
 
 		// Parse body of class definition
 		ClassDeclarationStatement* classDeclaration = new ClassDeclarationStatement(name);
@@ -498,9 +493,11 @@ namespace O::AST
 		//Node* definition = ParseClassDefinitionBody(parser, nextToken);
 		if (parser.HasError()) return nullptr;
 
-		// Change the type to be complete
+		return parser.Insert(classDeclaration, token);
 
-		return classDeclaration;
+		// TODO: Change the type to be complete
+
+		
 	}
 
 	Node* LambdaParselet::Parse(Parser& parser, Node* left, Token token)
@@ -528,7 +525,7 @@ namespace O::AST
 		if (!body)
 			return parser.MakeError("Expected body for lambda", token);
 
-		return new LambdaExpression(nullptr, (TupleExpression*)left, body);
+		return parser.Insert(new LambdaExpression(nullptr, (TupleExpression*)left, body), left);
 	}
 
 	Type* TypenameParselet::Parse(Parser& parser, Token token)
@@ -539,7 +536,7 @@ namespace O::AST
 		//if (type->type == TypeKind::Incomplete)
 			//return (Type*)parser.MakeError("Cannot use incomplete typename, probably because it is being parsed right now");
 
-		return new BasicType(token.m_Value);
+		return parser.Insert(new BasicType(token.m_Value), token);
 	}
 
 	Type* ArrayTypeModifierParselet::Parse(Parser& parser, Type* left, Token token)
@@ -547,11 +544,12 @@ namespace O::AST
 		parser.ConsumeToken(Token::RightSquareBracket);
 		if (parser.HasError()) return nullptr;
 
-		return new ArrayType(left);
+		return parser.Insert(new ArrayType(left), left);
 	}
 	Type* NullableTypeModifierParselet::Parse(Parser& parser, Type* left, Token token)
 	{
 		left->m_IsNullable = true;
+		abort(); // TODO: Implement
 		return left;
 	}
 	Type* ParenthesizedTypeParselet::Parse(Parser& parser, Token token)
@@ -638,10 +636,10 @@ namespace O::AST
 
 		// Determine the type of what we found
 		if (typeOfType == Tuple)
-			return new TupleType(commaSeparatedTypes);
+			return parser.Insert(new TupleType(commaSeparatedTypes), token);
 
 		if (typeOfType == Function)
-			return new FunctionType(commaSeparatedTypes, functionReturnType);
+			return parser.Insert(new FunctionType(commaSeparatedTypes, functionReturnType), token);
 
 		if (typeOfType == SingleType)
 			return commaSeparatedTypes.front();
@@ -653,6 +651,7 @@ namespace O::AST
 
 	Node* InferedObjectInitializerParselet::Parse(Parser& parser, Token token)
 	{
+		abort();
 		return nullptr;
 	}
 
@@ -674,7 +673,7 @@ namespace O::AST
 			//parser.ConsumeToken(Token::RightSquareBracket);
 		}
 
-		return new ArrayLiteral(elements);
+		return parser.Insert(new ArrayLiteral(elements), token);
 	}
 	Node* SubscriptOperatorParselet::Parse(Parser& parser, Node* left, Token token)
 	{
@@ -700,6 +699,6 @@ namespace O::AST
 
 		parser.ConsumeToken(Token::RightSquareBracket);
 
-		return new BinaryExpression(left, op, right);
+		return parser.Insert(new BinaryExpression(left, op, right), left);
 	}
 }
