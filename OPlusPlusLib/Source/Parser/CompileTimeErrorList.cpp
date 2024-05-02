@@ -62,7 +62,13 @@ void CompileTimeErrorList::PrintErrors(Lexer::Tokens tokens)
 			0;
 		if (!error.isSingle)
 		{
-			int len = error.errorRange.m_End.index - error.errorRange.m_Start.index + 1;
+			int end = error.errorRange.m_End.index;
+
+			// If error spans multiple lines, mark the lest of the current line
+			if (error.errorRange.m_Start.line != error.errorRange.m_End.line)
+				end = lineOfError.length();
+
+			int len = end - error.errorRange.m_Start.index + 1;
 			errorMarkerLength = std::max(len, 1);
 		}
 

@@ -138,6 +138,8 @@ namespace O
 		void MakeErrorCallableAlreadyDefined(const std::string symbolName, SymbolType symbolType, CallableSignature signature, TypeTable& types);
 		void MakeErrorNotDefined(const std::string symbolName, O::AST::Node* node);
 		void MakeErrorInvalidCallableName(const std::string symbolName, SymbolType symbol);
+		void MakeErrorNoReturn(const std::string& functionName, const std::string& returnType, AST::Node* node);
+
 		void MakeErrorInvalidDeclaredType(const std::string symbolName, const std::string declaredType, const std::string expetedType);
 		void MakeErrorTypeInvalidProperty(const std::string typeName, const std::string property);
 		void MakeErrorTypeCallableNotDefined(const std::string typeName, DetailedCallableSignature signature);

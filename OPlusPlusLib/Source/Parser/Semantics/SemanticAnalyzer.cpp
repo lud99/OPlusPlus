@@ -636,7 +636,7 @@ namespace O
 			auto type = declaredReturnType.value();
 			if (!localTable.types.AreTypesEquivalent(type->id, PrimitiveValueTypes::Void))
 			{
-				MakeError(functionName + " with return type " + type->GetName(&localTable.types) + " has to return a value");
+				MakeErrorNoReturn(functionName, type->GetName(&localTable.types), node);
 				return {};
 			}
 		}
@@ -2121,6 +2121,13 @@ namespace O
 	{
 		std::string message = "Invalid name for callable " + symbolName + " (" + SymbolTypeToString(symbolType) + ")";
 		MakeError(message);
+	}
+
+	void SemanticAnalyzer::MakeErrorNoReturn(const std::string& functionName, const std::string& returnType, AST::Node* node)
+	{
+		std::string message = functionName + " with return type " + returnType + " has to return a value";
+		MakeError_Void(message, GetTokenRangeForNode(node));
+
 	}
 
 	void SemanticAnalyzer::MakeErrorInvalidDeclaredType(const std::string symbolName, const std::string declaredType, const std::string expectedType)
