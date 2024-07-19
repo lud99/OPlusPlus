@@ -74,6 +74,8 @@ int main(const char* args)
 		{
 			std::cout << "Generated AST after semantic analysis with type information\n\n";
 			tree->Print("", anal.GetGlobalTypeTable(), &anal);
+
+			//anal.PrintErrors(lexerWithComments.GetTokens());
 		}
 	}
 

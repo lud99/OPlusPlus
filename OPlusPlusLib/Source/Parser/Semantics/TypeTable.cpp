@@ -26,16 +26,9 @@ namespace O
 		if (kind == TypeKind::Class)
 			return typeName;
 
-		std::stringstream name;
-		/*name << TypeEntryTypeToString(kind) << "<";
-
-		for (const auto& [typeId, type] : table->GetTypes())
-		{
-			name << 
-		}*/
-			return TypeEntryTypeToString(kind) + "<" + Join(typeArguments, std::string(", "), [&table](TypeId id) {
-				return table->Lookup(id)->GetName(table); }) 
-			+ ">";
+		return TypeEntryTypeToString(kind) + "<" + Join(typeArguments, std::string(", "), [&table](TypeId id) {
+			return table->Lookup(id)->GetName(table); }) 
+		+ ">";
 	}
 
 	TypeTable::TypeTable()
@@ -159,7 +152,7 @@ namespace O
 		return Lookup("Reference<" + name + ">");
 	}
 
-	const Type* TypeTable::Insert(const std::string& typeName, TypeKind type, bool insertReference)
+	const Type* TypeTable::Insert(const std::string& typeName, TypeKind type, std::vector<const Type*> typeArguments, bool insertReference)
 	{
 		assert(!HasCompleteType(typeName));
 
@@ -167,6 +160,10 @@ namespace O
 
 		m_Typenames[typeName] = id;
 		m_Types[id] = new Type(typeName, id, type);
+		for (auto& type : typeArguments)
+		{
+			m_Types[id]->typeArguments.push_back(type->id);
+		}
 
 		if (insertReference)
 			InsertReferenceType(m_Types[id]);
@@ -201,13 +198,7 @@ namespace O
 			global = global->m_UpwardTypeTable;
 		}
 
-		Type* typeEntry = (Type*)global->Insert(name, type, insertReference);
-
-		// Set the type arguments
-		for (auto& argument : typeArguments)
-		{
-			typeEntry->typeArguments.push_back(argument->id);
-		}
+		Type* typeEntry = (Type*)global->Insert(name, type, typeArguments, insertReference);
 
 		return typeEntry;
 	}
@@ -419,7 +410,7 @@ namespace O
 
 		for (uint16_t i = 0; i < typeKeywords.size(); i++)
 		{
-			m_Typenames[typeKeywords[i]] = Insert(typeKeywords[i], TypeKind::Primitive, false)->id;
+			m_Typenames[typeKeywords[i]] = Insert(typeKeywords[i], TypeKind::Primitive, {}, false)->id;
 		}
 
 		// Reference types

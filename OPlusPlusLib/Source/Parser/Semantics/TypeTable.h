@@ -104,7 +104,7 @@ namespace O
 		std::vector<const Type*> Lookup(std::vector<TypeId> typeIds);
 		const Type* LookupReference(TypeId typeId);
 
-		const Type* Insert(const std::string& typeName, TypeKind type, bool insertReference = true);
+		const Type* Insert(const std::string& typeName, TypeKind type, std::vector<const Type*> typeArguments = {}, bool insertReference = true);
 
 		const Type* InsertGeneric(TypeKind type, std::vector<const Type*> typeArguments, bool& existed, bool insertReference = true);
 		const Type* InsertGeneric(TypeKind type, std::vector<const Type*> typeArguments, bool insertReference = true);

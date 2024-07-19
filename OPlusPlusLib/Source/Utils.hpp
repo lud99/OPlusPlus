@@ -125,6 +125,27 @@ static std::string Join(const std::vector<T>& elements, std::string delimiter, F
 	return result.str();
 };
 
+
+template <typename T, typename Func>
+static std::vector<T> Map(const std::vector<T>& elements, Func func) {
+	std::vector<T> result;
+	for (auto& elem : elements)
+	{
+		result.push_back(func(elem));
+	}
+	return result;
+};
+
+template <typename T, typename Y, typename Func>
+static std::vector<Y> Map(std::vector<T>& elements, Func func) {
+	std::vector<Y> result;
+	for (auto& elem : elements)
+	{
+		result.push_back(func(elem));
+	}
+	return result;
+};
+
 template <typename T, typename Func>
 static int MatchFirst(std::vector<T>& elements, Func predicate) {
 	for (size_t i = 0; i < elements.size(); i++)

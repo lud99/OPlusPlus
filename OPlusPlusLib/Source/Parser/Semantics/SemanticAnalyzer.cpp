@@ -1020,8 +1020,15 @@ namespace O
 
 		Analyze(expr->m_Lhs, table);
 
-		ClassSymbol* parentSymbol = (ClassSymbol*)GetSymbolForNode(expr->m_Lhs, table);
-		SymbolTypeTable* localTable = parentSymbol ? parentSymbol->m_Table : &table;
+		Symbol* parentSymbol = GetSymbolForNode(expr->m_Lhs, table);
+		if (parentSymbol && parentSymbol->m_SymbolType != SymbolType::Class)
+		{
+			MakeError("Can only access property on a class", expr->m_Lhs);
+			return {};
+		}
+
+		ClassSymbol* parentClassSymbol = (ClassSymbol*)parentSymbol;
+		SymbolTypeTable* localTable = parentClassSymbol ? parentClassSymbol->m_Table : &table;
 
 		const O::Type* lhsType = GetTypeOfExpression(expr->m_Lhs, *localTable);
 		if (HasError())
@@ -1048,7 +1055,7 @@ namespace O
 
 			// lhs
 
-			ClassSymbol* classSymbol = !parentSymbol ? (ClassSymbol*)table.symbols.LookupClassByType(lhsType->id) : parentSymbol;
+			ClassSymbol* classSymbol = !parentClassSymbol ? (ClassSymbol*)table.symbols.LookupClassByType(lhsType->id) : parentClassSymbol;
 
 			localTable = classSymbol->m_Table;
 			Analyze(expr->m_Rhs, *classSymbol->m_Table);

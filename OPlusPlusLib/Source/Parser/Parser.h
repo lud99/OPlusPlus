@@ -129,13 +129,16 @@ namespace O::AST
 	{
 		TokenPosition endPosition = m_LastConsumedToken.m_StartPosition;
 
-		// If a node has only a single token
-		//if (startToken == m_LastConsumedToken)
+		// Because string literals have quotes, we need to increase the end position
+		// by 2 ("" + "" = 2)
+		int delta = 0;
+		if (startToken.m_Type == Token::StringLiteral)
 		{
-			//endPosition = startToken.m_StartPosition;
-			endPosition.column += m_LastConsumedToken.m_Value.length() - 1;
-			endPosition.index += m_LastConsumedToken.m_Value.length() - 1;
+			delta = 2;
 		}
+
+		endPosition.column += m_LastConsumedToken.m_Value.length() - 1 + delta;
+		endPosition.index += m_LastConsumedToken.m_Value.length() - 1 + delta;
 
 		return Insert(node, { startToken.m_StartPosition, endPosition });
 	}
