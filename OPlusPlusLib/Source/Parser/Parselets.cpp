@@ -390,7 +390,7 @@ namespace O::AST
 				//return parser.MakeError("Expected ';' after lamba expression");
 			//if (parser.HasError()) return nullptr;
 
-			return parser.Insert(new FunctionDefinitionStatement(returnType, name, parameters, expression, true), token);
+			return parser.Insert(new FunctionDefinitionStatement(returnType, name, parameters, expression), token);
 		}
 
 		// Otherwise parse body
@@ -522,10 +522,12 @@ namespace O::AST
 		if (parser.HasError())
 			return nullptr;
 
+		// TODO: Parse lambda return type
+
 		if (!body)
 			return parser.MakeError("Expected body for lambda", token);
 
-		return parser.Insert(new LambdaExpression(nullptr, (TupleExpression*)left, body), left);
+		return parser.Insert(new LambdaExpression(nullptr, nullptr, (FunctionParameters*)left, body, true), left);
 	}
 
 	Type* TypenameParselet::Parse(Parser& parser, Token token)

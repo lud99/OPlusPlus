@@ -41,6 +41,7 @@ namespace O::AST::Nodes
 	{
 		if (!analyzer) return "";
 
+		// TODO: Doesn't work when comments exists in the file, also its broken for classes right now
 		auto range = analyzer->GetTokenRangeForNode(node);
 
 		auto& src = analyzer->GetSourceCode();
@@ -54,7 +55,7 @@ namespace O::AST::Nodes
 		if (analyzer)
 			return " -> " + CachedTypeToString(node, table, analyzer) + "\n";
 
-		assert(!table && !analyzer);
+		assert(!analyzer);
 		return "\n";
 	}
 
@@ -345,14 +346,14 @@ namespace O::AST::Nodes
 			m_ReturnValue->Print(padding + "    ", table, analyzer);
 	}
 
-	FunctionDefinitionStatement::FunctionDefinitionStatement(Type* returnType, Identifier* name, FunctionParameters* parameters, Node* body, bool isExpressive)
+	FunctionDefinitionStatement::FunctionDefinitionStatement(Type* returnType, Identifier* name, FunctionParameters* parameters, Node* body, bool isLambda)
 	{
 		m_Type = NodeKind::FunctionDefinition;
 		m_ReturnType = returnType;
 		m_Name = name;
 		m_Parameters = parameters;
 		m_Body = body;
-		m_IsExpressive = isExpressive;
+		m_IsLambda = isLambda;
 	}
 
 	void FunctionDefinitionStatement::Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer)
@@ -402,7 +403,7 @@ namespace O::AST::Nodes
 		if (m_Name) m_Name->Print(newPadding, table, analyzer);
 
 		std::cout << padding + "    (body) \n";
-		if (m_Body) m_Body->Print(newPadding, m_IsExpressive ? table : nullptr, analyzer);
+		if (m_Body) m_Body->Print(newPadding, IsExpression() ? table : nullptr, analyzer);
 	}
 
 	ClosureExpression::ClosureExpression(BlockStatement* body)
@@ -460,17 +461,19 @@ namespace O::AST::Nodes
 			m_ClassSymbol->m_Table->types.Print(newPadding);
 		std::cout << "\n";
 
+		SymbolTypeTable* classTable = m_ClassSymbol ? m_ClassSymbol->m_Table : nullptr;
+
 		m_Name->Print(padding + "    ", table, analyzer);
 
 		std::cout << padding + "    (member variables) \n";
 		for (auto& node : m_MemberDeclarations)
-			node->Print(newPadding, m_ClassSymbol->m_Table, analyzer);
+			node->Print(newPadding, classTable, analyzer);
 		std::cout << padding + "    (methods) \n";
 		for (auto& node : m_MethodDeclarations)
-			node->Print(newPadding, m_ClassSymbol->m_Table, analyzer);
+			node->Print(newPadding, classTable, analyzer);
 		std::cout << padding + "    (nested classes) \n";
 		for (auto& node : m_NestedClassDeclarations)
-			node->Print(newPadding, m_ClassSymbol->m_Table, analyzer);
+			node->Print(newPadding, classTable, analyzer);
 	}
 
 	TupleExpression::TupleExpression(std::vector<Node*> elements)
@@ -487,29 +490,7 @@ namespace O::AST::Nodes
 			element->Print(padding + "    ", table, analyzer);
 	}
 
-	LambdaExpression::LambdaExpression(Type* returnType, TupleExpression* parameters, Node* body)
-	{
-		m_Type = NodeKind::LambdaExpression;
-		m_ReturnType = returnType;
-		m_Parameters = parameters;
-		m_Body = body;
-	}
-	void LambdaExpression::Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer)
-	{
-		std::string newPadding = padding + "        ";
-		std::cout << padding << TypeToString() << ": \n";
-
-		std::cout << padding + "    (return type): \n";
-		if (m_ReturnType) m_ReturnType->Print(newPadding, table, analyzer);
-
-		std::cout << padding + "    (parameters): \n";
-		m_Parameters->Print(newPadding, table, analyzer);
-
-		std::cout << padding + "    (body): \n";
-		if (m_Body)
-			m_Body->Print(newPadding, table, analyzer);
-	}
-
+	
 	FunctionType::FunctionType(std::vector<Type*> parameters, Type* returnType)
 	{
 		m_Type = NodeKind::FunctionType;

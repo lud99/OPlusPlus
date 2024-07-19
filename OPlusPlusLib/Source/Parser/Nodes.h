@@ -249,7 +249,7 @@ namespace O::AST::Nodes
 
 	struct FunctionDefinitionStatement : public Node
 	{
-		FunctionDefinitionStatement(Type* returnType, Identifier* name, FunctionParameters* parameters, Node* body, bool isExpressive = false);
+		FunctionDefinitionStatement(Type* returnType, Identifier* name, FunctionParameters* parameters, Node* body, bool isLambda = false);
 
 		Type* m_ReturnType;
 		Identifier* m_Name;
@@ -258,10 +258,10 @@ namespace O::AST::Nodes
 		Node* m_Body = nullptr;
 
 		// A function is 'expressiv' if it has an expression as a body
-		bool m_IsExpressive = false;
+		bool m_IsLambda = false;
 
 		bool IsPrototype() { return m_Body == nullptr; }
-		bool IsExpressionFunction() { return m_Body->m_Type != NodeKind::BlockStatement; }
+		bool IsExpression() { return m_Body->m_Type != NodeKind::BlockStatement; }
 
 		virtual void Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer) override;
 	};
@@ -312,18 +312,7 @@ namespace O::AST::Nodes
 		virtual void Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer) override;
 	};
 
-	struct LambdaExpression : public Node
-	{
-		LambdaExpression(Type* returnType, TupleExpression* parameters, Node* body);
-
-		Type* m_ReturnType;
-		TupleExpression* m_Parameters;
-
-		Node* m_Body = nullptr;
-
-		virtual void Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer) override;
-	};
-
+	typedef FunctionDefinitionStatement LambdaExpression;
 
 
 	struct ClassDeclarationStatement;

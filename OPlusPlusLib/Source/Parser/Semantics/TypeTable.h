@@ -113,6 +113,7 @@ namespace O
 
 		// TODO: refactor to use assignment overload in the class instead?
 		const Type* Replace(const Type* type, const Type* newType);
+		void Replace(TypeId type, TypeId newType);
 
 		const Type* InsertArray(const Type* underlyingType, bool& existed);
 		const Type* InsertTuple(std::vector<const Type*> underlyingTypes);

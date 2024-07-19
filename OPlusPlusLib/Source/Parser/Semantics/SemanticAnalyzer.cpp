@@ -279,7 +279,7 @@ namespace O
 		{
 			FunctionDefinitionStatement* function = (FunctionDefinitionStatement*)node;
 
-			if (function->m_IsExpressive)
+			if (function->IsExpression())
 			{
 				returnTypes.push_back(GetTypeOfExpression(function->m_Body, table));
 			}
@@ -492,7 +492,7 @@ namespace O
 		return table.symbols.InsertCallable(callable);
 	}
 
-	CallableSymbol* SemanticAnalyzer::CreateAndDetermineReturnTypeForCallableDeclaration(Nodes::FunctionDefinitionStatement* node, SymbolTypeTable& table)
+	CallableSymbol* SemanticAnalyzer::CreateAndDetermineReturnTypeForCallableDeclaration(Nodes::FunctionDefinitionStatement* node, SymbolTypeTable& table, CallableSymbolType callableType)
 	{
 
 		// -- Algorithm for resolving return type of recursive function --
@@ -500,7 +500,7 @@ namespace O
 		// 2. analyze f and create new types for expressions involving f (X_i)
 		// 3. ...
 
-		std::string functionName = node->m_Name->ToString();
+		std::string functionName = !node->m_IsLambda ? node->m_Name->ToString() : "";
 		auto& parametersTable = GetSymbolTypeTableForNode(node);
 
 		std::vector<TypeId> parameterTypeIds;
@@ -516,18 +516,35 @@ namespace O
 			//return {};
 
 		// Either create a new unknown type or use the declared
-		const Type* returnType = !node->m_ReturnType ? table.types.InsertIncomplete() : declaredReturnType.value();
+		const Type* returnType = nullptr;
+		if (callableType == CallableSymbolType::Constructor)
+		{
+			const Symbol* thisSymbol = table.symbols.Lookup("this")[0];
+			const Type* classType = table.types.Lookup(thisSymbol->m_DataType);
+			returnType = classType;
+		}
+		else
+		{
+			returnType = !node->m_ReturnType ? table.types.InsertIncomplete() : declaredReturnType.value();
+		}
+
 		const Type X = *returnType;
+		const Type Xref = *table.types.LookupReference(X.id);
+
 
 		// Create the symbol for the callable so recursion works
-		CallableSymbol* symbol = CreateCallableSymbol(node, table, functionName, CallableSymbolType::Normal, parameterTypeIds, returnType);
+		CallableSymbol* symbol = !node->m_IsLambda ?
+			CreateCallableSymbol(node, table, functionName, callableType, parameterTypeIds, returnType)
+			:
+			nullptr;
+
 		Analyze(node->m_Body, parametersTable);
 		if (HasError())
 			return {};
 
 		if (declaredReturnType.has_value())
 		{
-			IsValidReturnTypesInCallableDefinition(node, declaredReturnType, true);
+			IsValidReturnTypesInCallableDefinition(node, callableType, declaredReturnType, true);
 			if (HasError())
 				return nullptr;
 
@@ -539,6 +556,12 @@ namespace O
 		// Replace x with the possible return values
 		std::vector<const Type*> possibleReturnTypes;	
 		GetReturnTypes(node, possibleReturnTypes, parametersTable /* TODO: add expected type argument? */);
+		if (callableType == CallableSymbolType::Constructor)
+		{
+			const Symbol* thisSymbol = table.symbols.Lookup("this")[0];
+			const Type* classType = table.types.Lookup(thisSymbol->m_DataType);
+			possibleReturnTypes.push_back(classType);
+		}
 
 		// If no return statements, then the function has to return void
 		if (possibleReturnTypes.empty())
@@ -546,10 +569,14 @@ namespace O
 			// If there is a declared type, then it has to not return void (nothing)
 			if (!declaredReturnType.has_value())
 			{
-				// We can early return if body is empty, but there could still be recursion 
-				// involving the returntype that might not be valid if x = void
-				possibleReturnTypes.push_back(parametersTable.types.Lookup(PrimitiveValueTypes::Void));
+				if (callableType == CallableSymbolType::Normal)
+				{
+					// We can early return if body is empty, but there could still be recursion 
+					// involving the returntype that might not be valid if x = void
+					possibleReturnTypes.push_back(parametersTable.types.Lookup(PrimitiveValueTypes::Void));
+				}
 			}
+
 		}
 		
 
@@ -579,7 +606,7 @@ namespace O
 			if (HasError() && possibleReturnTypes.size() != 1 && !declaredReturnType.has_value())
 				continue;
 			
-			OptType possibleReturnType = IsValidReturnTypesInCallableDefinition(node, declaredReturnType);
+			OptType possibleReturnType = IsValidReturnTypesInCallableDefinition(node, callableType, declaredReturnType);
 
 			if (possibleReturnType.has_value())
 			{
@@ -598,8 +625,20 @@ namespace O
 		{
 			// Replace X with the correct type and analyze again
 			// This is so none of the invalid possibilities has affected the types
-			parametersTable.types.Replace(returnType, validPossibilities[0]);
-			symbol->m_DataType = validPossibilities[0]->id;
+			//parametersTable.types.Replace(returnType, validPossibilities[0]);
+			//parametersTable.types.Replace(parametersTable.types.LookupReference(returnType->id), 
+				//parametersTable.types.LookupReference(validPossibilities[0]->id));
+
+
+			parametersTable.types.Replace(X.id, validPossibilities[0]->id);
+			parametersTable.types.Replace(Xref.id,
+				parametersTable.types.LookupReference(validPossibilities[0]->id)->id);
+
+			//m_ResolvedOverloadCache[node->m_Name].returnType = validPossibilities[0]->id;
+
+
+			if (symbol) 
+				symbol->m_DataType = validPossibilities[0]->id;
 
 			Analyze(node->m_Body, parametersTable);
 			return symbol;
@@ -621,7 +660,7 @@ namespace O
 		}
 	}
 
-	OptType SemanticAnalyzer::IsValidReturnTypesInCallableDefinition(Nodes::FunctionDefinitionStatement* node, OptType declaredReturnType, bool throwing)
+	OptType SemanticAnalyzer::IsValidReturnTypesInCallableDefinition(Nodes::FunctionDefinitionStatement* node, CallableSymbolType callableType, OptType declaredReturnType, bool throwing)
 	{
 		std::string functionName = node->m_Name->ToString();
 
@@ -629,15 +668,24 @@ namespace O
 		
 		std::vector<const O::Type*> returnValueTypes;
 		GetReturnTypes(node, returnValueTypes, localTable, declaredReturnType);
+		if (callableType == CallableSymbolType::Constructor)
+		{
+			const Symbol* thisSymbol = localTable.symbols.Lookup("this")[0];
+			const Type* classType = localTable.types.Lookup(thisSymbol->m_DataType);
+			returnValueTypes.push_back(classType);
+		}
 
 		// If no return statements but a declared return type
 		if (returnValueTypes.empty() && declaredReturnType.has_value() && throwing)
 		{
-			auto type = declaredReturnType.value();
-			if (!localTable.types.AreTypesEquivalent(type->id, PrimitiveValueTypes::Void))
+			if (callableType != CallableSymbolType::Constructor)
 			{
-				MakeErrorNoReturn(functionName, type->GetName(&localTable.types), node);
-				return {};
+				auto type = declaredReturnType.value();
+				if (!localTable.types.AreTypesEquivalent(type->id, PrimitiveValueTypes::Void))
+				{
+					MakeErrorNoReturn(functionName, type->GetName(&localTable.types), node);
+					return {};
+				}
 			}
 		}
 
@@ -682,14 +730,12 @@ namespace O
 
 	CallableSymbol* SemanticAnalyzer::CreateSymbolForFunctionDeclaration(Nodes::FunctionDefinitionStatement* node, SymbolTypeTable& table, bool isMethod)
 	{
-		std::string functionName = node->m_Name->ToString();
-
 		// Initialize symbol table for the function parameters to live in
 		auto& parametersTable = CreateTableForNode(node, &table);
 		auto parameterTypeIds = CreateSymbolsForCallableParameters(node);
 
 
-		CallableSymbol* symbol = CreateAndDetermineReturnTypeForCallableDeclaration(node, table);
+		CallableSymbol* symbol = CreateAndDetermineReturnTypeForCallableDeclaration(node, table, CallableSymbolType::Normal);
 
 		// TODO: Continue compiling even if body failed
 		if (HasError())
@@ -776,7 +822,7 @@ namespace O
 			}
 		}
 
-		CallableSymbol* method = CreateAndDetermineReturnTypeForCallableDeclaration(node, classTable);
+		CallableSymbol* method = CreateAndDetermineReturnTypeForCallableDeclaration(node, classTable, methodType);
 		if (HasError())
 			return nullptr;
 		assert(method);
@@ -1744,19 +1790,15 @@ namespace O
 			FunctionDefinitionStatement* functionNode = (FunctionDefinitionStatement*)node;
 
 			CallableSymbol* function = CreateSymbolForFunctionDeclaration((FunctionDefinitionStatement*)node, table);
-			if (HasError())
-				return;
-			
-			//OptType returnType = {};
-			//if (functionNode->m_ReturnType)
-			//	returnType = ResolveTypeNode(functionNode->m_ReturnType, table);
+			return;
+		}
+		case NodeKind::LambdaExpression:
+		{
+			LambdaExpression* lambdaNode = (LambdaExpression*)node;
 
-			//// Analyze the body
-			//// TODO: Ensure a return exists
-			//// TODO: Typecheck returned type and function return type
-			//auto& parametersTable = GetSymbolTypeTableForNode(node);
-			//Analyze(functionNode->m_Body, parametersTable, returnType);
-
+			// TODO: Crashes because not parsing lambda parameters as parameters, but rather expressions
+			// Not sure if its very easy to fix..
+			CallableSymbol* function = CreateSymbolForFunctionDeclaration(lambdaNode, table);
 			return;
 		}
 

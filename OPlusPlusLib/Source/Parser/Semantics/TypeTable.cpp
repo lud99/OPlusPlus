@@ -23,8 +23,17 @@ namespace O
 		if (kind == TypeKind::Primitive)
 			return typeName;
 
-		return TypeEntryTypeToString(kind) + "<" +
-			Join(typeArguments, std::string(", "), [table](TypeId id) { 
+		if (kind == TypeKind::Class)
+			return typeName;
+
+		std::stringstream name;
+		/*name << TypeEntryTypeToString(kind) << "<";
+
+		for (const auto& [typeId, type] : table->GetTypes())
+		{
+			name << 
+		}*/
+			return TypeEntryTypeToString(kind) + "<" + Join(typeArguments, std::string(", "), [table](TypeId id) {
 				return table->Lookup(id)->GetName(table); }) 
 			+ ">";
 	}
@@ -211,7 +220,16 @@ namespace O
 	const Type* TypeTable::InsertIncomplete()
 	{
 		std::string name = "X" + std::to_string(m_NextFreeTypeId);
-		return Insert(name, TypeKind::Incomplete);
+
+		// Go to the global table to insert incomplete types
+		// This is to prevent the same type having different id's in different scopes
+		TypeTable* global = this;
+		while (global && global->m_TableType == TypeTableType::Local)
+		{
+			global = global->m_UpwardTypeTable;
+		}
+
+		return global->Insert(name, TypeKind::Incomplete);
 	}
 
 	const Type* TypeTable::Replace(const Type* type, const Type* newType)
@@ -220,6 +238,11 @@ namespace O
 		*t = *newType;
 		
 		return t;
+	}
+
+	void TypeTable::Replace(TypeId type, TypeId newType)
+	{
+		*LookupNonConst(type) = *Lookup(newType);
 	}
 
 	const Type* TypeTable::InsertArray(const Type* underlyingType, bool& existed)

@@ -113,8 +113,9 @@ namespace O
 
 		std::vector<TypeId> CreateSymbolsForCallableParameters(Nodes::FunctionDefinitionStatement* node);
 		
-		CallableSymbol* CreateAndDetermineReturnTypeForCallableDeclaration(Nodes::FunctionDefinitionStatement* node, SymbolTypeTable& table);
-		OptType IsValidReturnTypesInCallableDefinition(Nodes::FunctionDefinitionStatement* node, OptType declaredReturnType = {}, bool throwing = false);
+		CallableSymbol* CreateAndDetermineReturnTypeForCallableDeclaration(Nodes::FunctionDefinitionStatement* node, SymbolTypeTable& table, CallableSymbolType callableType);
+		OptType IsValidReturnTypesInCallableDefinition(Nodes::FunctionDefinitionStatement* node, CallableSymbolType callableType,
+			OptType declaredReturnType = {}, bool throwing = false);
 
 		CallableSymbol* CreateCallableSymbol(Nodes::FunctionDefinitionStatement* node, SymbolTypeTable& table, const std::string& callableName, CallableSymbolType callableKind, std::vector<O::TypeId> parameterTypeIds, const Type* returnType);
 
