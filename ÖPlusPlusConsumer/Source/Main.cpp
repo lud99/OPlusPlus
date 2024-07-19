@@ -10,7 +10,7 @@ int main(const char* args)
 
 	setlocale(LC_ALL, "");
 
-	std::ifstream file("Programs/class_constructor.ö");
+	std::ifstream file("Programs/fix_comments.ö");
 	if (!file.good())
 	{
 		std::cout << "Could not open file :(\n";
@@ -23,7 +23,7 @@ int main(const char* args)
 
 	const std::string& source = buffer.str();
 
-	O::Lexer::Lexer lexer;
+	O::Lexer::Lexer lexer, lexerWithComments;
 	std::string error = lexer.CreateTokens(source);
 	if (error != "")
 	{
@@ -31,12 +31,19 @@ int main(const char* args)
 		return 0;
 	}
 
-	std::cout << O::Lexer::Lexer::ReconstructSourcecode(lexer.GetTokens()) << "\n\n";
+	// Hacky way to generate tokens with comments
+	// TODO: Should not require 2 steps
+	error = lexerWithComments.CreateTokens(source, true);
+	if (error != "")
+	{
+		std::cout << "Lexer error (with comments): " << error << "\n";
+		return 0;
+	}
+
+	std::cout << O::Lexer::Lexer::ReconstructSourcecode(lexerWithComments.GetTokens()) << "\n\n";
 
 
-	auto& t = lexer.GetTokens();
-
-	O::AST::Parser parser(lexer.GetTokens());
+	O::AST::Parser parser(lexer.GetTokens(), lexerWithComments.GetTokens());
 	AST::Node* tree = parser.ParseProgram();
 
 	if (tree)
@@ -45,7 +52,7 @@ int main(const char* args)
 
 	if (parser.HasError())
 	{
-		parser.PrintErrors(lexer.GetTokens());
+		parser.PrintErrors(lexerWithComments.GetTokens());
 		return 0;
 	}
 	assert(tree);
@@ -60,7 +67,7 @@ int main(const char* args)
 
 		std::cout << "\n\n";
 
-		anal.PrintErrors(lexer.GetTokens());
+		anal.PrintErrors(lexerWithComments.GetTokens());
 	}
 	//else
 	{

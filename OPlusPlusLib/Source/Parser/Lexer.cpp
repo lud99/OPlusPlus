@@ -399,17 +399,36 @@ namespace O::Lexer
 		{
 			if (Current() == '\n')
 			{
-				m_CurrentLine++;
+				if (createCommentTokens)
+				{
+					// Single line + \n: end comment
+					if (isInSingleLineComment)
+					{
+						token = AddExistingToken(token);
+						//AddNewToken(Token::NewLine, "\n");
+					}
+					else if (isMultilineComment)
+					{
+						// A token cannot span multiple lines, so multiline comments
+						// has to be broken up in multiple tokens
+						token = AddExistingToken(token);
+						token.m_Type = Token::MultiLineComment;
 
+						// Hacky-ish code to calculate the correct postion
+						m_CurrentLine++;
+						token.m_StartPosition = CalculateLineAndColumn();
+						// Needed because newlines are not included in token value, so the column is one less than it should be
+						token.m_StartPosition.column++; 
+						m_CurrentLine--;
+
+						//token.m_Value += "\n";
+					}
+				}
+				
 				if (isInSingleLineComment)
 					isInSingleLineComment = false;
 
-				if (shouldAddSemicolon())
-					AddNewToken(Token::Semicolon, ";");
-
-				if (createCommentTokens)
-					AddNewToken(Token::NewLine, "\n");
-				
+				m_CurrentLine++;
 				continue;
 			}
 
@@ -463,7 +482,11 @@ namespace O::Lexer
 						if (Next() == '*')
 						{
 							isMultilineComment = true;
-							if (createCommentTokens) token.m_Type = Token::MultiLineComment;
+							if (createCommentTokens)
+							{
+								token.m_Value = "/*";
+								token.m_Type = Token::MultiLineComment;
+							}
 
 							Skip();
 							continue;
@@ -472,7 +495,11 @@ namespace O::Lexer
 						{
 							if (!isMultilineComment) isInSingleLineComment = true;
 
-							if (createCommentTokens) token.m_Type = Token::SingleLineComment;
+							if (createCommentTokens)
+							{
+								token.m_Value = "//";
+								token.m_Type = Token::SingleLineComment;
+							}
 
 							Skip();
 							continue;
@@ -486,7 +513,12 @@ namespace O::Lexer
 						if (IsNext() && Current() == '*' && Next() == '/')
 						{
 							isMultilineComment = false;
-							if (createCommentTokens) AddExistingToken(token);
+							if (createCommentTokens)
+							{
+								token.m_Value += "*/";
+								AddExistingToken(token);
+							}
+							
 							token = Token();
 							Skip();
 							continue;

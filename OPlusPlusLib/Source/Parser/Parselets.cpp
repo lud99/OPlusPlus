@@ -413,7 +413,7 @@ namespace O::AST
 			return ParseFunctionDefinition(parser, parser.ConsumeToken());
 
 		// Otherwise it's a variable declaration
-		return parser.ParseVariableDeclaration(parser.ConsumeToken());
+		return parser.ParseVariableDeclaration(token);
 	}
 
 	Node* ClosureParselet::Parse(Parser& parser, Token token)

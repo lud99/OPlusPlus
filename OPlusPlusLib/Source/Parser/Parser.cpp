@@ -11,9 +11,11 @@ namespace O::AST
 {
 	using namespace Nodes;
 
-	Parser::Parser(Tokens& tokens)
+	Parser::Parser(Tokens& tokens, Tokens& tokensIncludingComments)
 	{
 		m_Tokens = tokens;
+		m_TokensIncludingComments = tokensIncludingComments;
+
 		m_TokenStream = std::deque<Token>(tokens.begin(), tokens.end());
 
 		using namespace Operators;
@@ -404,7 +406,9 @@ namespace O::AST
 
 	VariableDeclaration* Parser::ParseVariableDeclaration(Token token, bool consumeEndToken, std::vector<Token::Types> endTokens)
 	{
-		Identifier* name = ParseIdentifier(token);
+		Token letToken = token;
+
+		Identifier* name = ParseIdentifier(ConsumeToken());
 		if (HasError()) return nullptr;
 
 		Type* type = ParseTypeAnnotation();
@@ -454,7 +458,7 @@ namespace O::AST
 			}
 		}
 
-		return Insert(new VariableDeclaration(name, type, assignedValue), token);
+		return Insert(new VariableDeclaration(name, type, assignedValue), letToken);
 	}
 
 	FunctionParameters* Parser::ParseFunctionParameters(Token token)

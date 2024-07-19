@@ -1,0 +1,15 @@
+// this is a comment
+
+let a =
+/*
+long ass comment
+
+*/
+6;
+
+let a =
+5;
+// a
+let a = 3;
+
+a = 3;

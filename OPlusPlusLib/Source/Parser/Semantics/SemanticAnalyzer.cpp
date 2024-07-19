@@ -172,7 +172,7 @@ namespace O
 	{
 		m_Program = program;
 		m_NodesToTokesMappings = parser.m_NodesToTokesMappings;
-		m_SourceCode = O::Lexer::Lexer::ReconstructSourcecode(parser.GetTokens());
+		m_SourceCode = O::Lexer::Lexer::ReconstructSourcecode(parser.GetTokensIncludingComments());
 	}
 
 	void SemanticAnalyzer::AnalyzeProgram()

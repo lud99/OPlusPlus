@@ -31,7 +31,7 @@ namespace O::AST
 	class Parser : public CompileTimeErrorList
 	{
 	public:
-		EXPORT Parser(Tokens& tokens);
+		EXPORT Parser(Tokens& tokens, Tokens& tokensIncludingComments);
 
 		EXPORT Node* ParseProgram();
 		
@@ -79,11 +79,14 @@ namespace O::AST
 		bool TokenIsIdentifier(Token token) { return !TokenIsTypename(token) && token.m_Type == Token::Identifier; }
 
 		auto& GetTokens() { return m_Tokens; };
+		auto& GetTokensIncludingComments() { return m_TokensIncludingComments; };
 
 	private:
 		Tokens m_Tokens;
 		std::deque<Token> m_TokenStream;
 		Token m_LastConsumedToken;
+
+		Tokens m_TokensIncludingComments;
 
 		Node root;
 
