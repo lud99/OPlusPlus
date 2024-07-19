@@ -387,7 +387,7 @@ namespace O
 		if (!operatorOpt.has_value())
 		{
 			MakeError("Operator " + expression->m_Operator.m_Symbol + " not defined for types " +
-				Join(arguments, " and ", [&table](const Type* t) { return t->GetName(&table.types); }));
+				Join(arguments, " and ", [&table](const Type* t) { return t->GetName(&table.types); }), expression);
 
 			m_ResolvedOverloadCache.erase(expression);
 
@@ -428,7 +428,7 @@ namespace O
 				variableType = assignedValueType;
 
 			// Makes errors if types dont match.
-			if (!DoesTypesMatchThrowing(table.types, assignedValueType, variableType.value()))
+			if (!DoesTypesMatchThrowing(table.types, assignedValueType, variableType.value(), node))
 				return nullptr;
 		}
 		else
@@ -436,7 +436,7 @@ namespace O
 			// let x; x has no type annotated and no value to infer from, so error
 			if (!node->m_VariableType)
 			{
-				MakeError("Variable '" + node->m_VariableName->ToString() + "' has no annotated or infered type");
+				MakeError("Variable '" + node->m_VariableName->ToString() + "' has no annotated or infered type", node);
 				return nullptr;
 			}
 		}
@@ -444,7 +444,7 @@ namespace O
 		std::string variableName = node->m_VariableName->ToString();
 		if (table.symbols.Has(variableName))
 		{
-			MakeErrorAlreadyDefined(variableName, SymbolType::Variable);
+			MakeErrorAlreadyDefined(variableName, SymbolType::Variable, node);
 			return nullptr;
 		}
 
@@ -506,9 +506,11 @@ namespace O
 		// 1. Assign the return type of f to be X of incomplete kind
 		// 2. analyze f and create new types for expressions involving f (X_i)
 		// 3. ...
+		
 
 		std::string functionName = !node->m_IsLambda ? node->m_Name->ToString() : "";
 		auto& parametersTable = GetSymbolTypeTableForNode(node);
+
 
 		std::vector<TypeId> parameterTypeIds;
 		for (auto& [name, symbols] : parametersTable.symbols.GetSymbols())
@@ -645,6 +647,8 @@ namespace O
 			if (symbol)
 				symbol->m_DataType = validPossibilities[0]->id;
 
+			
+
 			Analyze(node->m_Body, parametersTable);
 			return symbol;
 		}
@@ -655,12 +659,12 @@ namespace O
 
 		if (validPossibilities.empty())
 		{
-			MakeError("Could not infer a valid return type for " + functionName);
+			MakeError("Could not infer a valid return type for " + functionName, node);
 			return nullptr;
 		}
 		if (validPossibilities.size() > 1)
 		{
-			MakeError("Could not infer a valid return type for " + functionName + ", multiple choices !! better error !!");
+			MakeError("Could not infer a valid return type for " + functionName + ", multiple choices !! better error !!", node);
 			return nullptr;
 		}
 	}
@@ -719,7 +723,7 @@ namespace O
 		{
 			if (throwing)
 			{
-				if (!DoesTypesMatchThrowing(localTable.types, type, returnType))
+				if (!DoesTypesMatchThrowing(localTable.types, type, returnType, node))
 					return {};
 			}
 			else
@@ -754,7 +758,7 @@ namespace O
 
 		assert(symbol);
 
-		if (!IsCallableDeclarationSymbolUnique(table, symbol))
+		if (!IsCallableDeclarationSymbolUnique(table, symbol, node))
 			return nullptr;
 
 		return symbol;
@@ -783,7 +787,7 @@ namespace O
 				ClassSymbol* symbol = (ClassSymbol*)symbols[0];
 				if (symbol->m_Name != methodName)
 				{
-					MakeErrorInvalidCallableName(methodName, SymbolType::Class);
+					MakeErrorInvalidCallableName(methodName, SymbolType::Class, node);
 					return nullptr;
 				}
 
@@ -838,13 +842,13 @@ namespace O
 			return nullptr;
 		assert(method);
 
-		if (!IsCallableDeclarationSymbolUnique(classTable, method))
+		if (!IsCallableDeclarationSymbolUnique(classTable, method, node))
 			return nullptr;
 
 		return method;
 	}
 
-	bool SemanticAnalyzer::IsCallableDeclarationSymbolUnique(SymbolTypeTable& table, CallableSymbol* declaredFunction, bool compareReturnTypes)
+	bool SemanticAnalyzer::IsCallableDeclarationSymbolUnique(SymbolTypeTable& table, CallableSymbol* declaredFunction, AST::Node* node, bool compareReturnTypes)
 	{
 		// This function is ran after the symbol has been created and checked against other sybmols
 		// TODO: If duplicate, what happens?
@@ -882,7 +886,7 @@ namespace O
 			if (isIdentical)
 			{
 				MakeErrorCallableAlreadyDefined(declaredFunction->m_Name, SymbolType::Function,
-					{ parameterTypes, declaredFunction->m_ReturnType }, table.types);
+					{ parameterTypes, declaredFunction->m_ReturnType }, table.types, node);
 				return false;
 			}
 		}
@@ -1069,7 +1073,7 @@ namespace O
 				auto results = classSymbol->m_Table->symbols.Lookup(prop->m_Name);
 				if (results.empty())
 				{
-					MakeError("Member '" + prop->m_Name + "' doesn't exist on class " + lhsType->GetName(&localTable->types));
+					MakeError("Member '" + prop->m_Name + "' doesn't exist on class " + lhsType->GetName(&localTable->types), prop);
 					return {};
 				}
 
@@ -1215,7 +1219,7 @@ namespace O
 		}
 		case TypeKind::Function:
 		{
-			MakeError("Scope Resolution can not be used on a function");
+			MakeError("Scope Resolution can not be used on a function", node);
 			return {};
 		}
 
@@ -1243,7 +1247,7 @@ namespace O
 				auto results = classSymbol->m_Table->symbols.Lookup(prop->m_Name);
 				if (results.empty())
 				{
-					MakeError("Member '" + prop->m_Name + "' doesn't exist on class " + lhsType.name);
+					MakeError_OLD("Member '" + prop->m_Name + "' doesn't exist on class " + lhsType.name);
 					return {};
 				}
 
@@ -1346,7 +1350,7 @@ namespace O
 		ResolveOperatorOverload(expression, table, arguments, expectedType);
 	}
 
-	bool SemanticAnalyzer::DoesTypesMatchThrowing(TypeTable& localTypeTable, const Type* otherType, const Type* expectedType)
+	bool SemanticAnalyzer::DoesTypesMatchThrowing(TypeTable& localTypeTable, const Type* otherType, const Type* expectedType, AST::Node* node)
 	{
 		// 1. Case when types are the same
 		if (localTypeTable.AreTypesEquivalent(otherType->id, expectedType->id))
@@ -1362,7 +1366,7 @@ namespace O
 
 		if (!typeRelation.has_value())
 		{
-			MakeError("Incompatible types. '" + otherTypeName + "' cannot be converted to '" + expectedTypeName + "' as they have no relation");
+			MakeError("Incompatible types. '" + otherTypeName + "' cannot be converted to '" + expectedTypeName + "' as they have no relation", node);
 			return false;
 		}
 
@@ -1373,7 +1377,7 @@ namespace O
 		}
 		else
 		{
-			MakeError("Incompatible types. '" + otherTypeName + "' cannot be converted to '" + expectedTypeName + "' implicitly");
+			MakeError("Incompatible types. '" + otherTypeName + "' cannot be converted to '" + expectedTypeName + "' implicitly", node);
 			return false;
 		}
 
@@ -1764,16 +1768,14 @@ namespace O
 				{
 					// TODO: Better error
 					const O::Type* calledOnType = table.types.Lookup(calleeSymbol->m_DataType);
-					return MakeError("No matching function '" + callee + "' found on " + calledOnType->GetName(&table.types));
-					//return MakeErrorTypeCallableNotDefined(calledOnType.name, callee);
+					return MakeError("No matching function '" + callee + "' found on " + calledOnType->GetName(&table.types), call);
 				}
 
 				if (!matchingCallableSignatures.empty())
 				{
 					std::string argumentTypesString = Join(calleSignature.parameterTypes, ", ", [&table](const O::Type* t) { return t->GetName(&table.types); });
 
-					return MakeError_Void("No matching function '" + callee + "' found for argument types (" + argumentTypesString + ")",
-						GetTokenRangeForNode(call));
+					return MakeError("No matching function '" + callee + "' found for argument types (" + argumentTypesString + ")", call);
 				}
 				else
 				{
@@ -1895,7 +1897,7 @@ namespace O
 			std::string name = classNode->m_Name->ToString();
 
 			if (table.types.HasCompleteType(name))
-				return MakeErrorAlreadyDefined(name, SymbolType::Class);
+				return MakeErrorAlreadyDefined(name, SymbolType::Class, classNode);
 
 			const O::Type* classType = table.types.Insert(name, TypeKind::Class);
 
@@ -1945,7 +1947,7 @@ namespace O
 			{
 				if (!expectedType.has_value())
 				{
-					MakeError("Could not infer type of empty array");
+					MakeError("Could not infer type of empty array", arr);
 					return;
 				}
 
@@ -1963,7 +1965,7 @@ namespace O
 				if (!table.types.AreTypesEquivalent(firstType, type))
 				{
 					MakeError("Array cannot contain elements of different types (" +
-						firstType->GetName(&table.types) + " and " + type->GetName(&table.types) + ")");
+						firstType->GetName(&table.types) + " and " + type->GetName(&table.types) + ")", arr);
 					return;
 				}
 			}
@@ -2160,18 +2162,23 @@ namespace O
 		return {};
 	}
 
-	void SemanticAnalyzer::MakeError(const std::string& message, CompileTimeError::Severity severity)
+	void SemanticAnalyzer::MakeError(const std::string& message, AST::Node* node, CompileTimeError::Severity severity)
+	{
+		MakeError_Void(message, GetTokenRangeForNode(node), severity);
+	}
+
+	void SemanticAnalyzer::MakeError_OLD_(const std::string& message, CompileTimeError::Severity severity)
 	{
 		MakeError_Void(message, Token(), severity);
 	}
 
-	void SemanticAnalyzer::MakeErrorAlreadyDefined(const std::string symbolName, SymbolType symbolType)
+	void SemanticAnalyzer::MakeErrorAlreadyDefined(const std::string symbolName, SymbolType symbolType, AST::Node* node)
 	{
 		std::string message = SymbolTypeToString(symbolType) + " " + symbolName + " is already defined";
-		MakeError(message);
+		MakeError(message, node);
 	}
 
-	void SemanticAnalyzer::MakeErrorCallableAlreadyDefined(const std::string symbolName, SymbolType symbolType, CallableSignature signature, TypeTable& types)
+	void SemanticAnalyzer::MakeErrorCallableAlreadyDefined(const std::string symbolName, SymbolType symbolType, CallableSignature signature, TypeTable& types, AST::Node* node)
 	{
 		std::string signatureStr = "(";
 		for (int i = 0; i < signature.parameterTypes.size() - 1; i++)
@@ -2182,7 +2189,7 @@ namespace O
 		signatureStr += types.Lookup(signature.parameterTypes.back())->GetName(&types) + " => " + types.Lookup(signature.returnType)->GetName(&types) + ")";
 
 		std::string message = SymbolTypeToString(symbolType) + " " + symbolName + " " + signatureStr + " is already defined";
-		MakeError(message);
+		MakeError(message, node);
 	}
 
 	void SemanticAnalyzer::MakeErrorNotDefined(const std::string symbolName, O::AST::Node* node)
@@ -2193,10 +2200,10 @@ namespace O
 
 	}
 
-	void SemanticAnalyzer::MakeErrorInvalidCallableName(const std::string symbolName, SymbolType symbolType)
+	void SemanticAnalyzer::MakeErrorInvalidCallableName(const std::string symbolName, SymbolType symbolType, AST::Node* node)
 	{
 		std::string message = "Invalid name for callable " + symbolName + " (" + SymbolTypeToString(symbolType) + ")";
-		MakeError(message);
+		MakeError(message, node);
 	}
 
 	void SemanticAnalyzer::MakeErrorNoReturn(const std::string& functionName, const std::string& returnType, AST::Node* node)
@@ -2209,12 +2216,12 @@ namespace O
 	void SemanticAnalyzer::MakeErrorInvalidDeclaredType(const std::string symbolName, const std::string declaredType, const std::string expectedType)
 	{
 		std::string message = "Invalid type " + declaredType + " declared for callable " + symbolName + ", expected type " + expectedType;
-		MakeError(message);
+		MakeError_OLD_(message);
 	}
 
 	void SemanticAnalyzer::MakeErrorTypeInvalidProperty(const std::string typeName, const std::string property)
 	{
-		MakeError("Type " + typeName + " doesn't have a property '" + property + "'");
+		MakeError_OLD_("Type " + typeName + " doesn't have a property '" + property + "'");
 	}
 
 	void SemanticAnalyzer::MakeErrorTypeCallableNotDefined(const std::string typeName, DetailedCallableSignature signature)
@@ -2225,7 +2232,7 @@ namespace O
 
 	void SemanticAnalyzer::MakeErrorTypeCallableNotDefined(const std::string typeName, const std::string name)
 	{
-		MakeError("Function " + name + " is not defined on type " + typeName);
+		MakeError_OLD_("Function " + name + " is not defined on type " + typeName);
 	}
 
 

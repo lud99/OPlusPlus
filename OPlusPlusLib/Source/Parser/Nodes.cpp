@@ -262,12 +262,12 @@ namespace O::AST::Nodes
 		m_Condition->Print(newPadding, table, analyzer);
 
 		std::cout << padding + "    (body) \n";
-		m_Body->Print(newPadding, &analyzer->GetSymbolTypeTableForNode(m_Body), analyzer);
+		m_Body->Print(newPadding, analyzer ? &analyzer->GetSymbolTypeTableForNode(m_Body) : nullptr, analyzer);
 
 		if (m_ElseArm)
 		{
 			std::cout << padding + "    (else) \n";
-			m_ElseArm->Print(newPadding, &analyzer->GetSymbolTypeTableForNode(m_ElseArm), analyzer);
+			m_ElseArm->Print(newPadding, analyzer ? &analyzer->GetSymbolTypeTableForNode(m_ElseArm) : nullptr, analyzer);
 		}
 	}
 
@@ -306,7 +306,7 @@ namespace O::AST::Nodes
 		m_Condition->Print(newPadding, table, analyzer);
 
 		std::cout << padding + "    (body) \n";
-		m_Body->Print(newPadding, &analyzer->GetSymbolTypeTableForNode(m_Body), analyzer);
+		m_Body->Print(newPadding, analyzer ? &analyzer->GetSymbolTypeTableForNode(m_Body) : nullptr, analyzer);
 	}
 	void Scope::Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer)
 	{
@@ -560,9 +560,7 @@ namespace O::AST::Nodes
 	}*/
 	void ArrayType::Print(std::string padding, SymbolTypeTable* table, SemanticAnalyzer* analyzer)
 	{
-		std::cout << padding << TypeToString() << GetT(this, table, analyzer);
-
-		m_UnderlyingType->Print(padding + "    ", table, analyzer);
+		std::cout << padding << TypeToString() << ": " << m_UnderlyingType->ToString() << "[]\n";
 	}
 	ArrayLiteral::ArrayLiteral(std::vector<Node*> elements)
 	{

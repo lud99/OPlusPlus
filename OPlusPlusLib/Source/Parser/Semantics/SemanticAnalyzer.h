@@ -119,11 +119,11 @@ namespace O
 
 		CallableSymbol* CreateCallableSymbol(Nodes::FunctionDefinitionStatement* node, SymbolTypeTable& table, const std::string& callableName, CallableSymbolType callableKind, std::vector<O::TypeId> parameterTypeIds, const Type* returnType);
 
-		bool IsCallableDeclarationSymbolUnique(SymbolTypeTable& table, CallableSymbol* declaredFunction, bool compareReturnTypes = true);
+		bool IsCallableDeclarationSymbolUnique(SymbolTypeTable& table, CallableSymbol* declaredFunction, AST::Node* node, bool compareReturnTypes = true);
 
 		Symbol* GetSymbolForNode(AST::Node* node, SymbolTypeTable& table);
 
-		bool DoesTypesMatchThrowing(TypeTable& localTypeTable, const Type* otherType, const Type* expectedType);
+		bool DoesTypesMatchThrowing(TypeTable& localTypeTable, const Type* otherType, const Type* expectedType, AST::Node* node);
 		bool DoesTypesMatch(TypeTable& localTypeTable, const Type* otherType, const Type* expectedType);
 
 		std::optional<CallableSignature> ResolveOverload(TypeTable& localTypeTable, std::vector<CallableSignature> overloads, DetailedCallableSignature calle, OptType expectedReturnType = {});
@@ -133,15 +133,17 @@ namespace O
 		//O::Type& InsertTuple(std::vector<O::Type> underlyingTypes, TypeTable& localTypeTable);
 		//O::Type& InsertFunction(std::vector<O::Type> argumentTypes, O::Type returnType);
 
-		void MakeError(const std::string& message, CompileTimeError::Severity severity = CompileTimeError::Error);
+		void MakeError(const std::string& message, AST::Node* node, CompileTimeError::Severity severity = CompileTimeError::Error);
 
-		void MakeErrorAlreadyDefined(const std::string symbolName, SymbolType symbolType);
-		void MakeErrorCallableAlreadyDefined(const std::string symbolName, SymbolType symbolType, CallableSignature signature, TypeTable& types);
+		void MakeError_OLD_(const std::string& message, CompileTimeError::Severity severity = CompileTimeError::Error);
+
+		void MakeErrorAlreadyDefined(const std::string symbolName, SymbolType symbolType, AST::Node* node);
+		void MakeErrorCallableAlreadyDefined(const std::string symbolName, SymbolType symbolType, CallableSignature signature, TypeTable& types, AST::Node* node);
 		void MakeErrorNotDefined(const std::string symbolName, O::AST::Node* node);
-		void MakeErrorInvalidCallableName(const std::string symbolName, SymbolType symbol);
+		void MakeErrorInvalidCallableName(const std::string symbolName, SymbolType symbol, AST::Node* node);
 		void MakeErrorNoReturn(const std::string& functionName, const std::string& returnType, AST::Node* node);
 
-		void MakeErrorInvalidDeclaredType(const std::string symbolName, const std::string declaredType, const std::string expetedType);
+		void MakeErrorInvalidDeclaredType(const std::string symbolName, const std::string declaredType, const std::string expectedType);
 		void MakeErrorTypeInvalidProperty(const std::string typeName, const std::string property);
 		void MakeErrorTypeCallableNotDefined(const std::string typeName, DetailedCallableSignature signature);
 		void MakeErrorTypeCallableNotDefined(const std::string typeName, const std::string name);

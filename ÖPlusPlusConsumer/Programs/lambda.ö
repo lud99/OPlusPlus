@@ -1,6 +1,7 @@
 //let f = (a: string) =>  { return a; };
 
-let f() {};
+let f(a: double) {};
+let f(a: int) {};
 let f(a : string) {};
 
-f(5);
+let a = "a" + "b";

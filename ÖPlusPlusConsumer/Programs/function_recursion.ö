@@ -1,10 +1,10 @@
-/*let factorial (n: double) {
+let factorial (n: double) {
 	if (n <= 1) {
 		return 1;
 	}
 
 	return n * factorial(n - 1);
-}*/
+}
 
 
-let abc (x: int) => x + 5.0;
+//let abc (x: int) => x + 5.0;
