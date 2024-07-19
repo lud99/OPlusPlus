@@ -458,7 +458,11 @@ namespace O::Lexer
 			if ((Current() == '\"' || Current() == '\'') && !isInString)
 			{
 				if (isInComment())
+				{
+					token.m_Value += std::string(1, Current());
 					continue;
+				}
+
 				isInString = true;
 				token.m_StartPosition = CalculateLineAndColumn();
 				token.m_Type = Token::StringLiteral;
@@ -467,7 +471,10 @@ namespace O::Lexer
 			else if ((Current() == '\"' || Current() == '\'') && isInString)
 			{
 				if (isInComment())
+				{
+					token.m_Value += std::string(1, Current());
 					continue;
+				}
 
 				isInString = false;
 				token = AddExistingToken(token);
