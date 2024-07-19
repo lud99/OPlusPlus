@@ -127,6 +127,16 @@ namespace O::AST
 	template<typename T>
 	inline T* Parser::Insert(T* node, Token startToken)
 	{
-		return Insert(node, { startToken.m_StartPosition, m_LastConsumedToken.m_StartPosition });
+		TokenPosition endPosition = m_LastConsumedToken.m_StartPosition;
+
+		// If a node has only a single token
+		if (startToken == m_LastConsumedToken)
+		{
+			endPosition = startToken.m_StartPosition;
+			endPosition.column += startToken.m_Value.length() - 1;
+			endPosition.index += startToken.m_Value.length() - 1;
+		}
+
+		return Insert(node, { startToken.m_StartPosition, endPosition });
 	}
 }

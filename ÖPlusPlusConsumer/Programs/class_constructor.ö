@@ -1,15 +1,18 @@
+let test : int = 5;
+
 class Animal {
-	let m_Name: string;
+	let m_Name : string;
 
-	let Animal(name: string, age: int) {
-	
+	let Animal(age: int, name : string)
+	{
+
 	}
+		
+	let meth(id: int)
+	{
 
-	let meth(id:int) {
-		return 0;
 	}
-}
-
+};
 //let bosse: Animal = Animal("Bosse", 3);
 //let age = Animal.m_Name; // fix
 // access(bosse, m)

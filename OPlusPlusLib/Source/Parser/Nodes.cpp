@@ -41,6 +41,11 @@ namespace O::AST::Nodes
 	{
 		if (!analyzer) return "";
 
+		if (node->m_Type == AST::NodeKind::Identifier)
+		{
+			int a = 5;
+		}
+
 		// TODO: Doesn't work when comments exists in the file, also its broken for classes right now
 		auto range = analyzer->GetTokenRangeForNode(node);
 

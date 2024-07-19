@@ -1,4 +1,4 @@
-#include "Lexer.h"
+ï»¿#include "Lexer.h"
 
 #include <string>
 #include <sstream>
@@ -52,7 +52,7 @@ namespace O::Lexer
 	bool IsValidVariableChar(unsigned char ch)
 	{
 		if (ch == ' ') return false;
-		if (isalpha(ch) || ch == '_' || ch == 'ö' || ch == 'å' || ch  == 'ä')
+		if (isalpha(ch) || ch == '_' || ch == 'Ã¶' || ch == 'Ã¥' || ch  == 'Ã¤')
 			return true;
 		return false;
 	}
@@ -443,8 +443,13 @@ namespace O::Lexer
 						token.m_Value += Current();
 				}
 				else
+				{
 					// Check if current token is a variable, because it might be 'null', 'string' or 'number' but be considered a variable still
 					token = AddExistingToken(ResolveTokenIdentifier(token));
+
+					if (createCommentTokens)
+						token = AddNewToken(Token::Whitespace, " ");
+				}
 
 				continue;
 			}
@@ -849,11 +854,11 @@ namespace O::Lexer
 			{ "om", Token::If },
 			{ "annars", Token::Else },
 			{ "medan", Token::While },
-			{ "för", Token::For },
+			{ "fÃ¶r", Token::For },
 			{ "loop", Token::Loop },
 			{ "closure", Token::Closure },
-			{ "fortsätt", Token::Continue },
-			{ "förstör", Token::Break },
+			{ "fortsÃ¤tt", Token::Continue },
+			{ "fÃ¶rstÃ¶r", Token::Break },
 			{ "global", Token::Global },
 			{ "sann", Token::BoolLiteral },
 			{ "falsk", Token::BoolLiteral },
@@ -876,12 +881,13 @@ namespace O::Lexer
 		};
 	}
 
-	std::string Lexer::ReconstructSourcecode(Tokens& tokens)
+	std::string Lexer::ReconstructSourcecode(Tokens& tokens, bool debug)
 	{
 		std::string sourceCode = "";
 
 		int previousColumnEnd = 0;
 		int previousLine = 0;
+		//int previousIndexEnd = 0;
 		for (auto& token : tokens)
 		{
 			int columnEnd = token.m_StartPosition.column + token.ToFormattedValueString().length();
@@ -895,15 +901,20 @@ namespace O::Lexer
 
 			int linesBetween = token.m_StartPosition.line - previousLine;
 
+			std::string tokenValue = token.ToFormattedValueString();
+
 			std::string space = "";
 			for (int i = 0; i < columnsBetween; i++)
-				space += " ";
+				space += debug ? "?" : " ";
+
+			if (token.m_Type == Token::Whitespace)
+				tokenValue = debug ? "?" : " ";
 
 			std::string newlines = "";
 			for (int i = 0; i < linesBetween; i++)
 				newlines += "\n";
 
-			sourceCode += newlines + space + token.ToFormattedValueString();
+			sourceCode += newlines + space + tokenValue;
 
 			previousColumnEnd = columnEnd;
 			previousLine = line;

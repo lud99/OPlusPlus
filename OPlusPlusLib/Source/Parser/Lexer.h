@@ -13,6 +13,11 @@ namespace O::Lexer
 		int line = 0;
 		int column = 0;
 		int index = 0;
+
+		inline bool operator== (TokenPosition & other)
+		{
+			return line == other.line && column == other.column && index == other.index;
+		}
 	};
 
 	struct TokenRange 
@@ -38,6 +43,7 @@ namespace O::Lexer
 			SingleLineComment,
 			MultiLineComment,
 			NewLine,
+			Whitespace,
 
 			Identifier,
 
@@ -108,6 +114,11 @@ namespace O::Lexer
 		EXPORT std::string TypeToString();
 		EXPORT std::string ToFormattedValueString();
 
+		inline bool operator==(Token& other)
+		{
+			return m_Type == other.m_Type && m_Value == other.m_Value && m_StartPosition == other.m_StartPosition;
+		}
+
 		inline bool IsOperator()
 		{
 			Token::Types ops[12] = {
@@ -168,7 +179,7 @@ namespace O::Lexer
 
 		EXPORT std::string CreateTokens(const std::string& source, bool createCommentTokens = false);
 
-		EXPORT static std::string ReconstructSourcecode(Tokens& tokens);
+		EXPORT static std::string ReconstructSourcecode(Tokens& tokens, bool debug = false);
 
 		unsigned char ConsumeNext();
 		unsigned char Next();

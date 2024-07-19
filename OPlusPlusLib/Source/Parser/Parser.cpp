@@ -406,9 +406,16 @@ namespace O::AST
 
 	VariableDeclaration* Parser::ParseVariableDeclaration(Token token, bool consumeEndToken, std::vector<Token::Types> endTokens)
 	{
-		Token letToken = token;
+		Token firstToken = token;
 
-		Identifier* name = ParseIdentifier(ConsumeToken());
+		// Sometimes the passed token can be 'let', so then the next token must be consumed
+		// It's like this to get the proper start position of the statement
+		if (token.m_Type == Token::Let)
+		{
+			token = ConsumeToken();
+		}
+
+		Identifier* name = ParseIdentifier(token);
 		if (HasError()) return nullptr;
 
 		Type* type = ParseTypeAnnotation();
@@ -458,7 +465,7 @@ namespace O::AST
 			}
 		}
 
-		return Insert(new VariableDeclaration(name, type, assignedValue), letToken);
+		return Insert(new VariableDeclaration(name, type, assignedValue), firstToken);
 	}
 
 	FunctionParameters* Parser::ParseFunctionParameters(Token token)

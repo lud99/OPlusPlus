@@ -10,7 +10,7 @@ int main(const char* args)
 
 	setlocale(LC_ALL, "");
 
-	std::ifstream file("Programs/fix_comments.ö");
+	std::ifstream file("Programs/class_constructor.ö");
 	if (!file.good())
 	{
 		std::cout << "Could not open file :(\n";
@@ -40,8 +40,7 @@ int main(const char* args)
 		return 0;
 	}
 
-	std::cout << O::Lexer::Lexer::ReconstructSourcecode(lexerWithComments.GetTokens()) << "\n\n";
-
+	std::cout << O::Lexer::Lexer::ReconstructSourcecode(lexerWithComments.GetTokens(), true) << "\n\n";
 
 	O::AST::Parser parser(lexer.GetTokens(), lexerWithComments.GetTokens());
 	AST::Node* tree = parser.ParseProgram();
