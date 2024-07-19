@@ -13,6 +13,7 @@ class Animal {
 
 	}
 };
+
 //let bosse: Animal = Animal("Bosse", 3);
 //let age = Animal.m_Name; // fix
 // access(bosse, m)

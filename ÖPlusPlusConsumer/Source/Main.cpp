@@ -10,7 +10,7 @@ int main(const char* args)
 
 	setlocale(LC_ALL, "");
 
-	std::ifstream file("Programs/class_constructor.ö");
+	std::ifstream file("Programs/lambda.ö");
 	if (!file.good())
 	{
 		std::cout << "Could not open file :(\n";

@@ -334,6 +334,9 @@ namespace O::AST::Nodes
 		}
 
 		std::cout << padding << "    (lines)\n";
+		if (m_Lines.empty())
+			std::cout << "\n";
+
 		for (auto& line : m_Lines)
 			line->Print(newPadding, localTable, analyzer);
 	}

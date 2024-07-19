@@ -33,7 +33,7 @@ namespace O
 		{
 			name << 
 		}*/
-			return TypeEntryTypeToString(kind) + "<" + Join(typeArguments, std::string(", "), [table](TypeId id) {
+			return TypeEntryTypeToString(kind) + "<" + Join(typeArguments, std::string(", "), [&table](TypeId id) {
 				return table->Lookup(id)->GetName(table); }) 
 			+ ">";
 	}

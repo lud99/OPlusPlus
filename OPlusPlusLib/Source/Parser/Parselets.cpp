@@ -89,14 +89,15 @@ namespace O::AST
 				if (i == 0)
 					return parser.MakeError("Expected expression in parentheses", peekToken);
 
+				// If it has the format '(...) =>' then it is a lambda
+				if (parser.MatchTokenNoConsume(i + 1, Token::RightArrow))
+					return parser.ParseFunctionParameters(token);
+
+				//if (parser.MatchTokenNoConsume(i + 1, Token::LeftCurlyBracket))
+					//return parser.MakeError("Expected '=>' after lamda parameters, block scopes are not supported in lambda");
+
 				if (isTuple)
 				{
-					// If it has the format '(...) =>' then it is a lambda
-					if (parser.MatchTokenNoConsume(i + 1, Token::RightArrow))
-						return parser.ParseFunctionParameters(token);
-
-					if (parser.MatchTokenNoConsume(i + 1, Token::LeftCurlyBracket))
-						return parser.MakeError("Expected '=>' after lamda parameters, block scopes are not supported in lambda");
 
 					// Otherwise a normal tuple
 					return parser.Insert(new TupleExpression(parser.ParseTupleLikeExpression(token)), token);

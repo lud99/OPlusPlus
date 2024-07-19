@@ -28,6 +28,7 @@ namespace O
     enum class CallableSymbolType
     {
         Normal,
+        Lambda,
         Constructor,
         Operator,
     };
